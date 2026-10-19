@@ -37,3 +37,13 @@ Los tableros alternan semillas, flores escondidas, precisión, luciérnagas y en
 Arte generado con la herramienta integrada de imágenes: `assets/coqui-boricua.webp` y `assets/decor-{fern,flowers,log,stones,fireflies,sapling}.webp`. Prompts: coquí 3D frontal con piel roja/blanca y frente azul con estrella blanca, fondo transparente; atlas transparente 3×2 de helecho, hibiscos, tronco con musgo, piedras, luciérnagas y arbolito, estilo de bosque tropical 3D cálido. Los PNG originales se optimizaron a WebP conservando alfa.
 
 Validación: pruebas Node de economía, compras, minijuegos, progreso y migración; validador de los 60 tableros y recursos. La revisión visual e interacción en un iPhone físico queda pendiente.
+
+## v1.4.1 · Canto, brincos y día/noche
+
+El canto se activa una vez al actualizar (después se conserva la elección de silenciarlo). AudioContext se reanuda desde el toque y las dos notas se programan después de la reanudación para evitar sonidos perdidos en Safari. Aumenta la claridad del saludo y evita duplicarlo al encontrar el último coquí. Es sonido sintetizado, no una grabación.
+
+Los coquíes exploran por defecto; solo descansan si el usuario lo elige. La secuencia del bosque hace un brinco visible al abrir y se repite cada 30 segundos, sin animar las piezas del tablero. Se respetan las preferencias de reducir movimiento.
+
+Al abrir El Yunque se elige al azar día o noche, sin cambiar la etapa, coquíes ni decoraciones. Cambiar una decoración o posición conserva la hora de esa visita. Arte diurno en `assets/forest-{0,1,2,3}-day.webp`, generado con la herramienta integrada editando el atlas nocturno: mismas cuatro etapas, composición y río, con cielo azul, nubes suaves y sol de mañana, sin luna ni estrellas.
+
+Pruebas adicionales con audio simulado: reanudar antes de programar, sonido al encontrar, silencio en errores/X, recuperación de audio interrumpido/cerrado y silencio persistente. También se verifican las cuatro etapas diurnas/nocturnas y el descanso explícito. La prueba auditiva y visual en un iPhone físico queda pendiente.

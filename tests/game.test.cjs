@@ -1,15 +1,15 @@
 const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict');
 class E{
- constructor(id=''){this.id=id;this.children=[];this.dataset={};this.style={setProperty(){}};this.attrs={};this.classList={add(){},remove(){},toggle(){}};this.open=false;this.textContent='';this.hidden=false}
+ constructor(id=''){this.id=id;this.children=[];this.dataset={};this.style={props:{},setProperty(k,v){this.props[k]=v}};this.attrs={};this.classList={add(){},remove(){},toggle(){}};this.open=false;this.textContent='';this.hidden=false}
  get firstElementChild(){return this.children[0]||null}
  append(...xs){for(const x of xs)this.children.push(...(x.fragment?x.children:[x]))}
  replaceChildren(...xs){this.children=[];this.append(...xs)}
  setAttribute(k,v){this.attrs[k]=v}addEventListener(){}querySelector(){return new E()}showModal(){this.open=true}close(){this.open=false}focus(){}
 }
-function boot(saved){
+function boot(saved,options={}){
  const els=new Map(),themes=['leaf','night','garden'].map(t=>{const e=new E();e.dataset.pick=t;return e});
  const storage=saved?{'coquidoku-v1':JSON.stringify(saved)}:{};
- const ctx={console,Intl,Date,JSON,Math,Array,Number,String,Error,setTimeout:()=>1,clearTimeout(){},location:{reload(){}},navigator:{},localStorage:{getItem:k=>storage[k]||null,setItem:(k,v)=>storage[k]=v},fetch:async()=>({ok:true,json:async()=>JSON.parse(fs.readFileSync('puzzles.json','utf8'))}),document:{body:new E(),visibilityState:'visible',getElementById:id=>{if(!els.has(id))els.set(id,new E(id));return els.get(id)},createElement:()=>new E(),createTextNode:text=>({textContent:text}),createDocumentFragment:()=>{const e=new E();e.fragment=true;return e},querySelector:()=>new E(),querySelectorAll:s=>s==='[data-pick]'?themes:[],addEventListener(){}},window:{addEventListener(){}}};
+ const ctx={console,Intl,Date,JSON,Math,Array,Number,String,Error,setTimeout:()=>1,clearTimeout(){},location:{reload(){}},navigator:{},localStorage:{getItem:k=>storage[k]||null,setItem:(k,v)=>storage[k]=v},fetch:async()=>({ok:true,json:async()=>JSON.parse(fs.readFileSync('puzzles.json','utf8'))}),document:{body:new E(),visibilityState:'visible',getElementById:id=>{if(!els.has(id))els.set(id,new E(id));return els.get(id)},createElement:()=>new E(),createTextNode:text=>({textContent:text}),createDocumentFragment:()=>{const e=new E();e.fragment=true;return e},querySelector:()=>new E(),querySelectorAll:s=>s==='[data-pick]'?themes:[],addEventListener(){}},window:{addEventListener(){},...(options.window||{})}};
  vm.createContext(ctx);vm.runInContext(fs.readFileSync('app.js','utf8'),ctx);
  return {ctx,els,storage,run:s=>vm.runInContext(s,ctx)};
 }
@@ -116,6 +116,34 @@ const settle=()=>new Promise(r=>setImmediate(r));
   assert.equal(fr('data.points'),balance+20);
  }
  assert.equal(fr('data.bonusClaims.length'),6);assert.equal(fr('data.completed.length'),6);
+ // Sound starts enabled, resumes suspended/interrupted audio before scheduling,
+ // stays silent for marks/mistakes, and preserves a manual mute after migration.
+ const audioEvents=[];let audioContexts=0;
+ class FakeAudio {
+  constructor(){audioContexts++;this.state='suspended';this.currentTime=0;this.destination={}}
+  async resume(){audioEvents.push('resume');await Promise.resolve();this.state='running';this.currentTime=20}
+  createOscillator(){return {type:'',frequency:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},start:t=>audioEvents.push(t),stop(){}}}
+  createGain(){return {gain:{setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){}}}
+ }
+ const audible=boot(undefined,{window:{AudioContext:FakeAudio}});await settle();const ar=audible.run;
+ assert.equal(ar('data.sound'),true);ar('play(puzzle().solution[0])');await settle();
+ assert.equal(audioEvents[0],'resume');assert.equal(audioEvents.filter(x=>typeof x==='number').length,2);assert.ok(audioEvents.filter(x=>typeof x==='number').every(t=>t>=20));
+ ar("mode='mark';play(8)");await settle();assert.equal(audioEvents.filter(x=>typeof x==='number').length,2);
+ ar("mode='coqui';play((puzzle().solution[1]+1)%8+8)");await settle();assert.equal(audioEvents.filter(x=>typeof x==='number').length,2);
+ ar("lastChirpAt=-Infinity;audio.state='interrupted'");await ar('chirp()');assert.equal(audioEvents.filter(x=>typeof x==='number').length,4);
+ ar('data.sound=false;lastChirpAt=-Infinity;save()');await ar('chirp()');assert.equal(audioEvents.filter(x=>typeof x==='number').length,4);
+ const muted=boot(JSON.parse(audible.storage['coquidoku-v1']));await settle();assert.equal(muted.run('data.sound'),false);
+ ar("audio.state='closed';lastChirpAt=-Infinity");await ar('chirp(false,true)');assert.equal(audioContexts,2);assert.equal(audioEvents.filter(x=>typeof x==='number').length,6);
+ const soundUpgrade=boot({sound:false,rulesV3:true});await settle();assert.equal(soundUpgrade.run('data.sound'),true);
+ const wood=boot();await settle();const wr=wood.run;
+ wr("globalThis.originalRandom=Math.random;Math.random=()=>.1;openForest()");assert.equal(wr('forestTime'),'day');
+ for(const n of [0,10,25,50]){wr(`data.completed=Array.from({length:${n}},(_,i)=>i);renderForest()`);assert.ok(wr('forestSceneSource()').endsWith('-day.webp'))}
+ wr('renderForest()');assert.equal(wr('forestTime'),'day');
+ wr('Math.random=()=>.9;openForest();Math.random=originalRandom');assert.equal(wr('forestTime'),'night');assert.ok(!wr('forestSceneSource()').endsWith('-day.webp'));
+ wr("data.completed=[];data.earned=['sol'];data.behaviors={};renderForest()");assert.ok(wood.els.get('forestResidents').children[0].className.includes('explore'));
+ wr("data.behaviors.sol='rest';renderForest()");assert.ok(wood.els.get('forestResidents').children[0].className.includes('rest'));
+ const css=fs.readFileSync('styles.css','utf8');assert.ok(css.includes('animation:forest-hop 30s'));assert.ok(!css.includes('animation:forest-hop 16s'));
+ console.log('PASS: audible discovery resumes audio before two-note call; marks/errors silent; interrupted/closed context recovery; manual mute persists; day/night picked once per visit across all growth stages; default exploring and explicit resting; 30-second forest-only hop cycle.');
  console.log('PASS: points exclusively from all three minigames; no duplicate payouts; confirmed purchases with exact balance; no purchase of finale; 60 distinct normal levels for Boricua; all unlocked residents; decor, movement and positions persist; no locked forest previews; legacy friends retained.');
  console.log('PASS: seven collectible coquis and all unlock thresholds; locked selection blocked; stable sprite replacement; progress restored; per-win plants; four forest stages; unique normal/daily rewards; existing progress migration.');
  const base=JSON.parse(fs.readFileSync('puzzles.json'))[0];
