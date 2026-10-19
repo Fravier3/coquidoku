@@ -2,4 +2,16 @@ const CACHE='coquidoku-v1.4.2';
 const FILES=['./','index.html','styles.css?v=7','app.js?v=7','puzzles.json?v=7','manifest.webmanifest','assets/leaf.webp','assets/night.webp','assets/garden.webp','assets/coqui.webp','assets/coqui-call.mp3','assets/coqui-menta.webp','assets/coqui-brisa.webp','assets/coqui-flor.webp','assets/coqui-luna.webp','assets/coqui-aurora.webp','assets/coqui-boricua.webp','assets/decor-fern.webp','assets/decor-flowers.webp','assets/decor-log.webp','assets/decor-stones.webp','assets/decor-fireflies.webp','assets/decor-sapling.webp','assets/forest-0.webp','assets/forest-1.webp','assets/forest-2.webp','assets/forest-3.webp','assets/forest-0-day.webp','assets/forest-1-day.webp','assets/forest-2-day.webp','assets/forest-3-day.webp','assets/settings-gear.webp','assets/icon-192.png','assets/icon-512.png','assets/icon-180.png','assets/icon-maskable.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('coquidoku-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
-self.addEventListener('fetch',e=>{if(e.request.method!=='GET'||new URL(e.request.url).origin!==self.location.origin)return;e.respondWith(fetch(e.request).then(res=>{if(res.ok){const copy=res.clone();caches.open(CACHE).then(c=>c.put(e.request,copy))}return res}).catch(async()=>{const hit=await caches.match(e.request);if(hit)return hit;if(e.request.mode==='navigate')return caches.match('index.html');return Response.error()}))});
+// Safari probes media with byte ranges. Serve valid 206 responses offline too.
+async function serveCoquiAudio(request){
+ const cached=await caches.match(request,{ignoreSearch:true});if(!cached)return fetch(request);
+ const range=request.headers.get('range');if(!range)return cached;
+ const bytes=await cached.arrayBuffer(),size=bytes.byteLength,match=/^bytes=(\d*)-(\d*)$/.exec(range);
+ const invalid=()=>new Response(null,{status:416,headers:{'Content-Range':`bytes */${size}`}});
+ if(!match||(!match[1]&&!match[2]))return invalid();
+ const first=match[1]?Number(match[1]):Math.max(0,size-Number(match[2]));
+ const last=match[1]?(match[2]?Math.min(size-1,Number(match[2])):size-1):size-1;
+ if(!Number.isSafeInteger(first)||!Number.isSafeInteger(last)||first<0||first>last||first>=size)return invalid();
+ return new Response(bytes.slice(first,last+1),{status:206,headers:{'Content-Type':'audio/mpeg','Accept-Ranges':'bytes','Content-Range':`bytes ${first}-${last}/${size}`,'Content-Length':String(last-first+1)}});
+}
+self.addEventListener('fetch',e=>{if(e.request.method!=='GET'||new URL(e.request.url).origin!==self.location.origin)return;if(new URL(e.request.url).pathname.endsWith('/assets/coqui-call.mp3')){e.respondWith(serveCoquiAudio(e.request));return}e.respondWith(fetch(e.request).then(res=>{if(res.ok){const copy=res.clone();caches.open(CACHE).then(c=>c.put(e.request,copy))}return res}).catch(async()=>{const hit=await caches.match(e.request);if(hit)return hit;if(e.request.mode==='navigate')return caches.match('index.html');return Response.error()}))});

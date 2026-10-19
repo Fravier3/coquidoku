@@ -24,6 +24,7 @@ jobs:
           node --check app.js
           node --check sw.js
           node tests/game.test.cjs
+          node tests/audio.test.cjs
           python3 tests/validate.py
       - name: Preparar archivos públicos
         run: |

@@ -57,3 +57,5 @@ Se sustituye Web Audio por un elemento HTML audio precargado con `assets/coqui-c
 Audio: fragmento 4.0–6.4 segundos de «Coquíes1.ogg», ValWey, Hatillo (Puerto Rico), 27 mayo 2012. Original: https://commons.wikimedia.org/wiki/File:Coqu%C3%ADes1.ogg . Audio original y adaptación CC BY-SA 3.0: https://creativecommons.org/licenses/by-sa/3.0/ . Cambios: recorte, mono MP3, filtrado, normalización y fundidos. Créditos también en `assets/audio-credits.txt` y Preferencias. Esta licencia se refiere al audio adaptado.
 
 Verificación: decodificación completa del MP3 con ffmpeg, duración y volumen no nulo; pruebas del flujo de reproducción nativa, silencio, botones y mensajes de error; ausencia de animación del bosque y selector. No se afirma una escucha comprobada en un iPhone físico.
+
+El service worker sirve rangos de bytes de audio (respuestas 206 con Content-Range), incluidos los sondeos de Safari y la reproducción sin conexión. Pruebas con el MP3 real comprueban rangos iniciales, abiertos, finales e inválidos.
