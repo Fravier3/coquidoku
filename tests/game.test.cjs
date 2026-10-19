@@ -1,0 +1,16 @@
+const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict');
+class E{constructor(id=''){this.id=id;this.children=[];this.dataset={};this.style={setProperty(){}};this.attrs={};this.classList={add(){},remove(){},toggle(){}};this.open=false;this.textContent='';this.hidden=false}append(...xs){for(const x of xs)this.children.push(...(x.fragment?x.children:[x]))}replaceChildren(...xs){this.children=[];this.append(...xs)}setAttribute(k,v){this.attrs[k]=v}addEventListener(){}querySelector(){return new E()}showModal(){this.open=true}close(){this.open=false}focus(){}}
+const els=new Map();const themes=['leaf','night','garden'].map(t=>{const e=new E();e.dataset.pick=t;return e});const storage={};
+const ctx={console,Intl,Date,JSON,Math,Array,Number,String,Error,setTimeout:()=>1,clearTimeout(){},location:{reload(){}},navigator:{},localStorage:{getItem:k=>storage[k]||null,setItem:(k,v)=>storage[k]=v},fetch:async()=>({ok:true,json:async()=>JSON.parse(fs.readFileSync('puzzles.json','utf8'))}),document:{body:new E(),visibilityState:'visible',getElementById:id=>{if(!els.has(id))els.set(id,new E(id));return els.get(id)},createElement:()=>new E(),createTextNode:text=>({textContent:text}),createDocumentFragment:()=>{const e=new E();e.fragment=true;return e},querySelector:()=>new E(),querySelectorAll:s=>s==='[data-pick]'?themes:[],addEventListener(){}},window:{addEventListener(){}}};
+vm.createContext(ctx);vm.runInContext(fs.readFileSync('app.js','utf8'),ctx);
+const run=s=>vm.runInContext(s,ctx);
+(async()=>{await new Promise(r=>setImmediate(r));assert.equal(run('game.cells.length'),64);assert.equal(els.get('board').children.length,64);assert.equal(run('game.cells.filter(x=>x===2).length'),2);assert.equal(run('game.lives'),3);
+run("data.difficulty='hard';start(0)");assert.equal(run('game.fixed.length'),0);
+const correct=run('puzzle().solution[0]');run(`play(${correct})`);assert.equal(run('game.cells.filter(x=>x===2).length'),1);els.get('undoBtn').onclick();assert.equal(run('game.cells.filter(x=>x===2).length'),0);
+const wrong=(correct+1)%8;run(`play(${wrong})`);assert.equal(run('game.lives'),2);assert.equal(run('game.cells.filter(x=>x===2).length'),0);
+run("mode='mark'");run(`play(${wrong})`);assert.equal(run(`game.cells[${wrong}]`),1);run(`play(${wrong})`);assert.equal(run(`game.cells[${wrong}]`),0);
+run('data.relax=true');run(`play(${wrong})`);assert.equal(run('game.lives'),2);
+run("mode='coqui'");for(let i=0;i<8;i++)els.get('hintBtn').onclick();assert.equal(run('game.won'),true);assert.equal(run('game.cells.filter(x=>x===2).length'),8);assert.equal(run('data.completed.includes(0)'),true);assert.equal(els.get('result').open,true);
+run('start(1)');run("data.theme='night';theme();save()");assert.equal(ctx.document.body.dataset.theme,'night');assert.equal(JSON.parse(storage['coquidoku-v1']).theme,'night');assert.equal(run('valid(data.game)'),true);assert.equal(run('valid({...game,cells:[0]})'),false);
+run('game.lives=0;data.relax=false;lost()');assert.equal(els.get('nextBtn').textContent,'Continuar sin límite');els.get('nextBtn').onclick();assert.equal(run('data.relax'),true);
+console.log('PASS: 64 cells, clues, placement, mistakes, marks, undo, hints, victory, themes, persistence, validation, relaxed recovery.');})().catch(e=>{console.error(e);process.exitCode=1});
