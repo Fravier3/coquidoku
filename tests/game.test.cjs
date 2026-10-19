@@ -5,7 +5,7 @@ class E{
  append(...xs){for(const x of xs)this.children.push(...(x.fragment?x.children:[x]))}
  replaceChildren(...xs){this.children=[];this.append(...xs)}
  play(){this.playCount=(this.playCount||0)+1;return Promise.resolve()}pause(){this.pauseCount=(this.pauseCount||0)+1}
- setAttribute(k,v){this.attrs[k]=v}addEventListener(){}querySelector(){return new E()}showModal(){this.open=true}close(){this.open=false}focus(){}
+ setAttribute(k,v){this.attrs[k]=v}addEventListener(){}querySelector(){return new E()}showModal(){this.open=true}close(){this.open=false}focus(){this.focused=true}
 }
 function boot(saved,options={}){
  const els=new Map(),themes=['leaf','night','garden'].map(t=>{const e=new E();e.dataset.pick=t;return e});
@@ -66,7 +66,7 @@ const settle=()=>new Promise(r=>setImmediate(r));
  run("start(0);for(let r=0;r<8;r++)game.cells[r*8+puzzle().solution[r]]=2;finish()");assert.equal(run('victories()'),1);
  for(let t=0;t<2;t++){run("start(0,true,9001);for(let r=0;r<8;r++)game.cells[r*8+puzzle().solution[r]]=2;finish()");assert.equal(run('victories()'),2)}
  run("data.completed=[0,1,2,3];data.dailyWins=[];start(4);for(let r=0;r<8;r++)game.cells[r*8+puzzle().solution[r]]=2;finish()");
- assert.ok(els.get('rewardText').textContent.includes('Menta'));assert.equal(run('victories()'),5);
+ assert.ok(els.get('rewardText').textContent.includes('Pistoco'));assert.equal(run('victories()'),5);
  const legacyProgress=boot({...JSON.parse(storage['coquidoku-v1']),completed:[0,0,1,-1,99,'2'],dailyWins:[42,42,-1],character:'aurora'});await settle();assert.equal(legacyProgress.run('victories()'),3);assert.equal(legacyProgress.run('data.character'),null);
  // Economy: points only from a completed inter-level minigame; never from a level.
  const economy=boot();await settle();const er=economy.run,ee=economy.els;
@@ -172,6 +172,55 @@ const settle=()=>new Promise(r=>setImmediate(r));
  for(let seed=1;seed<=120;seed++){
   const round=fr(`buildBonus('round:${seed}')`);assert.equal(round.countItems.filter(x=>x==='fly').length,round.answer);assert.equal(round.options.filter(x=>x===round.answer).length,1);assert.equal(new Set(round.options).size,3);assert.equal(round.sequence.length,4);assert.ok(round.sequence.slice(1).every((v,i)=>v!==round.sequence[i]));assert.deepEqual([...round.cards].sort(),[0,0,1,1,2,2]);
  }
+ // Check every normal progression boundary, including a replay and the finale.
+ const audit=boot();await settle();const qr=audit.run,qe=audit.els;
+ const mapNodes=()=>qe.get('adventureMap').children.flatMap(c=>c.children.filter(e=>e.dataset.level!==undefined));
+ for(let completed=0;completed<=60;completed++){
+  qr(`data.completed=Array.from({length:${completed}},(_,i)=>i);start(${Math.max(0,completed-1)});game.won=false;renderMap()`);
+  const all=mapNodes(),current=all.filter(b=>b.dataset.state==='current');assert.equal(current.length,completed===60?0:1);
+  if(completed<60)assert.equal(current[0].dataset.level,completed);
+  for(const node of all){const level=node.dataset.level,state=node.dataset.state;
+   if(level<completed)assert.equal(state,'done');
+   if(level>completed)assert.equal(state,'locked');
+   assert.equal(node.className.split(' ').length,2);assert.equal(node.disabled,state==='locked');
+   assert.equal(node.children.filter(c=>c.className==='step-lock').length,state==='locked'?1:0);
+   assert.equal(node.children.filter(c=>c.textContent==='Estás aquí').length,state==='current'?1:0);
+  }
+ }
+ qr('data.completed=[0,1,2,3,4,5];start(2);renderMap()');assert.equal(qr('mapLevelState(5)'),'done');assert.equal(qr('mapLevelState(6)'),'current');assert.equal(qr('mapLevelState(7)'),'locked');
+ for(const width of [320,375,430,500]){
+  const rectangles=Array.from({length:10},(_,i)=>{const p=qr(`mapPosition(${i})`);return {left:p.x/400*width-43,right:p.x/400*width+43+26,top:p.y-34,bottom:p.y+34+24}});
+  assert.ok(rectangles.every(r=>r.left>=0&&r.right<=width));
+  for(let i=0;i<10;i++)for(let j=i+1;j<10;j++){const a=rectangles[i],b=rectangles[j];assert.ok(a.right<=b.left||b.right<=a.left||a.bottom<=b.top||b.bottom<=a.top)}
+ }
+ qr('openForest()');assert.equal(qe.get('forestBack').focused,true);assert.ok(!fs.readFileSync('index.html','utf8').includes('forest-atmosphere'));assert.ok(fs.readFileSync('index.html','utf8').includes('autofocus id="forestBack"'));
+ assert.deepEqual(Array.from(qr('COQUIS.slice(0,6).map(c=>c.name)')),['Coquí Dorado','Pistoco','Amapola','Sila','Betances','Rita']);
+ // A payout cannot be requested before any of the three objectives is solved.
+ for(const type of ['pairs','song','count']){
+  qr(`data.bonusCounter++;data.bonusPending=missionKey();openBonus();bonusRound.type='${type}'`);
+  const balance=qr('data.points');assert.equal(qr('completeBonus()'),false);assert.equal(qr('data.points'),balance);
+  if(type==='song'){qr("bonusRound.phase='answer';bonusPick((bonusRound.sequence[0]+1)%3)");assert.equal(qr('bonusRound.input.length'),0)}
+  if(type==='count'){qr('bonusPick(bonusRound.answer+100)');assert.equal(qr('bonusRound.submittedAnswer'),undefined)}
+ }
+ // Complete every challenge type over 120 generated rounds, including wrong inputs.
+ const mini=boot();await settle();const mr=mini.run;
+ for(let n=1;n<=120;n++){
+  mr(`data.bonusPending='round:${10000+n}';bonusRound=buildBonus(data.bonusPending);renderBonus()`);const before=mr('data.points'),type=mr('bonusRound.type');
+  assert.equal(mr('completeBonus()'),false);
+  if(type==='pairs'){
+   mr('bonusPick(0);bonusPick(bonusRound.cards.findIndex((v,i)=>i!==0&&v!==bonusRound.cards[0]))');assert.equal(mr('data.points'),before);assert.equal(mr('bonusRound.matched.length'),0);
+   mr('bonusRound.revealed=[];for(let value=0;value<3;value++)for(let i=0;i<6;i++)if(bonusRound.cards[i]===value)bonusPick(i)');
+  }else if(type==='song'){
+   mr("bonusRound.phase='answer';bonusPick((bonusRound.sequence[0]+1)%3)");assert.equal(mr('data.points'),before);
+   const sequence=Array.from(mr('bonusRound.sequence'));for(let i=0;i<4;i++){mr(`bonusPick(${sequence[i]})`);assert.equal(mr('data.points'),before+(i===3?20:0))}
+  }else{
+   for(const wrong of Array.from(mr('bonusRound.options.filter(n=>n!==bonusRound.answer)'))){mr(`bonusPick(${wrong})`);assert.equal(mr('data.points'),before)}
+   mr('bonusPick(bonusRound.answer)');
+  }
+  assert.equal(mr('data.points'),before+20);assert.equal(mr('completeBonus()'),false);assert.equal(mr('bonusPick(0)'),false);
+ }
+ console.log('PASS: 120 full minigame rounds, wrong answers and all intermediate memory steps; payout only at solved objective; replayed click and duplicate completion rejected.');
+ console.log('PASS: all 61 progression states; completed green/current yellow/locked gray exclusive; exactly one current and caption; locks only beside locked steps; no layout collisions at 320–500px; replay cannot recolor completed level; finale fully green; initial focus stays off coquis; updated names; incomplete objectives cannot award points.');
  console.log('PASS: insects retained until contact and then all eaten; no preselected feeding or character; reversed ascending route; only reached chapters rendered; no stars/Continue/manual decor; 120 generated challenges have valid counts, unique correct option and meaningful memory sequences.');
  console.log('PASS: real frame-clock hop at 800ms and exactly 15 seconds later; 36px apex; rest/motion pause; loop cleanup; feeding attracts without points/seeds; 10 reached-region stops; future level protection; legacy progression and in-progress game preserved; character close leads to map; exact user audio only.');
  console.log('PASS: real audio element plays directly from discovery and resident button; mute respected in game; playback session selected when supported; visible playback failures; no Web Audio dependency; native media playback and day/night preserved.');

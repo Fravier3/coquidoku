@@ -87,3 +87,15 @@ Minijuegos: parejas reales de imágenes (3 parejas), memoria de una secuencia ex
 Arte generado con la herramienta integrada: atlas de ocho fondos verticales 4×2, etapas diurnas arriba/nocturnas abajo, mismo terreno y vegetación creciente; insecto 3D con alfa; referencia visual del mapa con piedras elevadas, 1 abajo y 10 arriba, sin estrellas y nivel actual dorado. La referencia es conceptual, no una captura. Verificación adicional de 120 rondas para conteos/alternativas, llegada y consumo de insectos, 15 segundos, regiones alcanzadas y ausencia de preselección. Pendiente percepción visual y fluidez en un iPhone físico.
 
 Escalones: `assets/step-done.webp`, `assets/step-current.webp`, `assets/step-locked.webp`, generados como plataformas de piedra 3D con caras laterales, musgo/tono dorado/pizarra. Sin números en el bitmap: números y candados son UI real.
+
+## v1.7.0 · Estados del mapa y revisión de minijuegos
+
+El mapa usa estados exclusivos: completado verde, próximo nivel pendiente amarillo (solo uno), bloqueado gris con un candado lateral sin fondo. Repetir un nivel completado no lo vuelve amarillo. Al completar los 60 niveles todos quedan verdes. Los saltos verticales entre nodos aumentan a 118 px; el candado queda anclado a la derecha del propio escalón, separado de números, caminos y otros escalones. Las reglas nuevas usan un componente CSS aislado de los estilos anteriores.
+
+El Yunque da el foco al botón Volver al abrirse, evitando que el navegador dibuje un anillo de foco en el primer coquí. Sin preselección inicial. Se retiran los insectos decorativos y las partículas: quedan únicamente las mosquitas que el usuario deja como alimento. Se reemplazan los ocho fondos por retratos individuales de mayor resolución, sin dividir atlas. En pantallas anchas el hábitat principal conserva su encuadre vertical y los laterales son un fondo ambiental, sin estirar el terreno interactivo.
+
+Nombres visibles actualizados conservando IDs, compras y progreso: Sol → Coquí Dorado; Menta → Pistoco; Brisa → Amapola. Flor → Sila; Luna → Betances; Aurora → Rita. Boricua conserva su nombre y el orden se mantiene.
+
+Cada minijuego valida su objetivo antes de permitir cualquier recompensa. Parejas muestra turnos y explica los fallos; memoria tiene indicadores de los cuatro pasos; conteo confirma la cantidad acertada. Pruebas: 120 rondas completas con entradas erróneas, pasos parciales y doble finalización; las 61 fronteras de progreso; repetir niveles completados; 320/375/430/500 px de ancho con cajas de escalones, candados y leyenda que no se intersecan; nombres y foco inicial. No equivalen a una revisión física en iPhone.
+
+Arte: reemplazos individuales de `assets/yunque-{0,1,2,3}-{day,night}.webp`, generados con la herramienta integrada; prompt de retrato de pantalla completa 9:19.5 con claro abierto y cascada de El Yunque, vegetación creciente, versión diurna/nocturna, sin insectos ni partículas ni interfaz. Se mantienen resolución nativa y proporciones, optimizando a WebP.
