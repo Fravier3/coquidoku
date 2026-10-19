@@ -35,3 +35,14 @@ for ref in re.findall(r'(?:src|href)="([^"]+)"',html):
 manifest=json.loads((root/'manifest.webmanifest').read_text())
 for icon in manifest['icons']:assert (root/icon['src']).is_file()
 print('PASS: 60 unique 8×8 puzzles; one solution each; connected regions; valid assets and manifest.')
+
+# Dynamic JS sprites and pre-cached resources must also exist and be non-empty.
+for ref in re.findall(r"'([^']+)'",(root/'sw.js').read_text().split('const FILES=')[1].split(';')[0]):
+ if ref=='./':continue
+ path=root/ref.split('?')[0]
+ assert path.is_file() and path.stat().st_size>0,ref
+ids=re.findall(r'\bid="([^"]+)"',html)
+assert len(ids)==len(set(ids)), 'Duplicate HTML ids'
+for id in re.findall(r"\$\('([^']+)'\)",(root/'app.js').read_text()):
+ assert id in ids,id
+print('PASS: all dynamic/precache resources nonempty; unique HTML ids; JS controls exist.')
