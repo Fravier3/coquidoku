@@ -6,7 +6,7 @@ Juego de lógica original con coquíes de Puerto Rico. Tableros de 8 × 8, 60 ni
 
 https://fravier3.github.io/coquidoku/
 
-Un coquí por fila, columna y región. No pueden tocarse, ni en diagonal. Cambia entre colocar coquíes y marcar X con el botón central. La ayuda inicial y el modo relajado se ajustan en las preferencias y el selector de niveles. Las pistas colocan un coquí correcto y explican sus descartes; no son un solver didáctico paso a paso.
+Un coquí por fila, columna y región. No pueden tocarse, ni en diagonal. Cambia entre colocar coquíes y marcar X con el botón central. Las partidas empiezan vacías, sin coquíes ni X automáticas. El marcado automático se puede activar en Preferencias. Cada partida normal selecciona un tablero base y una de ocho rotaciones/reflejos, excluyendo la base y la solución de la partida anterior. El reto diario es estable durante el día y una partida guardada conserva su tablero al reabrirla. El modo relajado se ajusta en Preferencias. Las pistas colocan un coquí correcto y explican sus descartes; no son un solver didáctico paso a paso.
 
 PWA estática, sin cuentas, backend, anuncios ni dependencias externas. Guarda la partida y preferencias en localStorage. Sonidos sintéticos opcionales inspirados en el canto del coquí. Para instalar en iPhone: Safari → Compartir → Añadir a pantalla de inicio. El navegador controla el soporte de instalación y audio.
 

@@ -1,5 +1,5 @@
-const CACHE='coquidoku-v1.0.0';
-const FILES=['./','index.html','styles.css?v=1','app.js?v=1','puzzles.json?v=1','manifest.webmanifest','assets/leaf.webp','assets/night.webp','assets/garden.webp','assets/coqui.webp','assets/icon-192.png','assets/icon-512.png','assets/icon-180.png','assets/icon-maskable.png'];
+const CACHE='coquidoku-v1.1.0';
+const FILES=['./','index.html','styles.css?v=2','app.js?v=2','puzzles.json?v=2','manifest.webmanifest','assets/leaf.webp','assets/night.webp','assets/garden.webp','assets/coqui.webp','assets/icon-192.png','assets/icon-512.png','assets/icon-180.png','assets/icon-maskable.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('coquidoku-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',e=>{if(e.request.method!=='GET'||new URL(e.request.url).origin!==self.location.origin)return;e.respondWith(fetch(e.request).then(res=>{if(res.ok){const copy=res.clone();caches.open(CACHE).then(c=>c.put(e.request,copy))}return res}).catch(async()=>{const hit=await caches.match(e.request);if(hit)return hit;if(e.request.mode==='navigate')return caches.match('index.html');return Response.error()}))});
