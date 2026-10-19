@@ -45,6 +45,28 @@ const settle=()=>new Promise(r=>setImmediate(r));
  for(let v=0;v<8;v++){run(`start(0,true,${v*64})`);const p=run('puzzle()');assert.equal(new Set(p.solution).size,8);assert.equal(new Set(p.solution.map((c,r)=>p.regions[r*8+c])).size,8);for(let r=1;r<8;r++)assert.ok(Math.abs(p.solution[r]-p.solution[r-1])>1)}
  let prev='';for(let i=0;i<100;i++){run('start(0)');const sol=run("puzzle().solution.join(',')");assert.notEqual(sol,prev);assert.equal(run('game.cells.every(x=>x===0)'),true);prev=sol}
  run('start(0,true,12345)');const daily=run('JSON.stringify(puzzle())');run('start(0,true,12345)');assert.equal(run('JSON.stringify(puzzle())'),daily);
+ // Cosmetic progression must not alter the current puzzle or grant duplicate rewards.
+ run("data.completed=[];data.dailyWins=[];data.character='sol';start(0)");
+ assert.equal(run("chooseCoqui('menta')"),false);assert.equal(run('data.character'),'sol');
+ for(const [n,unlocked,stage] of [[0,1,0],[5,2,0],[10,3,10],[20,4,10],[25,4,25],[35,5,25],[50,6,50],[60,6,50]]){
+  run(`data.completed=Array.from({length:${n}},(_,i)=>i);renderForest();renderCollection()`);
+  assert.equal(run('progression().unlocked.length'),unlocked);assert.equal(run('forestStage().at'),stage);
+  assert.equal(els.get('forestPlants').children.length,n);assert.equal(els.get('coquiCards').children.length,6);
+ }
+ run("data.completed=Array.from({length:5},(_,i)=>i);data.dailyWins=[];start(0);play(puzzle().solution[0])");
+ const boardSnapshot=run('JSON.stringify(game)'),coquiCell=els.get('board').children[run('puzzle().solution[0]')],oldImage=coquiCell.firstElementChild;
+ assert.equal(run("chooseCoqui('menta')"),true);assert.equal(run('JSON.stringify(game)'),boardSnapshot);
+ assert.equal(coquiCell.firstElementChild,oldImage);assert.equal(oldImage.src,'assets/coqui-menta.webp');
+ assert.equal(run("chooseCoqui('aurora')"),false);assert.equal(run('data.character'),'menta');
+ const careerRestored=boot(JSON.parse(storage['coquidoku-v1']));await settle();assert.equal(careerRestored.run('data.character'),'menta');assert.equal(careerRestored.run('victories()'),5);
+ run("data.completed=[];data.dailyWins=[];start(0);for(let r=0;r<8;r++)game.cells[r*8+puzzle().solution[r]]=2;finish()");
+ assert.equal(run('victories()'),1);run('finish()');assert.equal(run('victories()'),1);
+ run("start(0);for(let r=0;r<8;r++)game.cells[r*8+puzzle().solution[r]]=2;finish()");assert.equal(run('victories()'),1);
+ for(let t=0;t<2;t++){run("start(0,true,9001);for(let r=0;r<8;r++)game.cells[r*8+puzzle().solution[r]]=2;finish()");assert.equal(run('victories()'),2)}
+ run("data.completed=[0,1,2,3];data.dailyWins=[];start(4);for(let r=0;r<8;r++)game.cells[r*8+puzzle().solution[r]]=2;finish()");
+ assert.ok(els.get('rewardText').textContent.includes('Menta'));assert.equal(run('victories()'),5);
+ const legacyProgress=boot({...JSON.parse(storage['coquidoku-v1']),completed:[0,0,1,-1,99,'2'],dailyWins:[42,42,-1],character:'aurora'});await settle();assert.equal(legacyProgress.run('victories()'),3);assert.equal(legacyProgress.run('data.character'),'sol');
+ console.log('PASS: six collectible coquis and all unlock thresholds; locked selection blocked; stable sprite replacement; progress restored; per-win plants; four forest stages; unique normal/daily rewards; existing progress migration.');
  const base=JSON.parse(fs.readFileSync('puzzles.json'))[0];
  const legacy={theme:'leaf',emptyStartV2:true,game:{puzzle:0,cells:Array(64).fill(0),fixed:[],lives:2,won:false,hints:1,daily:false}};legacy.game.cells[base.solution[0]]=2;
  const migrated=boot(legacy);await settle();assert.equal(migrated.run('data.theme'),'night');assert.equal(migrated.run('game.lives'),3);assert.equal(migrated.run('game.hints'),1);assert.equal(migrated.run('game.cells[puzzle().solution[0]]'),2);
