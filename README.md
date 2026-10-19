@@ -47,3 +47,13 @@ Los coquíes exploran por defecto; solo descansan si el usuario lo elige. La sec
 Al abrir El Yunque se elige al azar día o noche, sin cambiar la etapa, coquíes ni decoraciones. Cambiar una decoración o posición conserva la hora de esa visita. Arte diurno en `assets/forest-{0,1,2,3}-day.webp`, generado con la herramienta integrada editando el atlas nocturno: mismas cuatro etapas, composición y río, con cielo azul, nubes suaves y sol de mañana, sin luna ni estrellas.
 
 Pruebas adicionales con audio simulado: reanudar antes de programar, sonido al encontrar, silencio en errores/X, recuperación de audio interrumpido/cerrado y silencio persistente. También se verifican las cuatro etapas diurnas/nocturnas y el descanso explícito. La prueba auditiva y visual en un iPhone físico queda pendiente.
+
+## v1.4.2 · Reproductor nativo y coquíes sin brincos
+
+Se retiran los brincos, la respiración animada y el selector de movimiento a petición del usuario. Los personajes siguen presentes en El Yunque y se pueden colocar en sus rincones.
+
+Se sustituye Web Audio por un elemento HTML audio precargado con `assets/coqui-call.mp3`, una grabación real. `play()` se llama directamente desde el toque sin esperar antes a otras promesas. Se solicita sesión playback cuando está disponible; los bloqueos/cargas fallidas se muestran dentro del diálogo visible. Preferencias incluye controles nativos para probar el mismo archivo; el botón del personaje reproduce aunque el sonido de partida esté silenciado. El último acierto no duplica el canto con la victoria.
+
+Audio: fragmento 4.0–6.4 segundos de «Coquíes1.ogg», ValWey, Hatillo (Puerto Rico), 27 mayo 2012. Original: https://commons.wikimedia.org/wiki/File:Coqu%C3%ADes1.ogg . Audio original y adaptación CC BY-SA 3.0: https://creativecommons.org/licenses/by-sa/3.0/ . Cambios: recorte, mono MP3, filtrado, normalización y fundidos. Créditos también en `assets/audio-credits.txt` y Preferencias. Esta licencia se refiere al audio adaptado.
+
+Verificación: decodificación completa del MP3 con ffmpeg, duración y volumen no nulo; pruebas del flujo de reproducción nativa, silencio, botones y mensajes de error; ausencia de animación del bosque y selector. No se afirma una escucha comprobada en un iPhone físico.

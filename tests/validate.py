@@ -31,6 +31,7 @@ for number,p in enumerate(boards,1):
  assert found==[s],number
 html=(root/'index.html').read_text()
 for ref in re.findall(r'(?:src|href)="([^"]+)"',html):
+ if ref.startswith(('https://','http://','#')):continue
  assert (root/ref.split('?')[0]).is_file(),ref
 manifest=json.loads((root/'manifest.webmanifest').read_text())
 for icon in manifest['icons']:assert (root/icon['src']).is_file()

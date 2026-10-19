@@ -4,6 +4,7 @@ class E{
  get firstElementChild(){return this.children[0]||null}
  append(...xs){for(const x of xs)this.children.push(...(x.fragment?x.children:[x]))}
  replaceChildren(...xs){this.children=[];this.append(...xs)}
+ play(){this.playCount=(this.playCount||0)+1;return Promise.resolve()}pause(){this.pauseCount=(this.pauseCount||0)+1}
  setAttribute(k,v){this.attrs[k]=v}addEventListener(){}querySelector(){return new E()}showModal(){this.open=true}close(){this.open=false}focus(){}
 }
 function boot(saved,options={}){
@@ -93,8 +94,8 @@ const settle=()=>new Promise(r=>setImmediate(r));
  assert.equal(er("requestPurchase('menta')"),true);assert.equal(er('data.points'),80);ee.get('purchaseConfirm').onclick();
  assert.equal(er('data.points'),0);assert.equal(er("unlockedCoqui(COQUIS[1])"),true);assert.equal(er("buyCoqui('menta')"),false);
  assert.equal(er("chooseCoqui('menta')"),true);er('renderForest()');assert.equal(ee.get('forestResidents').children.length,2);
- er("openResident('menta')");ee.get('residentZone').value='1';ee.get('residentZone').onchange();ee.get('residentBehavior').value='rest';ee.get('residentBehavior').onchange();
- assert.equal(er('data.positions.menta'),1);assert.equal(er('data.behaviors.menta'),'rest');
+ er("openResident('menta')");ee.get('residentZone').value='1';ee.get('residentZone').onchange();
+ assert.equal(er('data.positions.menta'),1);
  ee.get('decorZone').value='1';er('renderDecorOptions()');ee.get('decorOptions').children[1].onclick();
  assert.equal(er('data.decor[1]'),'fern');assert.equal(ee.get('forestDecor').children.length,1);
  er("data.points=99999;data.completed=Array.from({length:59},(_,i)=>i);data.dailyWins=[123,456];data.purchased.push('boricua');renderCollection()");
@@ -103,7 +104,7 @@ const settle=()=>new Promise(r=>setImmediate(r));
  assert.equal(er('data.points'),99999);assert.equal(er("unlockedCoqui(COQUIS[6])"),true);assert.equal(er("chooseCoqui('boricua')"),true);
  er("data.points=12;data.bonusPending='round:123';save()");
  const savedEconomy=boot(JSON.parse(economy.storage['coquidoku-v1']));await settle();
- assert.equal(savedEconomy.run('data.points'),12);assert.equal(savedEconomy.run('data.character'),'boricua');assert.equal(savedEconomy.run('data.positions.menta'),1);assert.equal(savedEconomy.run('data.decor[1]'),'fern');assert.equal(savedEconomy.run('data.behaviors.menta'),'rest');assert.equal(savedEconomy.run('openBonus()'),true);
+ assert.equal(savedEconomy.run('data.points'),12);assert.equal(savedEconomy.run('data.character'),'boricua');assert.equal(savedEconomy.run('data.positions.menta'),1);assert.equal(savedEconomy.run('data.decor[1]'),'fern');assert.equal(savedEconomy.run('openBonus()'),true);
  const oldFriends=boot({rulesV3:true,completed:[],dailyWins:Array.from({length:35},(_,i)=>i+1),character:'luna'});await settle();assert.equal(oldFriends.run('data.points'),0);assert.equal(oldFriends.run('data.character'),'luna');
  assert.ok(!fs.readFileSync('index.html','utf8').includes('forestMilestones'));
  const flow=boot();await settle();const fr=flow.run;
@@ -116,35 +117,30 @@ const settle=()=>new Promise(r=>setImmediate(r));
   assert.equal(fr('data.points'),balance+20);
  }
  assert.equal(fr('data.bonusClaims.length'),6);assert.equal(fr('data.completed.length'),6);
- // Sound starts enabled, resumes suspended/interrupted audio before scheduling,
- // stays silent for marks/mistakes, and preserves a manual mute after migration.
- const audioEvents=[];let audioContexts=0;
- class FakeAudio {
-  constructor(){audioContexts++;this.state='suspended';this.currentTime=0;this.destination={}}
-  async resume(){audioEvents.push('resume');await Promise.resolve();this.state='running';this.currentTime=20}
-  createOscillator(){return {type:'',frequency:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},start:t=>audioEvents.push(t),stop(){}}}
-  createGain(){return {gain:{setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){}}}
- }
- const audible=boot(undefined,{window:{AudioContext:FakeAudio}});await settle();const ar=audible.run;
- assert.equal(ar('data.sound'),true);ar('play(puzzle().solution[0])');await settle();
- assert.equal(audioEvents[0],'resume');assert.equal(audioEvents.filter(x=>typeof x==='number').length,2);assert.ok(audioEvents.filter(x=>typeof x==='number').every(t=>t>=20));
- ar("mode='mark';play(8)");await settle();assert.equal(audioEvents.filter(x=>typeof x==='number').length,2);
- ar("mode='coqui';play((puzzle().solution[1]+1)%8+8)");await settle();assert.equal(audioEvents.filter(x=>typeof x==='number').length,2);
- ar("lastChirpAt=-Infinity;audio.state='interrupted'");await ar('chirp()');assert.equal(audioEvents.filter(x=>typeof x==='number').length,4);
- ar('data.sound=false;lastChirpAt=-Infinity;save()');await ar('chirp()');assert.equal(audioEvents.filter(x=>typeof x==='number').length,4);
+ // A real, preloaded media element is invoked synchronously from a tap.
+ const audible=boot();await settle();const ar=audible.run,player=audible.els.get('coquiAudio');
+ ar("navigator.audioSession={type:'ambient'}");
+ assert.equal(ar('data.sound'),true);ar('play(puzzle().solution[0])');assert.equal(player.playCount,1);await settle();
+ assert.equal(ar('navigator.audioSession.type'),'playback');assert.equal(player.muted,false);assert.equal(player.volume,1);assert.equal(player.currentTime,0);
+ ar("mode='mark';play(8)");await settle();assert.equal(player.playCount,1);
+ ar("mode='coqui';play((puzzle().solution[1]+1)%8+8)");await settle();assert.equal(player.playCount,1);
+ ar('data.sound=false;save()');await ar('chirp()');assert.equal(player.playCount,1);
  const muted=boot(JSON.parse(audible.storage['coquidoku-v1']));await settle();assert.equal(muted.run('data.sound'),false);
- ar("audio.state='closed';lastChirpAt=-Infinity");await ar('chirp(false,true)');assert.equal(audioContexts,2);assert.equal(audioEvents.filter(x=>typeof x==='number').length,6);
- const soundUpgrade=boot({sound:false,rulesV3:true});await settle();assert.equal(soundUpgrade.run('data.sound'),true);
+ audible.els.get('residentCall').onclick();assert.equal(player.playCount,2);await settle();
+ player.play=()=>Promise.reject(Object.assign(new Error('blocked'),{name:'NotAllowedError'}));
+ assert.equal(await ar('chirp(false,true)'),false);assert.ok(audible.els.get('residentAudioStatus').textContent.includes('bloqueó'));assert.ok(audible.els.get('soundStatus').textContent.includes('bloqueó'));
+ player.play=()=>Promise.reject(new Error('decode'));
+ assert.equal(await ar('chirp(false,true)'),false);assert.ok(audible.els.get('residentAudioStatus').textContent.includes('No se pudo'));
+ assert.ok(!fs.readFileSync('app.js','utf8').includes('AudioContext'));
  const wood=boot();await settle();const wr=wood.run;
  wr("globalThis.originalRandom=Math.random;Math.random=()=>.1;openForest()");assert.equal(wr('forestTime'),'day');
  for(const n of [0,10,25,50]){wr(`data.completed=Array.from({length:${n}},(_,i)=>i);renderForest()`);assert.ok(wr('forestSceneSource()').endsWith('-day.webp'))}
  wr('renderForest()');assert.equal(wr('forestTime'),'day');
  wr('Math.random=()=>.9;openForest();Math.random=originalRandom');assert.equal(wr('forestTime'),'night');assert.ok(!wr('forestSceneSource()').endsWith('-day.webp'));
- wr("data.completed=[];data.earned=['sol'];data.behaviors={};renderForest()");assert.ok(wood.els.get('forestResidents').children[0].className.includes('explore'));
- wr("data.behaviors.sol='rest';renderForest()");assert.ok(wood.els.get('forestResidents').children[0].className.includes('rest'));
- const css=fs.readFileSync('styles.css','utf8');assert.ok(css.includes('animation:forest-hop 30s'));assert.ok(!css.includes('animation:forest-hop 16s'));
- console.log('PASS: audible discovery resumes audio before two-note call; marks/errors silent; interrupted/closed context recovery; manual mute persists; day/night picked once per visit across all growth stages; default exploring and explicit resting; 30-second forest-only hop cycle.');
- console.log('PASS: points exclusively from all three minigames; no duplicate payouts; confirmed purchases with exact balance; no purchase of finale; 60 distinct normal levels for Boricua; all unlocked residents; decor, movement and positions persist; no locked forest previews; legacy friends retained.');
+ wr("data.completed=[];data.earned=['sol'];renderForest()");assert.equal(wood.els.get('forestResidents').children[0].className,'forest-friend');
+ const css=fs.readFileSync('styles.css','utf8');assert.ok(!css.includes('forest-hop'));assert.ok(!css.includes('forest-stroll'));assert.ok(!fs.readFileSync('index.html','utf8').includes('residentBehavior'));
+ console.log('PASS: real audio element plays directly from discovery and resident button; mute respected in game; playback session selected when supported; visible playback failures; no Web Audio dependency; no hopping or movement selector; day/night preserved.');
+ console.log('PASS: points exclusively from all three minigames; no duplicate payouts; confirmed purchases with exact balance; no purchase of finale; 60 distinct normal levels for Boricua; all unlocked residents; decor and positions persist; no locked forest previews; legacy friends retained.');
  console.log('PASS: seven collectible coquis and all unlock thresholds; locked selection blocked; stable sprite replacement; progress restored; per-win plants; four forest stages; unique normal/daily rewards; existing progress migration.');
  const base=JSON.parse(fs.readFileSync('puzzles.json'))[0];
  const legacy={theme:'leaf',emptyStartV2:true,game:{puzzle:0,cells:Array(64).fill(0),fixed:[],lives:2,won:false,hints:1,daily:false}};legacy.game.cells[base.solution[0]]=2;

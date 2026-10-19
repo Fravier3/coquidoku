@@ -1,0 +1,9 @@
+coqui-call.mp3
+Source: Coquíes1.ogg by ValWey (27 May 2012), Hatillo, Puerto Rico.
+https://commons.wikimedia.org/wiki/File:Coqu%C3%ADes1.ogg
+Original: https://upload.wikimedia.org/wikipedia/commons/b/bb/Coqu%C3%ADes1.ogg
+License: Creative Commons Attribution-ShareAlike 3.0 Unported
+https://creativecommons.org/licenses/by-sa/3.0/
+Adaptation: excerpt 4.0–6.4 seconds, converted to mono MP3, high/low-pass filtering, loudness normalization and short fades.
+This adapted audio file is distributed under CC BY-SA 3.0.
+No endorsement by the original author is implied.
