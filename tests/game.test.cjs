@@ -139,7 +139,27 @@ const settle=()=>new Promise(r=>setImmediate(r));
  wr('Math.random=()=>.9;openForest();Math.random=originalRandom');assert.equal(wr('forestTime'),'night');assert.ok(!wr('forestSceneSource()').endsWith('-day.webp'));
  wr("data.completed=[];data.earned=['sol'];renderForest()");assert.equal(wood.els.get('forestResidents').children[0].className,'forest-friend');
  const css=fs.readFileSync('styles.css','utf8');assert.ok(!css.includes('forest-hop'));assert.ok(!css.includes('forest-stroll'));assert.ok(!fs.readFileSync('index.html','utf8').includes('residentBehavior'));
- console.log('PASS: real audio element plays directly from discovery and resident button; mute respected in game; playback session selected when supported; visible playback failures; no Web Audio dependency; no hopping or movement selector; day/night preserved.');
+ // Drive the frame clock explicitly, including the midpoint of a hop.
+ let cancelled=0,scheduled=0;
+ const habitat=boot(undefined,{window:{requestAnimationFrame:()=>++scheduled,cancelAnimationFrame:()=>cancelled++}});await settle();const hr=habitat.run,he=habitat.els;
+ hr('openForest();updateEcosystem(0);updateEcosystem(800)');assert.equal(hr('ecosystem[0].hops'),1);
+ hr('updateEcosystem(1250)');assert.ok(he.get('forestResidents').children[0].firstElementChild.style.transform.includes('-36px'));
+ hr('updateEcosystem(1700);updateEcosystem(30799)');assert.equal(hr('ecosystem[0].hops'),1);
+ hr('updateEcosystem(30800)');assert.equal(hr('ecosystem[0].hops'),2);
+ hr("data.behaviors.sol='rest';updateEcosystem(31250);updateEcosystem(70000)");assert.equal(hr('ecosystem[0].hops'),2);assert.equal(he.get('forestResidents').children[0].firstElementChild.style.transform,'translate3d(0,0,0)');
+ const currency=hr('data.points'),seeds=hr('victories()');hr("data.behaviors.sol='explore';feedAt(60,70,71000);updateEcosystem(71100);updateEcosystem(71550)");assert.equal(hr('data.feedings'),1);assert.equal(hr('data.points'),currency);assert.equal(hr('victories()'),seeds);assert.equal(hr('feedAt(60,70,71001)'),false);
+ hr('data.motion=true;updateEcosystem(90000)');assert.equal(he.get('forestResidents').children[0].firstElementChild.style.transform,'translate3d(0,0,0)');
+ hr('closeForest()');assert.ok(cancelled>0);assert.equal(hr('forestRaf'),null);assert.equal(he.get('forest').open,false);
+ // Map shows all sixty stops, completion status, current game, and protected future stops.
+ hr("data.completed=[];data.motion=false;start(0);openMap()");assert.equal(he.get('adventureMap').children.length,6);
+ const nodes=he.get('adventureMap').children.flatMap(c=>c.children.filter(e=>e.dataset.level!==undefined));assert.equal(nodes.length,60);assert.equal(nodes[0].disabled,false);assert.equal(nodes[1].disabled,true);assert.equal(hr('selectMapLevel(1)'),false);
+ hr('play(puzzle().solution[0])');const retained=hr('JSON.stringify(game)');assert.equal(hr('selectMapLevel(0)'),true);assert.equal(hr('JSON.stringify(game)'),retained);
+ hr("data.completed=[0,1,4];start(5);renderMap()");assert.equal(hr('unlockedThrough()'),5);assert.equal(hr('nextAdventureLevel()'),2);assert.equal(hr('selectMapLevel(6)'),false);
+ hr("game.won=true;openCollection('map');$('collection').close();handleCollectionClose()");assert.equal(he.get('levels').open,true);assert.equal(he.get('collectionReturnBtn').textContent,'Volver al mapa');
+ hr("data.completed=Array.from({length:60},(_,i)=>i);renderMap()");assert.ok(he.get('mapProgress').textContent.includes('Completaste'));assert.equal(hr('nextAdventureLevel()'),59);
+ const crypto=require('node:crypto');assert.equal(crypto.createHash('sha256').update(fs.readFileSync('assets/coqui-user.mp3')).digest('hex'),'e3092efeaecbdb2ad01f0de6df52c20959e28ac7a961a4fab4df0dcbc880e18b');assert.ok(!fs.existsSync('assets/coqui-call.mp3'));
+ console.log('PASS: real frame-clock hop at 800ms and exactly 30 seconds later; 36px apex; rest/motion pause; loop cleanup; feeding attracts without points/seeds; 60 map stops; future level protection; legacy progression and in-progress game preserved; character close leads to map; exact user audio only.');
+ console.log('PASS: real audio element plays directly from discovery and resident button; mute respected in game; playback session selected when supported; visible playback failures; no Web Audio dependency; native media playback and day/night preserved.');
  console.log('PASS: points exclusively from all three minigames; no duplicate payouts; confirmed purchases with exact balance; no purchase of finale; 60 distinct normal levels for Boricua; all unlocked residents; decor and positions persist; no locked forest previews; legacy friends retained.');
  console.log('PASS: seven collectible coquis and all unlock thresholds; locked selection blocked; stable sprite replacement; progress restored; per-win plants; four forest stages; unique normal/daily rewards; existing progress migration.');
  const base=JSON.parse(fs.readFileSync('puzzles.json'))[0];

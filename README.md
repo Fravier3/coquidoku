@@ -59,3 +59,17 @@ Audio: fragmento 4.0–6.4 segundos de «Coquíes1.ogg», ValWey, Hatillo (Puert
 Verificación: decodificación completa del MP3 con ffmpeg, duración y volumen no nulo; pruebas del flujo de reproducción nativa, silencio, botones y mensajes de error; ausencia de animación del bosque y selector. No se afirma una escucha comprobada en un iPhone físico.
 
 El service worker sirve rangos de bytes de audio (respuestas 206 con Content-Range), incluidos los sondeos de Safari y la reproducción sin conexión. Pruebas con el MP3 real comprueban rangos iniciales, abiertos, finales e inválidos.
+
+## v1.5.0 · El Yunque inmersivo y mapa de Puerto Rico
+
+Audio único: `assets/coqui-user.mp3`, copia idéntica del MP3 aportado por el usuario (SHA256 e3092efeaecbdb2ad01f0de6df52c20959e28ac7a961a4fab4df0dcbc880e18b). Se retira el sonido anterior y sus créditos de la publicación. El reproductor nativo y los rangos de bytes usan exclusivamente este archivo.
+
+El Yunque ocupa toda la pantalla, con botón Volver, día/noche aleatorio y la etapa actual. Hay partículas de luz, reflejos, decoración y todos los personajes obtenidos. Alimentar permite tocar el suelo para dejar insectos, con tres segundos entre raciones; los coquíes activos se acercan. Alimentar no cuesta ni concede puntos/semillas y no hay abandono ni pérdida de progreso. Su contador se guarda localmente.
+
+Los coquíes saltan mediante requestAnimationFrame: arco de 900 ms con altura de 36 px, primer saludo al abrir y siguientes saltos cada 30 segundos. Descansar y Reducir animaciones detienen el movimiento. El ciclo se detiene al cerrar o pasar a segundo plano. Las piezas del tablero siguen sin saltos. Se conservan los rincones elegidos.
+
+Mapa de 60 niveles en seis recorridos: Viejo San Juan, Luquillo, El Yunque, bahía luminosa, Cayey y cumbre. Muestra completados, nivel en juego y próximo sin completar. Los futuros se habilitan con el progreso; los niveles ya accesibles por progreso antiguo se conservan. Tocar el nivel en curso reanuda sin borrar jugadas. Desde la victoria se puede abrir personajes, y cerrar esa vista con la X conduce al mapa. La X de victoria y Ver mapa también abren el mapa. Los minijuegos y compras conservan su lógica.
+
+Arte en `assets/map-0.webp` a `assets/map-5.webp`, generado con la herramienta integrada: seis dioramas tropicales 3D con referencias puertorriqueñas y espacio central para el camino, sin números ni botones en el bitmap. Nodos y rutas son controles reales. La imagen presentada en el chat es una referencia visual, no una captura de la aplicación.
+
+Pruebas: reloj de fotogramas a inicio, ápice y repetición de 30 segundos; reposo, reducción de movimiento y cierre; alimento y conservación de puntos; 60 nodos y progresión; reanudar tablero; cierre de colección al mapa; identidad exacta de audio. Pendiente: revisión física en iPhone y percepción de fluidez en ese dispositivo.

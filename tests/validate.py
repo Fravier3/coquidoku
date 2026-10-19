@@ -45,5 +45,8 @@ for ref in re.findall(r"'([^']+)'",(root/'sw.js').read_text().split('const FILES
 ids=re.findall(r'\bid="([^"]+)"',html)
 assert len(ids)==len(set(ids)), 'Duplicate HTML ids'
 for id in re.findall(r"\$\('([^']+)'\)",(root/'app.js').read_text()):
+ if id=='mapCurrent':
+  assert "button.id=i===current?'mapCurrent'" in (root/'app.js').read_text()
+  continue
  assert id in ids,id
 print('PASS: all dynamic/precache resources nonempty; unique HTML ids; JS controls exist.')
