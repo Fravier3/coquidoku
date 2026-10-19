@@ -73,3 +73,17 @@ Mapa de 60 niveles en seis recorridos: Viejo San Juan, Luquillo, El Yunque, bah�
 Arte en `assets/map-0.webp` a `assets/map-5.webp`, generado con la herramienta integrada: seis dioramas tropicales 3D con referencias puertorriqueñas y espacio central para el camino, sin números ni botones en el bitmap. Nodos y rutas son controles reales. La imagen presentada en el chat es una referencia visual, no una captura de la aplicación.
 
 Pruebas: reloj de fotogramas a inicio, ápice y repetición de 30 segundos; reposo, reducción de movimiento y cierre; alimento y conservación de puntos; 60 nodos y progresión; reanudar tablero; cierre de colección al mapa; identidad exacta de audio. Pendiente: revisión física en iPhone y percepción de fluidez en ese dispositivo.
+
+## v1.6.0 · Hábitat vertical, alimento real y mapa ascendente
+
+Fondos nuevos en retrato 1:2 para pantalla móvil: `assets/yunque-{0,1,2,3}-{day,night}.webp`. La imagen mantiene su proporción al adaptarse, sin estirar el paisaje horizontal anterior. La fauna salta cada 15 segundos. Sin preselección de personaje al inicio ni modo de alimentar activado al entrar; se conservan personajes elegidos distintos del Sol anterior por defecto.
+
+Se elimina la decoración manual. Los paisajes y elementos aparecen automáticamente al progresar. Un aviso discreto en una esquina invita a desbloquear más habitantes. El alimento es el sprite generado `assets/insect-fly.webp`, con alas, patas y cuerpo. Cada insecto se asigna al coquí activo más cercano; el coquí avanza con saltos de distancia limitada hasta alcanzarlo. Solo al llegar a su posición se elimina ese insecto. El reposo no consume alimento. El alimento no da puntos ni semillas. Las raciones se limitan para evitar acumulación.
+
+El mapa se recorre del 1 inferior hacia números superiores, sin estrellas ni botón Continuar. Solo aparecen los paisajes de regiones alcanzadas. El nivel en juego tiene un color diferente y los futuros muestran un candado sin fondo. Los pasos tienen volumen y relieve de piedra.
+
+Minijuegos: parejas reales de imágenes (3 parejas), memoria de una secuencia explícita de 4 símbolos y conteo de insectos entre flores con tres opciones numéricas. Se retira el patrón ambiguo. El conteo se valida contra los objetos mostrados; la secuencia debe repetirse completa. Puntos únicamente al completar el objetivo, con una sola recompensa por ronda. Se mantienen el MP3 aportado, vidas, pistas y progreso.
+
+Arte generado con la herramienta integrada: atlas de ocho fondos verticales 4×2, etapas diurnas arriba/nocturnas abajo, mismo terreno y vegetación creciente; insecto 3D con alfa; referencia visual del mapa con piedras elevadas, 1 abajo y 10 arriba, sin estrellas y nivel actual dorado. La referencia es conceptual, no una captura. Verificación adicional de 120 rondas para conteos/alternativas, llegada y consumo de insectos, 15 segundos, regiones alcanzadas y ausencia de preselección. Pendiente percepción visual y fluidez en un iPhone físico.
+
+Escalones: `assets/step-done.webp`, `assets/step-current.webp`, `assets/step-locked.webp`, generados como plataformas de piedra 3D con caras laterales, musgo/tono dorado/pizarra. Sin números en el bitmap: números y candados son UI real.
