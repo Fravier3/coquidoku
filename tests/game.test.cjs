@@ -11,7 +11,7 @@ class E{
 function boot(saved,options={}){
  const els=new Map(),themes=['leaf','night','garden'].map(t=>{const e=new E();e.dataset.pick=t;return e});
  const storage=saved?{'coquidoku-v1':JSON.stringify(saved)}:{};
- const ctx={console,Intl,Date:options.Date||Date,JSON,Math,Array,Number,String,Error,setTimeout:options.setTimeout||(()=>1),clearTimeout:options.clearTimeout||(()=>{}),location:{reload(){}},navigator:{},localStorage:{getItem:k=>storage[k]||null,setItem:(k,v)=>storage[k]=v},fetch:async()=>({ok:true,json:async()=>JSON.parse(fs.readFileSync('puzzles.json','utf8'))}),document:{body:new E(),visibilityState:'visible',getElementById:id=>{if(!els.has(id))els.set(id,new E(id));return els.get(id)},createElement:()=>new E(),createTextNode:text=>({textContent:text}),createDocumentFragment:()=>{const e=new E();e.fragment=true;return e},querySelector:()=>new E(),querySelectorAll:s=>s==='[data-pick]'?themes:[],listeners:{},addEventListener(type,callback){(this.listeners[type]??=[]).push(callback)}},window:{addEventListener(){},...(options.window||{})}};
+ const ctx={console,Intl,Date:options.Date||Date,JSON,Math,Array,Number,String,Error,setTimeout:options.setTimeout||(()=>1),clearTimeout:options.clearTimeout||(()=>{}),location:{reload(){}},navigator:{},localStorage:{getItem:k=>storage[k]||null,setItem:(k,v)=>storage[k]=v},fetch:async()=>({ok:true,json:async()=>JSON.parse(fs.readFileSync('puzzles.json','utf8')),arrayBuffer:async()=>new ArrayBuffer(16)}),document:{body:new E(),visibilityState:'visible',getElementById:id=>{if(!els.has(id))els.set(id,new E(id));return els.get(id)},createElement:()=>new E(),createTextNode:text=>({textContent:text}),createDocumentFragment:()=>{const e=new E();e.fragment=true;return e},querySelector:()=>new E(),querySelectorAll:s=>s==='[data-pick]'?themes:[],listeners:{},addEventListener(type,callback){(this.listeners[type]??=[]).push(callback)}},window:{addEventListener(){},...(options.window||{})}};
  vm.createContext(ctx);vm.runInContext(fs.readFileSync('app.js','utf8'),ctx);
  return {ctx,els,storage,run:s=>vm.runInContext(s,ctx)};
 }
@@ -118,7 +118,7 @@ function solveBonus(run){
  }
  assert.equal(fr('data.bonusClaims.length'),6);assert.equal(fr('data.completed.length'),6);
  // A real, preloaded media element is invoked synchronously from a tap.
- const audible=boot();await settle();const ar=audible.run,player=audible.els.get('coquiAudio');
+ const audible=boot();await settle();const ar=audible.run,player=ar("$('boardCoquiAudio')");
  ar("navigator.audioSession={type:'ambient'}");
  assert.equal(ar('data.sound'),true);ar('play(puzzle().solution[0])');assert.equal(player.playCount,1);await settle();
  assert.equal(ar('navigator.audioSession.type'),'playback');assert.equal(player.muted,false);assert.equal(player.volume,1);assert.equal(player.currentTime,0);
@@ -126,12 +126,11 @@ function solveBonus(run){
  ar("mode='coqui';play((puzzle().solution[1]+1)%8+8)");await settle();assert.equal(player.playCount,1);
  ar('data.sound=false;save()');await ar('chirp()');assert.equal(player.playCount,1);
  const muted=boot(JSON.parse(audible.storage['coquidoku-v1']));await settle();assert.equal(muted.run('data.sound'),false);
- audible.els.get('residentCall').onclick();assert.equal(player.playCount,2);await settle();
- player.play=()=>Promise.reject(Object.assign(new Error('blocked'),{name:'NotAllowedError'}));
+ const residentPlayer=audible.els.get('coquiAudio');audible.els.get('residentCall').onclick();assert.equal(residentPlayer.playCount,1);await settle();
+ residentPlayer.play=()=>Promise.reject(Object.assign(new Error('blocked'),{name:'NotAllowedError'}));
  assert.equal(await ar('chirp(false,true)'),false);assert.ok(audible.els.get('residentAudioStatus').textContent.includes('bloqueó'));assert.ok(audible.els.get('soundStatus').textContent.includes('bloqueó'));
- player.play=()=>Promise.reject(new Error('decode'));
+ residentPlayer.play=()=>Promise.reject(new Error('decode'));
  assert.equal(await ar('chirp(false,true)'),false);assert.ok(audible.els.get('residentAudioStatus').textContent.includes('No se pudo'));
- assert.ok(!fs.readFileSync('app.js','utf8').includes('AudioContext'));
  const wood=boot();await settle();const wr=wood.run;
  wr("globalThis.originalRandom=Math.random;Math.random=()=>.1;openForest()");assert.equal(wr('forestTime'),'day');
  for(const n of [0,10,25,50]){wr(`data.completed=Array.from({length:${n}},(_,i)=>i);renderForest()`);assert.ok(wr('forestSceneSource()').endsWith('-day.webp'))}
@@ -374,6 +373,34 @@ function solveBonus(run){
  assert.ok(!main.includes('levelMission'));assert.ok(!main.includes('game-message'));assert.ok(help.includes('levelMission'));assert.ok(!html.includes('data-pick='));
  assert.ok(main.includes('id="feedback" class="sr-only"'));assert.ok(!main.includes('gana una cada'));
  const fixedArt=Array.from({length:60},(_,level)=>cr(`boardAppearance(${level}).scene`));assert.ok(fixedArt.every(scene=>scene==='assets/night.webp'));
+ // Decoded effects start before rendering, and the master switch stops every board channel.
+ {
+ const sources=[],gains=[];let activeRun=null;
+ class FastAudioContext{
+  constructor(options){this.options=options;this.state='suspended';this.destination={};this.decodes=0}
+  resume(){this.state='running';return Promise.resolve()}
+  decodeAudioData(bytes){this.decodes++;return Promise.resolve({bytes:bytes.byteLength})}
+  createGain(){const node={gain:{value:1},connect(){},disconnect(){}};gains.push(node);return node}
+  createBufferSource(){const node={connect(){},disconnect(){},start(when){this.when=when;this.renderAtStart=activeRun?.('renderCounter')},stop(){this.stopped=true;this.onended?.()}};sources.push(node);return node}
+ }
+ const audio=boot({intro:true,mapMusic:false},{window:{AudioContext:FastAudioContext}});await settle();const r=audio.run,e=audio.els;activeRun=r;
+ assert.equal(r('fxBuffers.size'),2);assert.equal(r('fxContext.decodes'),2);assert.equal(r('fxContext.options.latencyHint'),'interactive');
+ assert.equal(r('data.mapMusic'),true);assert.equal(e.get('mapMusicBtn').attrs['aria-pressed'],'true');
+ r("closeMap();globalThis.renderCounter=0;globalThis.realRender=render;render=()=>{renderCounter++;realRender()};mode='mark';play(0)");
+ assert.equal(sources.length,1);assert.equal(sources[0].when,0);assert.equal(sources[0].renderAtStart,0);assert.equal(e.get('clickAudio')?.playCount||0,0);
+ r("mode='coqui';play((puzzle().solution[1]+1)%8+8)");assert.equal(sources.length,2);assert.equal(sources[1].renderAtStart,1);assert.equal(e.get('failAudio')?.playCount||0,0);
+ r('chirp()');assert.equal(e.get('boardCoquiAudio').paused,false);
+ e.get('boardMusicBtn').onclick();assert.equal(r('data.sound'),false);assert.equal(e.get('boardMusic').paused,true);assert.equal(e.get('boardCoquiAudio').paused,true);assert.ok(sources.every(s=>s.stopped));
+ r("playEffect('clickAudio');playEffect('failAudio');chirp()");assert.equal(sources.length,2);assert.equal(e.get('boardCoquiAudio').playCount,1);
+ e.get('boardMusicBtn').onclick();await settle();assert.equal(r('data.sound'),true);assert.equal(e.get('boardMusic').paused,false);
+ e.get('soundToggle').checked=false;e.get('soundToggle').onchange();assert.equal(e.get('boardMusic').paused,true);assert.equal(r('data.sound'),false);
+ r('openMap()');assert.equal(r('data.mapMusic'),true);
+ const map=e.get('mapMusic');map.play=()=>Promise.reject(Error('gesture'));await r('syncMapMusic()');assert.equal(e.get('mapMusicBtn').attrs['aria-pressed'],'true');assert.equal(e.get('mapAudioStart').hidden,false);
+ map.play=()=>{map.paused=false;return Promise.resolve()};await e.get('mapAudioStart').onclick();assert.equal(map.paused,false);assert.equal(e.get('mapAudioStart').hidden,true);
+ e.get('mapMusicBtn').onclick();assert.equal(map.paused,true);assert.equal(r('data.mapMusic'),false);
+ r('closeMap();openMap()');assert.equal(r('data.mapMusic'),true);assert.equal(map.currentTime,0);
+ console.log('PASS: decoded effects prepared once, gesture-resumed interactive context, immediate start before DOM updates, no media restart for effects; master mute stops music/effects/soft coqui; map enabled on each entry and reload, blocked autoplay shown as enabled with one-tap recovery.');
+ }
  // Music is allowed only in a visible, topmost map, with immediate stop at every exit.
  {
  const scene=boot({intro:true});await settle();const r=scene.run,e=scene.els,map=e.get('mapMusic'),board=e.get('boardMusic');
@@ -388,10 +415,10 @@ function solveBonus(run){
  scene.ctx.document.visibilityState='visible';for(const fn of scene.ctx.document.listeners.visibilitychange)fn();await settle();assert.equal(board.paused,false);
  e.get('boardMusicBtn').onclick();assert.equal(r('data.boardMusic'),false);assert.equal(board.paused,true);
  const savedScene=boot(JSON.parse(scene.storage['coquidoku-v1']));await settle();savedScene.run('closeMap()');assert.equal(savedScene.els.get('boardMusic').playCount||0,0);
- r('data.boardMusic=true;stopBoardMusic()');let resolve;board.play=()=>{board.paused=false;return new Promise(done=>resolve=done)};
+ r('data.sound=true;data.boardMusic=true;stopBoardMusic()');let resolve;board.play=()=>{board.paused=false;return new Promise(done=>resolve=done)};
  r('syncBoardMusic();openMap()');resolve();await settle();assert.equal(board.paused,true);
  r('closeMap();stopBoardMusic()');board.play=()=>Promise.reject(Error('gesture'));await r('syncBoardMusic()');assert.equal(r('boardMusicBlocked'),true);
- board.play=()=>{board.paused=false;return Promise.resolve()};e.get('boardMusicBtn').onclick();await settle();assert.equal(board.paused,false);
+ board.play=()=>{board.paused=false;return Promise.resolve()};r('setBoardSound(true)');await settle();assert.equal(board.paused,false);
  r("data.sound=true;start(0);mode='mark';play(0)");assert.equal(e.get('clickAudio').playCount,1);
  r("play(0)");assert.equal(e.get('clickAudio').playCount,1);
  r('data.auto=true;render()');assert.equal(e.get('clickAudio').playCount,1);
@@ -424,13 +451,13 @@ function solveBonus(run){
  music.ctx.document.visibilityState='visible';for(const fn of music.ctx.document.listeners.visibilitychange)fn();await settle();assert.equal(track.paused,false);
  for(const fn of winEvents.pagehide)fn();assert.equal(track.paused,true);
  ur('closeMap();openMap()');await settle();ue.get('mapMusicBtn').onclick();assert.equal(ur('data.mapMusic'),false);assert.equal(track.paused,true);
- const mutedMusic=boot(JSON.parse(music.storage['coquidoku-v1']));await settle();mutedMusic.run('openMap()');assert.equal(mutedMusic.els.get('mapMusic').playCount||0,0);
+ const mutedMusic=boot(JSON.parse(music.storage['coquidoku-v1']));await settle();assert.equal(mutedMusic.run('data.mapMusic'),true);assert.equal(mutedMusic.els.get('mapMusic').playCount,1);
  // A delayed successful play cannot make music leak into the board.
  ur('closeMap();data.mapMusic=true');let resolvePlay;track.play=()=>new Promise(resolve=>{resolvePlay=resolve});
  ur('openMap();closeMap()');resolvePlay();await settle();assert.equal(track.paused,true);assert.equal(ur('mapMusicPlaying'),false);
  // Autoplay rejection has a small recoverable map control; retry remains a user gesture.
  track.play=()=>Promise.reject(new Error('gesture required'));ur('openMap()');await settle();assert.equal(ur('mapMusicBlocked'),true);
- track.play=()=>{track.paused=false;return Promise.resolve()};ue.get('mapMusicBtn').onclick();await settle();assert.equal(track.paused,false);assert.equal(ur('mapMusicPlaying'),true);
+ track.play=()=>{track.paused=false;return Promise.resolve()};ue.get('mapAudioStart').onclick();await settle();assert.equal(track.paused,false);assert.equal(ur('mapMusicPlaying'),true);
  ur('closeMap()');track.paused=false;track.emit('playing');assert.equal(track.paused,true);
  ur('openMap()');await settle();ur("$('levels').close()");ue.get('levels').emit('close');assert.equal(track.paused,true);
  console.log('PASS: fixed enchanted forest with 60 palettes; hidden empty booster and compact owned icon; instructions only in help; quiet map music stops on level selection, forest, close, background and pagehide; persistent mute, rejected/delayed playback recovery and no board leakage.');

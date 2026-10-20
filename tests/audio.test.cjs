@@ -11,6 +11,6 @@ async function verifyAudio(path){
  const full=await request();assert.equal(full.status,200);assert.deepEqual(Buffer.from(await full.arrayBuffer()),bytes);assert.equal(online,false);
 }
 (async()=>{
- await verifyAudio('assets/coqui-user.mp3');await verifyAudio('assets/map-aguinaldo.mp3');await verifyAudio('assets/forest-ambience.mp3');for(const name of ['board-jungle','click','fail'])await verifyAudio('assets/'+name+'.mp3');
- console.log('PASS: all six MP3s served offline; Safari byte probe, open/suffix/clamped ranges, exact bytes and invalid ranges handled.');
+ await verifyAudio('assets/coqui-user.mp3');await verifyAudio('assets/map-aguinaldo.mp3');await verifyAudio('assets/forest-ambience.mp3');for(const name of ['board-jungle','click','fail','coqui-board-soft'])await verifyAudio('assets/'+name+'.mp3');
+ console.log('PASS: all seven MP3s served offline; Safari byte probe, open/suffix/clamped ranges, exact bytes and invalid ranges handled.');
 })().catch(e=>{console.error(e);process.exitCode=1});

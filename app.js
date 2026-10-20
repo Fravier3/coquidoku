@@ -3,7 +3,7 @@ const KEY='coquidoku-v1';
 const defaults={theme:'night',sound:true,mapMusic:true,boardMusic:true,auto:false,relax:false,motion:false,difficulty:'calm',completed:[],dailyWins:[],character:null,points:0,shields:0,flowerClaims:[],earned:[],purchased:[],bonusClaims:[],bonusPending:null,bonusCounter:0,decorGifts:[],decor:[null,null,null],positions:{},forestCoordinates:{},feedings:0,behaviors:{},game:null};
 let data;try{data={...defaults,...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch{data={...defaults}}
 data.theme='night';
-data.mapMusic=data.mapMusic!==false;
+data.mapMusic=true;
 data.boardMusic=data.boardMusic!==false;
 data.completed=[...new Set((Array.isArray(data.completed)?data.completed:[]).filter(n=>Number.isInteger(n)&&n>=0&&n<60))];data.dailyWins=[...new Set((Array.isArray(data.dailyWins)?data.dailyWins:[]).filter(n=>Number.isInteger(n)&&n>=0))];
 data.points=Number.isSafeInteger(data.points)&&data.points>=0?data.points:0;
@@ -189,7 +189,7 @@ function mapLevelState(index){const current=currentAdventureLevel();if(current==
 const MAP_STOPS=Array.from({length:10},(_,i)=>({x:i%2?270:120,y:625-i*57}));
 function mapPosition(index,chapter=mapChapter??0){if(chapter===5&&index===0)return {x:200,y:630};if(chapter===5&&index===1)return {x:320,y:568};return MAP_STOPS[index]}
 let mapChapter=null;
-function openMap(){stopBoardMusic();$('mapMusic').currentTime=0;mapChapter=Math.floor((currentAdventureLevel()??59)/10);renderMap();stopForestAmbience();if(!$('levels').open)showDialog('levels');syncMapMusic()}
+function openMap(){data.mapMusic=true;stopBoardMusic();$('mapMusic').currentTime=0;mapChapter=Math.floor((currentAdventureLevel()??59)/10);renderMap();stopForestAmbience();if(!$('levels').open)showDialog('levels');syncMapMusic()}
 function changeMapChapter(delta){mapChapter=Math.max(0,Math.min(Math.floor(unlockedThrough()/10),(mapChapter??Math.floor(unlockedThrough()/10))+delta));renderMap()}
 function selectMapLevel(index){if(!Number.isInteger(index)||index<0||index>unlockedThrough())return false;closeMap();if(game&&!game.daily&&!game.won&&game.level===index){if(game.lives===0)lost();return true;}chooseNew(()=>start(index));return true}
 function renderMap(){
@@ -222,17 +222,18 @@ function mapMusicAllowed(){
 }
 function paintMapMusic(){
  $('mapMusicToggle').checked=data.mapMusic;
- $('mapMusicBtn').setAttribute('aria-pressed',String(mapMusicPlaying));
- $('mapMusicBtn').setAttribute('aria-label',mapMusicPlaying?'Silenciar música del mapa':'Escuchar música del mapa');
- $('mapMusicBtn').title=mapMusicPlaying?'Silenciar música':'Escuchar música';
- $('mapMusicBtn').dataset.playing=String(mapMusicPlaying);
+ $('mapMusicBtn').setAttribute('aria-pressed',String(data.mapMusic));
+ $('mapMusicBtn').setAttribute('aria-label',data.mapMusic?'Silenciar música del mapa':'Escuchar música del mapa');
+ $('mapMusicBtn').title=data.mapMusic?'Silenciar música':'Escuchar música';
+ $('mapMusicBtn').dataset.playing=String(data.mapMusic);
+ $('mapAudioStart').hidden=!(data.mapMusic&&mapMusicBlocked&&$('levels').open);
 }
 function stopMapMusic(){mapMusicGeneration++;$('mapMusic').pause();$('mapMusic').currentTime=0;mapMusicPlaying=false;paintMapMusic()}
 function syncMapMusic(){
  if(!mapMusicAllowed()){stopMapMusic();return Promise.resolve(false)}
  const player=$('mapMusic'),ticket=++mapMusicGeneration;
  // The file itself is quiet too, for devices whose media volume follows hardware volume.
- if(player.paused)player.currentTime=0;player.volume=.65;player.loop=true;player.muted=false;mapMusicBlocked=false;setPlaybackSession();
+ if(player.paused)player.currentTime=0;player.volume=.65;player.loop=true;player.muted=false;mapMusicBlocked=false;setPlaybackSession();paintMapMusic();
  try{
   return Promise.resolve(player.play()).then(()=>{
    if(!mapMusicAllowed()){player.pause();return false}
@@ -243,14 +244,15 @@ function syncMapMusic(){
 }
 function closeMap(){stopMapMusic();$('levels').close();syncBoardMusic()}
 $('mapMusicBtn').onclick=()=>{
- if(mapMusicBlocked||!data.mapMusic){data.mapMusic=true;syncMapMusic()}else{data.mapMusic=false;stopMapMusic()}save();
+ data.mapMusic=!data.mapMusic;if(data.mapMusic)syncMapMusic();else stopMapMusic();save();
 };
+$('mapAudioStart').onclick=()=>syncMapMusic();
 $('levels').addEventListener('close',stopMapMusic);
 $('levels').addEventListener('cancel',stopMapMusic);
 $('mapMusic').addEventListener('playing',()=>{if(!mapMusicAllowed())stopMapMusic()});
 $('mapMusic').addEventListener('error',()=>{mapMusicBlocked=true;mapMusicPlaying=false;paintMapMusic()});
 document.addEventListener('pointerdown',event=>{
- if(mapMusicBlocked&&data.mapMusic&&mapMusicAllowed()&&!event.target?.closest('#mapMusicBtn'))syncMapMusic();
+ if(mapMusicBlocked&&data.mapMusic&&mapMusicAllowed()&&!event.target?.closest('#mapMusicBtn,#mapAudioStart'))syncMapMusic();
 });
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')stopMapMusic();else if($('levels').open)syncMapMusic()});
 window.addEventListener('pagehide',stopMapMusic);
@@ -262,12 +264,12 @@ $('resultMapBtn').onclick=()=>{$('result').close();openMap()};
 // Each screen owns its music; late play promises never leak across screens.
 const SCENE_DIALOGS=['levels','forest','collection','settings','help','result','defeat','bonus','purchase','resident','forestCustomize'];
 let boardMusicGeneration=0,boardMusicBlocked=false;
-function boardMusicAllowed(){return data.boardMusic&&!!game&&!game.won&&$('loading').hidden&&document.visibilityState!=='hidden'&&!SCENE_DIALOGS.some(id=>$(id).open)}
+function boardMusicAllowed(){return data.sound&&data.boardMusic&&!!game&&!game.won&&$('loading').hidden&&document.visibilityState!=='hidden'&&!SCENE_DIALOGS.some(id=>$(id).open)}
 function paintBoardMusic(){
  $('boardMusicToggle').checked=data.boardMusic;
- const playing=boardMusicAllowed()&&$('boardMusic').paused===false&&!boardMusicBlocked;
+ const playing=data.sound;
  $('boardMusicBtn').setAttribute('aria-pressed',String(playing));
- $('boardMusicBtn').setAttribute('aria-label',playing?'Silenciar música del tablero':'Escuchar música del tablero');
+ $('boardMusicBtn').setAttribute('aria-label',playing?'Silenciar todos los sonidos del tablero':'Activar todos los sonidos del tablero');
  $('boardMusicBtn').dataset.playing=String(playing);
 }
 function stopBoardMusic(){boardMusicGeneration++;$('boardMusic').pause();paintBoardMusic()}
@@ -283,20 +285,60 @@ function syncBoardMusic(){
 }
 function showDialog(id){stopBoardMusic();if(id!=='levels')stopMapMusic();$(id).showModal()}
 $('boardMusicBtn').onclick=()=>{
- if(boardMusicBlocked||!data.boardMusic){data.boardMusic=true;syncBoardMusic()}else{data.boardMusic=false;stopBoardMusic()}$('boardMusicToggle').checked=data.boardMusic;save();
+ setBoardSound(!data.sound);
 };
 $('boardMusic').addEventListener('playing',()=>{if(!boardMusicAllowed())stopBoardMusic();else paintBoardMusic()});
 $('boardMusic').addEventListener('error',()=>{boardMusicBlocked=true;paintBoardMusic()});
 for(const id of SCENE_DIALOGS)$(id).addEventListener('close',()=>{syncBoardMusic()});
 document.addEventListener('pointerdown',event=>{if(boardMusicBlocked&&boardMusicAllowed()&&!event.target?.closest('#boardMusicBtn'))syncBoardMusic()});
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){stopBoardMusic();for(const id of ['clickAudio','failAudio'])$(id).pause()}else syncBoardMusic()});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){stopBoardMusic();stopBoardEffects()}else syncBoardMusic()});
 window.addEventListener('pagehide',()=>{stopBoardMusic();for(const id of ['clickAudio','failAudio'])$(id).pause()});
-function setPlaybackSession(){try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch{}}
+function setPlaybackSession(){try{if(navigator.audioSession&&navigator.audioSession.type!=='playback')navigator.audioSession.type='playback'}catch{}}
+const EFFECT_FILES={clickAudio:'assets/click.mp3',failAudio:'assets/fail.mp3'};
+let fxContext=null,fxLoading=null;
+const fxBuffers=new Map(),fxSources=new Set();
+function prepareEffects(){
+ if(fxLoading)return fxLoading;
+ const Ctor=window.AudioContext||window.webkitAudioContext;
+ if(!Ctor)return Promise.resolve(false);
+ try{fxContext??=new Ctor({latencyHint:'interactive'})}catch{return Promise.resolve(false)}
+ fxLoading=Promise.all(Object.entries(EFFECT_FILES).map(async([id,url])=>{
+  try{const response=await fetch(url);if(!response.ok)return;const bytes=await response.arrayBuffer();const buffer=await fxContext.decodeAudioData(bytes);fxBuffers.set(id,buffer)}catch{}
+ })).then(()=>fxBuffers.size>0);
+ return fxLoading;
+}
+function unlockEffects(){
+ setPlaybackSession();prepareEffects();
+ if(fxContext&&fxContext.state!=='running')try{Promise.resolve(fxContext.resume()).catch(()=>{})}catch{}
+}
+document.addEventListener('pointerdown',unlockEffects,{capture:true});
+document.addEventListener('keydown',unlockEffects,{capture:true});
+function stopBoardEffects(){
+ for(const source of fxSources)try{source.stop()}catch{}
+ fxSources.clear();for(const id of ['clickAudio','failAudio','boardCoquiAudio'])$(id).pause();
+}
+function setBoardSound(enabled){
+ data.sound=enabled;data.boardMusic=enabled;
+ $('soundToggle').checked=enabled;$('boardMusicToggle').checked=enabled;
+ if(enabled){unlockEffects();syncBoardMusic()}else{stopBoardMusic();stopBoardEffects()}
+ paintBoardMusic();save();
+}
 function playEffect(id){
  if(!data.sound||document.visibilityState==='hidden')return Promise.resolve(false);
- setPlaybackSession();
+ unlockEffects();
+ const buffer=fxBuffers.get(id);
+ if(fxContext&&buffer){
+  try{
+   const source=fxContext.createBufferSource(),gain=fxContext.createGain();
+   source.buffer=buffer;gain.gain.value=id==='clickAudio'?.45:.65;
+   source.connect(gain);gain.connect(fxContext.destination);
+   fxSources.add(source);source.onended=()=>{fxSources.delete(source);source.disconnect();gain.disconnect()};source.start(0);
+   return Promise.resolve(true);
+  }catch{}
+ }
  const audio=$(id);try{audio.pause();audio.currentTime=0;audio.volume=id==='clickAudio'?.45:.65;audio.muted=false;return Promise.resolve(audio.play()).then(()=>true).catch(()=>false)}catch{return Promise.resolve(false)}
 }
+prepareEffects();
 
 // Short mini-games: deterministic challenges, explicit goals and one payout.
 const BONUS_TYPES=['bridge','leaves','supper'];
@@ -512,7 +554,7 @@ function audioStatus(message){for(const id of ['residentAudioStatus','soundStatu
 function chirp(win=false,force=false){
  if(!data.sound&&!force)return Promise.resolve(false);
  // Use a real media element, directly from the tap; no suspended synthesis engine.
- const player=$('coquiAudio');
+ const player=$(force?'coquiAudio':'boardCoquiAudio');
  try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch{}
  try{
   player.muted=false;player.volume=1;player.pause();player.currentTime=0;
@@ -598,6 +640,7 @@ function play(i){
  if(game.cells[i]===1){snapshot();game.cells[i]=0;render();return feedback('Marca retirada. Toca otra vez para colocar un coquí.')}
  const flowerNotice=recordFlowerGuess(i,true);
  if(puzzle().solution[i>>3]!==i%8){
+  playEffect('failAudio');
   game.mistakes=(game.mistakes||0)+1;const protectedNow=isProtected();
   if(!protectedNow)game.lives=Math.max(0,game.lives-1);
   render();const b=$('board').children[i];if(errorCell)errorCell.classList.remove('error');clearTimeout(errorsTimer);
@@ -605,7 +648,7 @@ function play(i){
   if(!protectedNow){$('hearts').classList.remove('heart-hit');void $('hearts').offsetWidth;$('hearts').classList.add('heart-hit');}
   errorsTimer=setTimeout(()=>{b.classList.remove('error');$('hearts').classList.remove('heart-hit');if(errorCell===b)errorCell=null},550);
   feedback((protectedNow?'Protección activa: no perdiste corazón.':isBlocked(i)?'Aquí compartiría fila, columna, color o tocaría a otro coquí.':'Ese rincón impediría completar el tablero. Prueba con otra deducción.')+(!protectedNow?' Perdiste un corazón.':'')+(flowerNotice?' '+flowerNotice:''));
-  playEffect('failAudio');if(game.lives===0)setTimeout(lost,350);return;
+  if(game.lives===0)setTimeout(lost,350);return;
  }
  snapshot();game.cells[i]=2;
  if(game.cells.filter(v=>v===2).length<8)chirp();
@@ -629,7 +672,7 @@ $('resultClose').onclick=()=>{pending=null;$('result').close();if(game.won)openM
 $('result').addEventListener('close',()=>{if(!$('result').open)pending=null});
 document.querySelectorAll('dialog .close').forEach(b=>b.onclick=()=>b.closest('dialog').close());document.querySelectorAll('dialog').forEach(d=>d.addEventListener('click',e=>{if(e.target===d&&d.id!=='defeat'){const rect=d.getBoundingClientRect();if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom)(d.id==='levels'?closeMap():d.close())}}));
 
-for(const [id,key] of [['soundToggle','sound'],['autoToggle','auto'],['motionToggle','motion'],['boardMusicToggle','boardMusic'],['mapMusicToggle','mapMusic']])$(id).onchange=()=>{data[key]=$(id).checked;theme();render();if(key==='sound'){if(data.sound)chirp();else for(const id of ['coquiAudio','clickAudio','failAudio'])$(id).pause()}if(key==='boardMusic')syncBoardMusic();if(key==='mapMusic'){if(data.mapMusic)syncMapMusic();else stopMapMusic()}};
+for(const [id,key] of [['soundToggle','sound'],['autoToggle','auto'],['motionToggle','motion'],['boardMusicToggle','boardMusic'],['mapMusicToggle','mapMusic']])$(id).onchange=()=>{data[key]=$(id).checked;theme();render();if(key==='sound')setBoardSound(data.sound);if(key==='boardMusic')syncBoardMusic();if(key==='mapMusic'){if(data.mapMusic)syncMapMusic();else stopMapMusic()}};
 
 function valid(g){return g&&Number.isInteger(g.puzzle)&&g.puzzle>=0&&g.puzzle<puzzles.length&&(g.variant===undefined||(Number.isInteger(g.variant)&&g.variant>=0&&g.variant<8))&&Array.isArray(g.cells)&&g.cells.length===64&&g.cells.every((x,i)=>[0,1,2].includes(x)&&(x!==2||transformPuzzle(puzzles[g.puzzle],g.variant||0).solution[i>>3]===i%8))&&Array.isArray(g.fixed)&&g.fixed.every(i=>Number.isInteger(i)&&i>=0&&i<64&&g.cells[i]===2)&&Number.isInteger(g.lives)&&g.lives>=0&&g.lives<=4}
 async function init(){theme();try{const response=await fetch('puzzles.json?v=14');if(!response.ok)throw Error('network');puzzles=await response.json();if(puzzles.length!==60)throw Error('data');if(!data.emptyStartV2){data.auto=false;data.emptyStartV2=true;if(data.game&&Array.isArray(data.game.cells)&&Array.isArray(data.game.fixed)){const untouched=data.game.cells.every((v,i)=>v===0||(v===2&&data.game.fixed.includes(i)));if(untouched&&data.game.lives===4&&!data.game.won){data.game.cells.fill(0);data.game.fixed=[]}}}theme();if(valid(data.game)){game=data.game;game.hints=Math.min(3,Math.max(0,Number(game.hints)||0));game.level??=game.puzzle;render()}else start(0);$('loading').hidden=true;if(!data.intro){data.intro=true;save()}openMap()}catch{$('loading').querySelector('p').textContent='No pudimos cargar los niveles. Comprueba la conexión e inténtalo otra vez.';$('retryBtn').hidden=false}}

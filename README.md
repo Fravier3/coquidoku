@@ -1,5 +1,17 @@
 # Coquídoku
 
+## v1.15.0 · Respuesta rápida y silencio completo del tablero
+
+El canto de descubrimiento, pistas y victoria del tablero usa assets/coqui-board-soft.mp3, copia del audio aportado con ganancia 0.5 (aproximadamente −6 dB). La reducción está en el archivo para que se respete también cuando iOS controla el volumen de medios desde el dispositivo. La ficha de El Yunque y el reproductor de prueba conservan el original.
+
+Los efectos clic/fallo se descargan y decodifican una vez en buffers de Web Audio, con AudioContext de latencia interactiva. El contexto se reactiva desde pointerdown/teclado; cada efecto usa un BufferSource nuevo y comienza sin reiniciar un reproductor MP3. Si esta API o la decodificación no están disponibles, permanece el reproductor nativo precargado como alternativa. El fallo se dispara antes de modificar la cuadrícula. No se cambia el momento de registrar las jugadas ni se coloca un coquí al comenzar un gesto de desplazamiento.
+
+El botón del tablero ahora gobierna música y todos los efectos, incluido el canto suave. Silenciar detiene tanto los nodos de audio activos como los reproductores de efectos/canto y la música; reactivar habilita toda la sección. El ajuste Sonido del tablero comparte ese control, manteniendo separado el mapa y El Yunque.
+
+Entrar al mapa o volver a abrir el juego activa su música y comienza desde cero; el silencio elegido durante una visita no se arrastra a la siguiente. El icono representa la elección del usuario, sin confundir un rechazo del navegador con sonido desactivado. Si se exige un gesto, aparece Toca para iniciar la música y una interacción posterior puede reintentarlo. La política de reproducción automática del navegador no puede anularse desde la app. El botón Visitar El Yunque recibe vidrio oscuro translúcido con desenfoque y borde sutil.
+
+Validación: ruta de efectos decodificados, carga única, contexto reactivado por gesto, reproducción antes del render, ausencia de reinicio MP3 en esa ruta, silencio completo, canto nativo alternativo, mapa activado al recargar/volver, rechazo de reproducción automática e inicio desde botón; regresión completa del juego y siete MP3 con rangos Safari/caché. Pendientes medición de latencia, percepción del volumen y aspecto glass en un iPhone físico.
+
 ## v1.14.0 · Música por pantalla, efectos y habitantes independientes
 
 El mapa mantiene música activada de fábrica y respeta el silencio guardado por el usuario. Entrar o volver al mapa reinicia la canción desde cero; cambiar de región no la interrumpe. La bandera de Puerto Rico junto al título es SVG con bandas, triángulo y estrella. La reproducción se solicita al abrir y se reintenta desde una interacción cuando el navegador exige un gesto; no se promete evitar la política de reproducción automática del iPhone.
