@@ -1,6 +1,6 @@
 const $=id=>document.getElementById(id);
 const KEY='coquidoku-v1';
-const defaults={theme:'night',sound:true,auto:false,relax:false,motion:false,difficulty:'calm',completed:[],dailyWins:[],character:null,points:0,earned:[],purchased:[],bonusClaims:[],bonusPending:null,bonusCounter:0,decorGifts:[],decor:[null,null,null],positions:{},feedings:0,behaviors:{},game:null};
+const defaults={theme:'night',sound:true,auto:false,relax:false,motion:false,difficulty:'calm',completed:[],dailyWins:[],character:null,points:0,earned:[],purchased:[],bonusClaims:[],bonusPending:null,bonusCounter:0,decorGifts:[],decor:[null,null,null],positions:{},forestCoordinates:{},feedings:0,behaviors:{},game:null};
 let data;try{data={...defaults,...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch{data={...defaults}}
 if(!['leaf','night','garden'].includes(data.theme))data.theme='night';
 data.completed=[...new Set((Array.isArray(data.completed)?data.completed:[]).filter(n=>Number.isInteger(n)&&n>=0&&n<60))];data.dailyWins=[...new Set((Array.isArray(data.dailyWins)?data.dailyWins:[]).filter(n=>Number.isInteger(n)&&n>=0))];
@@ -10,6 +10,7 @@ data.bonusClaims=[...new Set((Array.isArray(data.bonusClaims)?data.bonusClaims:[
 if(typeof data.bonusPending!=='string'||!/^(level|daily|round):\d+$/.test(data.bonusPending)||data.bonusClaims.includes(data.bonusPending))data.bonusPending=null;
 data.decor=Array.isArray(data.decor)?[0,1,2].map(i=>['fern','flowers','log','stones','fireflies','sapling'].includes(data.decor[i])?data.decor[i]:null):[null,null,null];
 data.positions=data.positions&&typeof data.positions==='object'&&!Array.isArray(data.positions)?Object.fromEntries(Object.entries(data.positions).filter(([id,z])=>['sol','menta','brisa','flor','luna','aurora','boricua'].includes(id)&&Number.isInteger(z)&&z>=0&&z<3)):{};
+data.forestCoordinates=data.forestCoordinates&&typeof data.forestCoordinates==='object'?Object.fromEntries(Object.entries(data.forestCoordinates).filter(([id,p])=>['sol','menta','brisa','flor','luna','aurora','boricua'].includes(id)&&p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&p.x>=8&&p.x<=88&&p.y>=45&&p.y<=88)):{};
 data.bonusCounter=Number.isSafeInteger(data.bonusCounter)&&data.bonusCounter>=0?data.bonusCounter:0;
 data.decorGifts=(Array.isArray(data.decorGifts)?data.decorGifts:[]).filter(x=>['flowers','log','fireflies'].includes(x));
 data.behaviors=data.behaviors&&typeof data.behaviors==='object'&&!Array.isArray(data.behaviors)?Object.fromEntries(Object.entries(data.behaviors).filter(([id,v])=>['sol','menta','brisa','flor','luna','aurora','boricua'].includes(id)&&['rest','explore'].includes(v))):{};
@@ -58,12 +59,12 @@ $('purchaseConfirm').onclick=()=>{buyCoqui(purchaseTarget);purchaseTarget=null;$
 function renderCollection(){const p=progression();$('collectionCount').textContent=`${p.unlocked.length} de 7 amigos · ${data.points} puntos`;$('nextCoqui').textContent=p.next?`Próximo por niveles: ${p.next.name} · ${data.completed.length}/${p.next.at} niveles completados`:'¡Tu familia de coquíes está completa!';const cards=document.createDocumentFragment();for(const c of COQUIS){const unlocked=unlockedCoqui(c),selected=c.id===data.character;const card=document.createElement('article');card.className='coqui-card'+(unlocked?'':' locked')+(selected?' chosen':'');const image=document.createElement('img');image.src=c.src;image.alt=c.name;image.width=150;image.height=150;const title=document.createElement('h3');title.textContent=c.name;const desc=document.createElement('p');desc.textContent=c.detail;const target=document.createElement('small');target.textContent=c.id==='boricua'?`Exclusivo: completa los 60 niveles · ${data.completed.length}/60. No se compra con puntos.`:c.at===0?'Tu primer compañero':`Completa ${c.at} niveles o compra por ${c.price} puntos.`;const button=document.createElement('button');button.className=selected?'selected-coqui':'pick-coqui';button.textContent=selected?'✓ Elegido':unlocked?'Elegir':c.price?`Comprar · ${c.price} puntos`:'Completa la aventura';button.disabled=selected||(!unlocked&&(!c.price||data.points<c.price));button.setAttribute('aria-label',`${c.name}: ${button.textContent}`);button.onclick=()=>unlocked?chooseCoqui(c.id):requestPurchase(c.id);card.append(image,title,desc,target,button);cards.append(card)}$('coquiCards').replaceChildren(cards);save()}
 let forestTime='night';
 function forestSceneSource(){return `assets/yunque-${FOREST_STAGES.indexOf(forestStage())}-${forestTime}.webp`}
-function renderForest(){const p=progression(),index=FOREST_STAGES.indexOf(p.stage),next=FOREST_STAGES[index+1];$('forestTitle').textContent=p.stage.name;$('forestDescription').textContent=(forestTime==='day'?'De día · ':'De noche · ')+p.stage.description;$('forestScene').style.setProperty('--forest-scene',`url('${forestSceneSource()}')`);$('forest').style.setProperty('--forest-wallpaper',`url('${forestSceneSource()}')`);$('forestWins').textContent=p.n;$('forestFriends').textContent=p.unlocked.length;$('forestProgress').max=next?next.at-p.stage.at:60;$('forestProgress').value=next?p.n-p.stage.at:Math.min(p.n,60);$('forestNext').textContent=next?`Faltan ${next.at-p.n} semillas para el próximo cambio de El Yunque.`:'El Yunque alcanzó su etapa más frondosa. Sigue decorándolo a tu gusto.';const plants=document.createDocumentFragment();for(let i=0;i<Math.min(60,p.n);i++){const sprout=document.createElement('span');sprout.className='forest-sprout';sprout.style.left=(12+(i*19)%63)+'%';sprout.style.top=(57+(i*11)%32)+'%';sprout.style.setProperty('--plant-scale',String(.65+(i%4)*.12));sprout.setAttribute('aria-hidden','true');plants.append(sprout)}$('forestPlants').replaceChildren(plants);
+function renderForest(){const p=progression(),index=FOREST_STAGES.indexOf(p.stage),next=FOREST_STAGES[index+1];$('forestTitle').textContent=p.stage.name;$('forestDescription').textContent=(forestTime==='day'?'De día · ':'De noche · ')+p.stage.description;$('forestScene').style.setProperty('--forest-scene',`url('${forestSceneSource()}')`);$('forest').style.setProperty('--forest-wallpaper',`url('${forestSceneSource()}')`);$('forestWins').textContent=p.n;$('forestFriends').textContent=p.unlocked.length;$('forestProgress').max=next?next.at-p.stage.at:60;$('forestProgress').value=next?p.n-p.stage.at:Math.min(p.n,60);$('forestNext').textContent=next?`Faltan ${next.at-p.n} semillas para el próximo cambio de El Yunque.`:'El Yunque alcanzó su etapa más frondosa. Disfruta de tu refugio y de todos sus habitantes.';const plants=document.createDocumentFragment();for(let i=0;i<Math.min(60,p.n);i++){const sprout=document.createElement('span');sprout.className='forest-sprout';sprout.style.left=(12+(i*19)%63)+'%';sprout.style.top=(57+(i*11)%32)+'%';sprout.style.setProperty('--plant-scale',String(.65+(i%4)*.12));sprout.setAttribute('aria-hidden','true');plants.append(sprout)}$('forestPlants').replaceChildren(plants);
  const autoDecor=document.createDocumentFragment();DECORATIONS.filter(d=>d.id!=='fireflies'&&(p.n>=d.at||data.decorGifts.includes(d.id))).slice(-3).forEach((d,i)=>{const img=document.createElement('img');img.src=`assets/decor-${d.id}.webp`;img.alt='';img.className='forest-decoration zone-'+i;autoDecor.append(img)});$('forestDecor').replaceChildren(autoDecor);
- const friends=document.createDocumentFragment();p.unlocked.forEach((c,i)=>{const zone=Number.isInteger(data.positions[c.id])?data.positions[c.id]:i%3,peers=p.unlocked.filter((f,j)=>(Number.isInteger(data.positions[f.id])?data.positions[f.id]:j%3)===zone),slot=peers.indexOf(c);const b=document.createElement('button');b.className='forest-friend';b.style.left=([67,18,40][zone]+(slot%3)*7)+'%';b.style.top=([53,60,66][zone]+Math.floor(slot/3)*8)+'%';b.style.zIndex=String(10+zone+slot);b.setAttribute('aria-label',`${c.name}, ${ZONES[zone]}. Toca para conocerlo.`);const img=document.createElement('img');img.src=c.src;img.alt='';b.append(img);b.onclick=()=>openResident(c.id);friends.append(b)});$('forestResidents').replaceChildren(friends);ecosystem=progression().unlocked.map((c,i)=>{const button=$('forestResidents').children[i];return {id:c.id,button,image:button.firstElementChild,position:{x:parseFloat(button.style.left),y:parseFloat(button.style.top)},next:null,started:null,targetFood:null,direction:i%2===0,hops:0}});$('forestMeals').textContent=data.feedings;const roster=document.createDocumentFragment();for(const c of p.unlocked){const b=document.createElement('button');b.textContent=c.name;b.onclick=()=>openResident(c.id);roster.append(b)}$('forestRoster').replaceChildren(roster);insects.forEach(b=>b.owner=null);renderInsects();$('forestInvite').textContent=p.unlocked.length<7?'Desbloquea más personajes para que vivan en El Yunque.':'¡Toda tu familia de coquíes vive en El Yunque!';save()}
+ const friends=document.createDocumentFragment();p.unlocked.forEach((c,i)=>{const zone=Number.isInteger(data.positions[c.id])?data.positions[c.id]:i%3,peers=p.unlocked.filter((f,j)=>(Number.isInteger(data.positions[f.id])?data.positions[f.id]:j%3)===zone),slot=peers.indexOf(c);const b=document.createElement('button');b.className='forest-friend';b.style.left=([67,18,40][zone]+(slot%3)*7)+'%';b.style.top=([53,60,66][zone]+Math.floor(slot/3)*8)+'%';if(data.forestCoordinates[c.id]){b.style.left=data.forestCoordinates[c.id].x+'%';b.style.top=data.forestCoordinates[c.id].y+'%'}b.style.zIndex=String(10+zone+slot);b.setAttribute('aria-label',`${c.name}, ${ZONES[zone]}. Arrastra para moverlo o toca para conocerlo.`);const img=document.createElement('img');img.src=c.src;img.alt='';b.append(img);b.onclick=event=>{if(b.suppressClick){b.suppressClick=false;event.preventDefault();return}openResident(c.id)};bindResidentDrag(b,c.id);friends.append(b)});$('forestResidents').replaceChildren(friends);ecosystem=progression().unlocked.map((c,i)=>{const button=$('forestResidents').children[i];return {id:c.id,button,image:button.firstElementChild,position:{x:parseFloat(button.style.left),y:parseFloat(button.style.top)},next:null,started:null,targetFood:null,direction:i%2===0,hops:0}});$('forestMeals').textContent=data.feedings;const roster=document.createDocumentFragment();for(const c of p.unlocked){const b=document.createElement('button');b.textContent=c.name;b.onclick=()=>openResident(c.id);roster.append(b)}$('forestRoster').replaceChildren(roster);insects.forEach(b=>b.owner=null);renderInsects();$('forestInvite').textContent=p.unlocked.length<7?'Desbloquea más personajes para que vivan en El Yunque.':'¡Toda tu familia de coquíes vive en El Yunque!';save()}
 let residentId='sol';
 function openResident(id){const c=COQUIS.find(c=>c.id===id);if(!c||!unlockedCoqui(c))return;residentId=id;$('residentName').textContent=c.name;$('residentImage').src=c.src;$('residentText').textContent=c.detail+'. Ya tiene un hogar en El Yunque.';$('residentZone').value=String(data.positions[id]??progression().unlocked.indexOf(c)%3);$('residentRest').checked=data.behaviors[id]==='rest';$('resident').showModal()}
-$('residentZone').onchange=()=>{const z=Number($('residentZone').value);if(z>=0&&z<3){data.positions[residentId]=z;save();renderForest()}};
+$('residentZone').onchange=()=>{const z=Number($('residentZone').value);if(z>=0&&z<3){data.positions[residentId]=z;delete data.forestCoordinates[residentId];save();renderForest()}};
 $('residentCall').onclick=()=>chirp(true,true);
 $('collectionBtn').onclick=()=>openCollection();
 $('forestBtn').onclick=openForest;
@@ -71,16 +72,59 @@ $('resultCollectionBtn').onclick=()=>{$('result').close();openCollection('map')}
 $('resultForestBtn').onclick=()=>{$('result').close();openForest()};
 
 // Immersive ecosystem. Its frame clock is independent from CSS animation rules.
-let forestReturn='game',forestRaf=null,ecosystem=[],forestClock=0,feeding=false,lastFeeding=-Infinity;
-function openForest(returnTo='game'){forestReturn=returnTo;feeding=false;$('forestFeedBtn').setAttribute('aria-pressed','false');$('forestHint').textContent='Toca Alimentar y deja insectos en el suelo.';forestTime=Math.random()<.5?'day':'night';renderForest();$('forest').showModal();$('forestBack').focus({preventScroll:true});startEcosystem()}
+let forestReturn='game',forestRaf=null,ecosystem=[],forestClock=0,feeding=false;
+function bindResidentDrag(button,id){
+ let drag=null;
+ button.onpointerdown=event=>{
+  if(event.isPrimary===false||(event.button!==undefined&&event.button!==0))return;
+  const s=ecosystem.find(s=>s.id===id);if(!s)return;
+  button.suppressClick=false;
+  drag={pointer:event.pointerId,x:event.clientX,y:event.clientY,origin:{...s.position},moved:false};
+  s.dragging=true;s.started=null;s.image.style.transform='translate3d(0,0,0)';
+  button.setPointerCapture?.(event.pointerId);
+ };
+ button.onpointermove=event=>{
+  if(!drag||event.pointerId!==drag.pointer)return;
+  const dx=event.clientX-drag.x,dy=event.clientY-drag.y;
+  if(!drag.moved&&Math.hypot(dx,dy)<6)return;
+  drag.moved=true;event.preventDefault();
+  const rect=$('forestResidents').getBoundingClientRect(),s=ecosystem.find(s=>s.id===id);
+  if(!s||!rect.width||!rect.height)return;
+  s.position={x:Math.max(8,Math.min(88,drag.origin.x+dx/rect.width*100)),y:Math.max(45,Math.min(88,drag.origin.y+dy/rect.height*100))};
+  button.style.left=s.position.x+'%';button.style.top=s.position.y+'%';
+ };
+ const finish=event=>{
+  if(!drag||event.pointerId!==drag.pointer)return;
+  const s=ecosystem.find(s=>s.id===id);
+  if(s){s.dragging=false;s.next=forestClock+15000;s.started=null;
+   if(drag.moved){data.forestCoordinates[id]={...s.position};insects.filter(b=>b.owner===id).forEach(b=>b.owner=null);s.targetFood=null;save();$('forestHint').textContent='Su nuevo rincón quedó guardado. Puedes mover a otro coquí.';}
+  }
+  button.suppressClick=drag.moved;drag=null;
+  if(button.hasPointerCapture?.(event.pointerId))button.releasePointerCapture(event.pointerId);
+ };
+ button.onpointerup=finish;button.onpointercancel=finish;button.onlostpointercapture=finish;
+ button.ondragstart=event=>event.preventDefault();
+}
+
+function openForest(returnTo='game'){forestReturn=returnTo;feeding=false;$('forestFeedBtn').setAttribute('aria-pressed','false');$('forestHint').textContent='Arrastra un coquí para moverlo. Toca Alimentar para repartir insectos.';forestTime=Math.random()<.5?'day':'night';renderForest();$('forest').showModal();$('forestBack').focus({preventScroll:true});startEcosystem()}
 function stopEcosystem(){if(forestRaf!==null&&window.cancelAnimationFrame)window.cancelAnimationFrame(forestRaf);forestRaf=null}
 function startEcosystem(){stopEcosystem();if(!window.requestAnimationFrame||!$('forest').open||document.visibilityState==='hidden')return;const frame=t=>{forestRaf=null;if(!$('forest').open||document.visibilityState==='hidden')return;updateEcosystem(t);forestRaf=window.requestAnimationFrame(frame)};forestRaf=window.requestAnimationFrame(frame)}
 let insects=[],insectSerial=0;
 function renderInsects(){const fragment=document.createDocumentFragment();for(const bug of insects){const img=document.createElement('img');img.className='food-insect';img.src='assets/insect-fly.webp';img.alt='';img.style.left=bug.x+'%';img.style.top=bug.y+'%';fragment.append(img)}$('forestFood').replaceChildren(fragment)}
 function claimInsect(s,t){if(s.targetFood!==null&&insects.some(b=>b.id===s.targetFood))return;const free=insects.filter(b=>b.owner===null).sort((a,b)=>Math.hypot(a.x-s.position.x,a.y-s.position.y)-Math.hypot(b.x-s.position.x,b.y-s.position.y));if(!free.length){s.targetFood=null;return}free[0].owner=s.id;s.targetFood=free[0].id;s.next=Math.min(s.next??Infinity,t+120)}
 function eatInsect(s,t){const bug=insects.find(b=>b.id===s.targetFood);if(bug&&Math.hypot(s.position.x-bug.x,s.position.y-bug.y)<.3){insects=insects.filter(b=>b!==bug);s.targetFood=null;renderInsects();$('forestHint').textContent='¡Un coquí se comió un insecto!';claimInsect(s,t)}else if(bug)s.next=t+280}
-function updateEcosystem(t){forestClock=t;for(let i=0;i<ecosystem.length;i++){const s=ecosystem[i];if(data.behaviors[s.id]==='rest'){insects.filter(b=>b.owner===s.id).forEach(b=>b.owner=null);s.targetFood=null;s.image.style.transform='translate3d(0,0,0)';s.started=null;s.next=t+15000;continue}if(insects.length)claimInsect(s,t);if(s.next===null)s.next=t+800+i*160;if(s.started===null&&t>=s.next){s.started=t;s.next=t+15000;s.from={...s.position};const bug=insects.find(b=>b.id===s.targetFood),goal=bug||{x:Math.max(8,Math.min(88,s.position.x+(s.direction?5:-5))),y:s.position.y},distance=Math.hypot(goal.x-s.position.x,goal.y-s.position.y),scale=distance>12?12/distance:1;s.target={x:s.position.x+(goal.x-s.position.x)*scale,y:s.position.y+(goal.y-s.position.y)*scale};s.direction=!s.direction;s.hops++}if(s.started!==null){const p=data.motion?1:Math.max(0,Math.min(1,(t-s.started)/900)),ease=p*p*(3-2*p),height=data.motion?0:36;s.position={x:s.from.x+(s.target.x-s.from.x)*ease,y:s.from.y+(s.target.y-s.from.y)*ease};s.button.style.left=s.position.x+'%';s.button.style.top=s.position.y+'%';s.image.style.transform=`translate3d(0,${-4*height*p*(1-p)}px,0) scale(${1+.06*Math.sin(p*Math.PI*2)},${1-.06*Math.sin(p*Math.PI*2)})`;if(p===1){s.started=null;s.image.style.transform='translate3d(0,0,0)';eatInsect(s,t)}}}}
-function feedAt(x,y,t=forestClock){if(t-lastFeeding<3000){$('forestHint').textContent='Espera un momentito antes de dejar más insectos.';return false}if(insects.length>9){$('forestHint').textContent='Todavía quedan insectos por comer.';return false}lastFeeding=t;x=Math.max(10,Math.min(86,x));y=Math.max(58,Math.min(85,y));for(let i=0;i<3;i++)insects.push({id:++insectSerial,x:Math.max(8,Math.min(88,x+(i-1)*3)),y:Math.min(86,y+(i%2)*2),owner:null});renderInsects();ecosystem.forEach(s=>{if(data.behaviors[s.id]!=='rest')claimInsect(s,t)});data.feedings++;save();$('forestHint').textContent='Los insectos se quedan hasta que un coquí llegue y los coma.';$('forestMeals').textContent=data.feedings;return true}
+function updateEcosystem(t){forestClock=t;for(let i=0;i<ecosystem.length;i++){const s=ecosystem[i];if(s.dragging)continue;if(data.behaviors[s.id]==='rest'){insects.filter(b=>b.owner===s.id).forEach(b=>b.owner=null);s.targetFood=null;s.image.style.transform='translate3d(0,0,0)';s.started=null;s.next=t+15000;continue}if(insects.length)claimInsect(s,t);if(s.next===null)s.next=t+800+i*160;if(s.started===null&&t>=s.next){s.started=t;s.next=t+15000;s.from={...s.position};const bug=insects.find(b=>b.id===s.targetFood),goal=bug||{x:Math.max(8,Math.min(88,s.position.x+(s.direction?5:-5))),y:s.position.y},distance=Math.hypot(goal.x-s.position.x,goal.y-s.position.y),scale=distance>12?12/distance:1;s.target={x:s.position.x+(goal.x-s.position.x)*scale,y:s.position.y+(goal.y-s.position.y)*scale};s.direction=!s.direction;s.hops++}if(s.started!==null){const p=data.motion?1:Math.max(0,Math.min(1,(t-s.started)/900)),ease=p*p*(3-2*p),height=data.motion?0:36;s.position={x:s.from.x+(s.target.x-s.from.x)*ease,y:s.from.y+(s.target.y-s.from.y)*ease};s.button.style.left=s.position.x+'%';s.button.style.top=s.position.y+'%';s.image.style.transform=`translate3d(0,${-4*height*p*(1-p)}px,0) scale(${1+.06*Math.sin(p*Math.PI*2)},${1-.06*Math.sin(p*Math.PI*2)})`;if(p===1){s.started=null;s.image.style.transform='translate3d(0,0,0)';eatInsect(s,t)}}}}
+function distributeInsects(t){
+ insects.forEach(b=>b.owner=null);ecosystem.forEach(s=>s.targetFood=null);
+ const candidates=ecosystem.filter(s=>!s.dragging&&data.behaviors[s.id]!=='rest'),free=[...insects];
+ while(candidates.length&&free.length){
+  let best=null;
+  for(const s of candidates)for(const bug of free){const distance=Math.hypot(s.position.x-bug.x,s.position.y-bug.y);if(!best||distance<best.distance)best={s,bug,distance}}
+  best.bug.owner=best.s.id;best.s.targetFood=best.bug.id;best.s.next=Math.min(best.s.next??Infinity,t+120);
+  candidates.splice(candidates.indexOf(best.s),1);free.splice(free.indexOf(best.bug),1);
+ }
+}
+function feedAt(x,y,t=forestClock){if(insects.length>27){$('forestHint').textContent='Todavía quedan insectos por comer.';return false}x=Math.max(10,Math.min(86,x));y=Math.max(58,Math.min(85,y));for(let i=0;i<3;i++)insects.push({id:++insectSerial,x:Math.max(8,Math.min(88,x+(i-1)*3)),y:Math.min(86,y+(i%2)*2),owner:null});renderInsects();distributeInsects(t);data.feedings++;save();$('forestHint').textContent='Toca otros lugares para repartir insectos. Cada coquí busca su propio alimento.';$('forestMeals').textContent=data.feedings;return true}
 
 function closeForest(){forestReturn=forestReturn==='map'?'map':'game';$('forest').close();handleForestClose()}
 function handleForestClose(){stopEcosystem();const back=forestReturn;forestReturn='game';if(back==='map')openMap()}
@@ -88,7 +132,7 @@ $('forestBack').onclick=closeForest;
 $('forest').addEventListener('close',handleForestClose);
 $('forestStatusBtn').onclick=()=>{$('forestCustomize').showModal()};
 $('forestFriendsBtn').onclick=()=>openCollection('forest');
-$('forestFeedBtn').onclick=()=>{feeding=!feeding;$('forestFeedBtn').setAttribute('aria-pressed',String(feeding));$('forestHint').textContent=feeding?'Toca el suelo para dejar insectos.':'Toca Alimentar y deja insectos en el suelo.'};
+$('forestFeedBtn').onclick=()=>{feeding=!feeding;$('forestFeedBtn').setAttribute('aria-pressed',String(feeding));$('forestHint').textContent=feeding?'Toca varios puntos del suelo para repartir insectos.':'Arrastra un coquí para moverlo. Toca Alimentar para repartir insectos.'};
 $('forestScene').addEventListener('click',event=>{if(!feeding||event.target.closest('button'))return;const rect=$('forestResidents').getBoundingClientRect();feedAt((event.clientX-rect.left)/rect.width*100,(event.clientY-rect.top)/rect.height*100)});
 $('residentRest').onchange=()=>{data.behaviors[residentId]=$('residentRest').checked?'rest':'explore';save();renderForest()};
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')stopEcosystem();else if($('forest').open)startEcosystem()});
@@ -100,13 +144,45 @@ $('collection').addEventListener('close',handleCollectionClose);
 // Sixty numbered stops, with legacy progress preserved and a visible next level.
 const CHAPTERS=['Viejo San Juan','Playas de Luquillo','Senderos de El Yunque','Bahía luminosa','Montañas de Cayey','La cumbre del coquí'];
 function nextAdventureLevel(){for(let i=0;i<60;i++)if(!data.completed.includes(i))return i;return 59}
-function unlockedThrough(){return Math.min(59,Math.max(0,...data.completed.map(n=>n+1),game&&!game.daily?(game.level||0):0))}
-function currentAdventureLevel(){return data.completed.length===60?null:nextAdventureLevel()}
-function mapLevelState(index){if(data.completed.includes(index))return 'done';if(index===currentAdventureLevel())return 'current';return index<=unlockedThrough()?'available':'locked'}
-function mapPosition(index){return {x:200+96*Math.sin(index*.91),y:1180-index*118}}
-function openMap(){renderMap();$('levels').showModal();const current=currentAdventureLevel(),target=$(current===null?'mapLevel59':'mapCurrent');if(target&&target.scrollIntoView)setTimeout(()=>target.scrollIntoView({block:'center',behavior:'auto'}),0)}
+function currentAdventureLevel(){
+ if(data.completed.length===60)return null;
+ const completedFrontier=Math.max(0,...data.completed.map(n=>n+1));
+ const savedLevel=game&&!game.daily&&!game.won&&Number.isInteger(game.level)?game.level:0;
+ const candidate=Math.min(59,Math.max(completedFrontier,savedLevel));
+ return data.completed.includes(candidate)?Array.from({length:60},(_,i)=>59-i).find(i=>!data.completed.includes(i)):candidate;
+}
+function unlockedThrough(){return currentAdventureLevel()??59}
+function mapLevelState(index){const current=currentAdventureLevel();if(current===null||data.completed.includes(index)||index<current)return 'done';return index===current?'current':'locked'}
+const MAP_STOPS=Array.from({length:10},(_,i)=>({x:i%2?270:120,y:625-i*57}));
+function mapPosition(index,chapter=mapChapter??0){if(chapter===5&&index===0)return {x:200,y:630};if(chapter===5&&index===1)return {x:320,y:568};return MAP_STOPS[index]}
+let mapChapter=null;
+function openMap(){mapChapter=Math.floor((currentAdventureLevel()??59)/10);renderMap();$('levels').showModal()}
+function changeMapChapter(delta){mapChapter=Math.max(0,Math.min(Math.floor(unlockedThrough()/10),(mapChapter??Math.floor(unlockedThrough()/10))+delta));renderMap()}
 function selectMapLevel(index){if(!Number.isInteger(index)||index<0||index>unlockedThrough())return false;$('levels').close();if(game&&!game.daily&&!game.won&&game.level===index)return true;chooseNew(()=>start(index));return true}
-function renderMap(){const current=currentAdventureLevel(),available=unlockedThrough();$('mapProgress').textContent=current===null?'¡Completaste Puerto Rico!':`Nivel actual: ${current+1} · ${data.completed.length}/60 completados`;const chapters=document.createDocumentFragment();for(let c=Math.floor(available/10);c>=0;c--){const section=document.createElement('section');section.className='map-chapter';section.style.setProperty('--map-art',`url('assets/map-${c}.webp')`);const title=document.createElement('h3');title.textContent=CHAPTERS[c];section.append(title);const path=document.createElement('div');path.className='map-route';let d='';for(let j=0;j<10;j++){const p=mapPosition(j);if(j===0)d=`M ${p.x} ${p.y}`;else{const prev=mapPosition(j-1),mid=(prev.y+p.y)/2;d+=` C ${prev.x} ${mid}, ${p.x} ${mid}, ${p.x} ${p.y}`}}path.innerHTML=`<svg viewBox="0 0 400 1320" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" class="route-shadow"/><path d="${d}" class="route-light"/></svg>`;section.append(path);for(let j=0;j<10;j++){const i=c*10+j,p=mapPosition(j),state=mapLevelState(i),button=document.createElement('button');button.type='button';button.className='map-step '+state;button.style.left=p.x/4+'%';button.style.top=p.y+'px';button.dataset.level=i;button.dataset.state=state;button.id=i===current?'mapCurrent':`mapLevel${i}`;button.disabled=state==='locked';button.setAttribute('aria-label',`Nivel ${i+1}: ${{done:'completado',current:'nivel actual',locked:'bloqueado',available:'disponible'}[state]}`);button.setAttribute('aria-current',state==='current'?'step':'false');const number=document.createElement('b');number.textContent=i+1;button.append(number);if(state==='current'){const caption=document.createElement('span');caption.className='step-caption';caption.textContent='Estás aquí';button.append(caption)}else if(state==='locked'){const lock=document.createElement('span');lock.className='step-lock';lock.setAttribute('aria-hidden','true');lock.innerHTML='<svg viewBox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3M5 10h14v11H5zM12 14v3"/></svg>';button.append(lock)}button.onclick=()=>selectMapLevel(i);section.append(button)}chapters.append(section)}$('adventureMap').replaceChildren(chapters)}
+function renderMap(){
+ const current=currentAdventureLevel(),available=unlockedThrough(),lastChapter=Math.floor(available/10);
+ const c=Math.max(0,Math.min(lastChapter,mapChapter??Math.floor((current??59)/10)));mapChapter=c;
+ $('mapProgress').textContent=current===null?'¡Completaste Puerto Rico!':`Nivel actual: ${current+1} · ${data.completed.length}/60 completados`;
+ $('mapPrevious').disabled=c===0;$('mapNext').disabled=c===lastChapter;
+ $('mapRegion').textContent=`${CHAPTERS[c]} · ${c*10+1}–${c*10+10}`;
+ const section=document.createElement('section');section.className='map-chapter';section.setAttribute('aria-label',`Mapa de ${CHAPTERS[c]}, niveles ${c*10+1} a ${c*10+10}`);
+ section.style.setProperty('--map-art',`url('assets/map-${c}.webp?v=18')`);
+ const path=document.createElement('div');path.className='map-route';let d='';
+ for(let j=0;j<10;j++){const p=mapPosition(j);if(j===0)d=`M ${p.x} ${p.y}`;else{const prev=mapPosition(j-1),mid=(prev.y+p.y)/2;d+=` C ${prev.x} ${mid}, ${p.x} ${mid}, ${p.x} ${p.y}`}}
+ path.innerHTML=`<svg viewBox="0 0 400 700" aria-hidden="true"><path d="${d}" class="route-shadow"/><path d="${d}" class="route-light"/></svg>`;section.append(path);
+ for(let j=0;j<10;j++){
+  const i=c*10+j,p=mapPosition(j),state=mapLevelState(i),button=document.createElement('button');button.type='button';button.className='map-step '+state;
+  button.style.left=p.x/4+'%';button.style.top=p.y/7+'%';button.dataset.level=i;button.dataset.state=state;button.id=i===current?'mapCurrent':`mapLevel${i}`;button.disabled=state==='locked';
+  button.setAttribute('aria-label',`Nivel ${i+1}: ${{done:'completado',current:'nivel actual',locked:'bloqueado'}[state]}`);button.setAttribute('aria-current',state==='current'?'step':'false');
+  const number=document.createElement('b');number.textContent=i+1;button.append(number);
+  if(state==='current'){const caption=document.createElement('span');caption.className='step-caption';caption.textContent='Estás aquí';button.append(caption)}
+  else if(state==='locked'){const lock=document.createElement('span');lock.className='step-lock';lock.setAttribute('aria-hidden','true');lock.innerHTML='<svg viewBox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3M5 10h14v11H5zM12 14v3"/></svg>';button.append(lock)}
+  button.onclick=()=>selectMapLevel(i);section.append(button);
+ }
+ $('adventureMap').replaceChildren(section);
+}
+$('mapPrevious').onclick=()=>changeMapChapter(-1);
+$('mapNext').onclick=()=>changeMapChapter(1);
 $('mapBack').onclick=()=>$('levels').close();
 $('mapForestBtn').onclick=()=>{$('levels').close();openForest('map')};
 $('resultMapBtn').onclick=()=>{$('result').close();openMap()};
@@ -198,7 +274,7 @@ document.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{data.theme=b.
 for(const [id,key] of [['soundToggle','sound'],['autoToggle','auto'],['relaxToggle','relax'],['motionToggle','motion']])$(id).onchange=()=>{data[key]=$(id).checked;theme();render();if(key==='sound')chirp()};
 
 function valid(g){return g&&Number.isInteger(g.puzzle)&&g.puzzle>=0&&g.puzzle<puzzles.length&&(g.variant===undefined||(Number.isInteger(g.variant)&&g.variant>=0&&g.variant<8))&&Array.isArray(g.cells)&&g.cells.length===64&&g.cells.every((x,i)=>[0,1,2].includes(x)&&(x!==2||transformPuzzle(puzzles[g.puzzle],g.variant||0).solution[i>>3]===i%8))&&Array.isArray(g.fixed)&&g.fixed.every(i=>Number.isInteger(i)&&i>=0&&i<64&&g.cells[i]===2)&&Number.isInteger(g.lives)&&g.lives>=0&&g.lives<=4}
-async function init(){theme();try{const response=await fetch('puzzles.json?v=10');if(!response.ok)throw Error('network');puzzles=await response.json();if(puzzles.length!==60)throw Error('data');if(!data.emptyStartV2){data.auto=false;data.emptyStartV2=true;if(data.game&&Array.isArray(data.game.cells)&&Array.isArray(data.game.fixed)){const untouched=data.game.cells.every((v,i)=>v===0||(v===2&&data.game.fixed.includes(i)));if(untouched&&data.game.lives===4&&!data.game.won){data.game.cells.fill(0);data.game.fixed=[]}}}theme();if(valid(data.game)){game=data.game;game.hints=Math.min(3,Math.max(0,Number(game.hints)||0));game.level??=game.puzzle;render()}else start(0);$('loading').hidden=true;if(!data.intro){data.intro=true;save();$('help').showModal()}}catch{$('loading').querySelector('p').textContent='No pudimos cargar los niveles. Comprueba la conexión e inténtalo otra vez.';$('retryBtn').hidden=false}}
+async function init(){theme();try{const response=await fetch('puzzles.json?v=11');if(!response.ok)throw Error('network');puzzles=await response.json();if(puzzles.length!==60)throw Error('data');if(!data.emptyStartV2){data.auto=false;data.emptyStartV2=true;if(data.game&&Array.isArray(data.game.cells)&&Array.isArray(data.game.fixed)){const untouched=data.game.cells.every((v,i)=>v===0||(v===2&&data.game.fixed.includes(i)));if(untouched&&data.game.lives===4&&!data.game.won){data.game.cells.fill(0);data.game.fixed=[]}}}theme();if(valid(data.game)){game=data.game;game.hints=Math.min(3,Math.max(0,Number(game.hints)||0));game.level??=game.puzzle;render()}else start(0);$('loading').hidden=true;if(!data.intro){data.intro=true;save();$('help').showModal()}}catch{$('loading').querySelector('p').textContent='No pudimos cargar los niveles. Comprueba la conexión e inténtalo otra vez.';$('retryBtn').hidden=false}}
 $('retryBtn').onclick=()=>location.reload();
 window.addEventListener('pagehide',save);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save()});
 if('serviceWorker'in navigator){let refreshing=false;const wasControlled=!!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(refreshing||!wasControlled)return;refreshing=true;save();location.reload()});navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{reg.update();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reg.update()})}).catch(()=>{})}

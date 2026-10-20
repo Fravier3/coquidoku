@@ -28,3 +28,27 @@ body[data-theme=garden]{--message-bg:#fff2ec}
 /* A single, isolated step component replaces the accumulated node styles. */
 .map-chapter{height:1320px}.map-step{position:absolute;display:grid;place-items:center;width:86px;height:68px;padding:0;border:0;border-radius:0;transform:translate(-50%,-50%);background:url('assets/step-locked.webp') center/contain no-repeat;color:#f7f6eb;text-shadow:0 2px 2px #193545;filter:drop-shadow(0 5px 3px #0005);touch-action:manipulation}.map-step b{font-size:24px;line-height:1;transform:translateY(-6px);pointer-events:none}.map-step.done{background-image:url('assets/step-done.webp');color:#fffbe0}.map-step.current{background-image:url('assets/step-current.webp');color:#674514;text-shadow:0 1px 1px #fff9;filter:drop-shadow(0 0 8px #ffd772)}.map-step.available{filter:sepia(.65) saturate(2.3) hue-rotate(115deg) drop-shadow(0 5px 3px #0005)}.map-step.locked{opacity:1}.map-step:focus-visible{outline:3px solid #fff7ba;outline-offset:5px;border-radius:12px}.step-caption{position:absolute;top:74px;left:50%;transform:translateX(-50%);white-space:nowrap;padding:4px 8px;border-radius:10px;font-size:10px;background:#fff3cf;color:#5a431b;line-height:1.2;text-shadow:none}.step-lock{position:absolute;left:calc(100% + 7px);top:50%;transform:translateY(-50%);width:19px;height:23px;background:transparent;pointer-events:none;color:#ffedbd;filter:drop-shadow(0 1px 2px #0009)}.step-lock svg{display:block;width:19px;height:23px;fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}#forest .forest-friend{background:none;border:0;border-radius:0;box-shadow:none;outline:none}#forest .forest-friend:focus-visible{outline:2px dashed #f5e9c4;outline-offset:3px;border-radius:5px}.pairs-grid>button.revealed{outline:2px solid var(--accent)}.memory-progress{display:flex;justify-content:center;gap:10px;margin:10px 0}.memory-progress span{display:grid;place-items:center;width:32px;height:32px;border:1px solid var(--line);border-radius:50%;background:var(--button);font-size:12px}.memory-progress .correct{background:var(--accent);color:var(--bg)}
 #forest:before{content:'';position:absolute;inset:0;background-image:var(--forest-wallpaper);background-position:center;background-size:cover;filter:blur(24px) brightness(.45);transform:scale(1.05);pointer-events:none}@media(min-aspect-ratio:3/4){#forest .forest-scene{width:calc(100dvh * .46154);left:50%;right:auto;transform:translateX(-50%)}#forest .forest-header,#forest .forest-hud{width:calc(100dvh * .46154);align-self:center}#forest .forest-invite{left:calc(50vw - 23.077dvh + 14px)}}
+
+/* One complete ten-stop region per screen; artwork and route share one portrait frame. */
+#levels .map-scroll{display:grid;place-items:center;overflow:hidden;container-type:size;background:#143f3c;scroll-behavior:auto}
+#adventureMap{display:grid;place-items:center;width:100%;height:100%;max-width:none;margin:0;box-shadow:none}
+#levels .map-chapter{width:min(100cqw,calc(100cqh * 4 / 7));height:min(100cqh,calc(100cqw * 7 / 4));max-width:100%;max-height:100%;border:0;background-image:var(--map-art);background-size:cover;background-position:center;container-type:size}
+#levels .map-route{z-index:0}
+#levels .map-step{z-index:1;width:clamp(44px,16cqw,64px);height:clamp(44px,13cqw,52px);min-width:44px;min-height:44px}
+#levels .map-step b{font-size:clamp(17px,5.5cqw,23px);transform:translateY(-4px)}
+#levels .step-caption{top:calc(100% - 1px);font-size:9px;padding:3px 6px;line-height:1}
+#levels .step-lock{width:16px;height:20px;left:calc(100% + 3px)}
+#levels .step-lock svg{width:16px;height:20px}
+#levels .route-shadow{stroke-width:11}
+#levels .route-light{stroke-width:7;stroke-dasharray:none;stroke:#e7cf97}
+.map-regions{display:flex;align-items:center;justify-content:center;gap:12px;padding:4px 12px;background:#113c40;color:#fff1d6;flex-shrink:0}
+.map-regions button{width:44px;height:44px;border:1px solid #fff4;border-radius:50%;background:#1c4d4d;color:#fff1d6;font-size:24px}
+.map-regions button:disabled{opacity:.25}
+#mapRegion{text-align:center;font-size:11px;min-width:185px}
+#levels .map-header{padding-top:calc(env(safe-area-inset-top) + 8px);padding-bottom:8px}
+#levels .map-header h2{font-size:21px}
+#levels .map-footer{padding-top:4px;padding-bottom:calc(env(safe-area-inset-bottom) + 8px)}
+#levels .map-footer>button:last-child{min-height:44px}
+#forest .forest-friend{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;cursor:grab}
+#forest .forest-friend:active{cursor:grabbing}
+#forest .forest-friend img{-webkit-user-drag:none;user-select:none}

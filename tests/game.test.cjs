@@ -5,6 +5,7 @@ class E{
  append(...xs){for(const x of xs)this.children.push(...(x.fragment?x.children:[x]))}
  replaceChildren(...xs){this.children=[];this.append(...xs)}
  play(){this.playCount=(this.playCount||0)+1;return Promise.resolve()}pause(){this.pauseCount=(this.pauseCount||0)+1}
+ getBoundingClientRect(){return {left:0,top:0,width:400,height:700}}setPointerCapture(id){this.capture=id}hasPointerCapture(id){return this.capture===id}releasePointerCapture(){this.capture=null}
  setAttribute(k,v){this.attrs[k]=v}addEventListener(){}querySelector(){return new E()}showModal(){this.open=true}close(){this.open=false}focus(){this.focused=true}
 }
 function boot(saved,options={}){
@@ -147,7 +148,7 @@ const settle=()=>new Promise(r=>setImmediate(r));
  hr('updateEcosystem(1700);updateEcosystem(15799)');assert.equal(hr('ecosystem[0].hops'),1);
  hr('updateEcosystem(15800)');assert.equal(hr('ecosystem[0].hops'),2);
  hr("data.behaviors.sol='rest';updateEcosystem(31250);updateEcosystem(70000)");assert.equal(hr('ecosystem[0].hops'),2);assert.equal(he.get('forestResidents').children[0].firstElementChild.style.transform,'translate3d(0,0,0)');
- const currency=hr('data.points'),seeds=hr('victories()');hr("data.behaviors.sol='explore';feedAt(60,70,71000);updateEcosystem(71100);updateEcosystem(71550)");assert.equal(hr('data.feedings'),1);assert.equal(hr('data.points'),currency);assert.equal(hr('victories()'),seeds);assert.equal(hr('feedAt(60,70,71001)'),false);
+ const currency=hr('data.points'),seeds=hr('victories()');hr("data.behaviors.sol='explore';feedAt(60,70,71000);updateEcosystem(71100);updateEcosystem(71550)");assert.equal(hr('data.feedings'),1);assert.equal(hr('data.points'),currency);assert.equal(hr('victories()'),seeds);assert.equal(hr('feedAt(30,80,71001)'),true);
  hr('data.motion=true;updateEcosystem(90000)');assert.equal(he.get('forestResidents').children[0].firstElementChild.style.transform,'translate3d(0,0,0)');
  hr('closeForest()');assert.ok(cancelled>0);assert.equal(hr('forestRaf'),null);assert.equal(he.get('forest').open,false);
  // Map shows all sixty stops, completion status, current game, and protected future stops.
@@ -159,12 +160,12 @@ const settle=()=>new Promise(r=>setImmediate(r));
  hr("data.completed=Array.from({length:60},(_,i)=>i);renderMap()");assert.ok(he.get('mapProgress').textContent.includes('Completaste'));assert.equal(hr('nextAdventureLevel()'),59);
  const crypto=require('node:crypto');assert.equal(crypto.createHash('sha256').update(fs.readFileSync('assets/coqui-user.mp3')).digest('hex'),'e3092efeaecbdb2ad01f0de6df52c20959e28ac7a961a4fab4df0dcbc880e18b');assert.ok(!fs.existsSync('assets/coqui-call.mp3'));
  // Food remains until actual arrival, then only the reached insect is consumed.
- hr("data.motion=false;data.behaviors={};insects=[];renderForest();lastFeeding=-Infinity;feedAt(18,80,100000)");assert.equal(hr('insects.length'),3);
+ hr("data.motion=false;data.behaviors={};insects=[];renderForest();feedAt(18,80,100000)");assert.equal(hr('insects.length'),3);
  hr('updateEcosystem(100050);renderForest()');assert.equal(hr('insects.length'),3);
  for(let t=100120;t<120000;t+=100)hr(`updateEcosystem(${t})`);
  assert.equal(hr('insects.length'),0);assert.equal(he.get('forestFood').children.length,0);
  hr("feeding=true;openForest()");assert.equal(hr('feeding'),false);assert.equal(he.get('forestFeedBtn').attrs['aria-pressed'],'false');
- hr("data.completed=Array.from({length:10},(_,i)=>i);start(10);renderMap()");assert.equal(he.get('adventureMap').children.length,2);
+ hr("data.completed=Array.from({length:10},(_,i)=>i);start(10);openMap()");assert.equal(he.get('adventureMap').children.length,1);
  assert.ok(hr('mapPosition(0).y>mapPosition(1).y'));assert.ok(hr('mapPosition(8).y>mapPosition(9).y'));
  assert.equal(he.get('adventureMap').children[0].children.find(e=>e.dataset.level!==undefined).dataset.level,10);
  const mapButtons=he.get('adventureMap').children.flatMap(c=>c.children.filter(e=>e.dataset.level!==undefined));assert.ok(mapButtons.every(b=>!b.children.some(c=>String(c.textContent).includes('★')||c.textContent==='Bloqueado')));
@@ -176,7 +177,7 @@ const settle=()=>new Promise(r=>setImmediate(r));
  const audit=boot();await settle();const qr=audit.run,qe=audit.els;
  const mapNodes=()=>qe.get('adventureMap').children.flatMap(c=>c.children.filter(e=>e.dataset.level!==undefined));
  for(let completed=0;completed<=60;completed++){
-  qr(`data.completed=Array.from({length:${completed}},(_,i)=>i);start(${Math.max(0,completed-1)});game.won=false;renderMap()`);
+  qr(`data.completed=Array.from({length:${completed}},(_,i)=>i);start(${Math.max(0,completed-1)});game.won=false;openMap()`);
   const all=mapNodes(),current=all.filter(b=>b.dataset.state==='current');assert.equal(current.length,completed===60?0:1);
   if(completed<60)assert.equal(current[0].dataset.level,completed);
   for(const node of all){const level=node.dataset.level,state=node.dataset.state;
@@ -188,11 +189,43 @@ const settle=()=>new Promise(r=>setImmediate(r));
   }
  }
  qr('data.completed=[0,1,2,3,4,5];start(2);renderMap()');assert.equal(qr('mapLevelState(5)'),'done');assert.equal(qr('mapLevelState(6)'),'current');assert.equal(qr('mapLevelState(7)'),'locked');
- for(const width of [320,375,430,500]){
-  const rectangles=Array.from({length:10},(_,i)=>{const p=qr(`mapPosition(${i})`);return {left:p.x/400*width-43,right:p.x/400*width+43+26,top:p.y-34,bottom:p.y+34+24}});
-  assert.ok(rectangles.every(r=>r.left>=0&&r.right<=width));
+ // Legacy gaps must never make level 1 current when the saved game is level 7.
+ qr("data.completed=[1,2,3,4,5];start(6);openMap()");
+ assert.equal(qr('currentAdventureLevel()'),6);assert.equal(qr('mapLevelState(0)'),'done');
+ assert.equal(mapNodes().find(n=>n.dataset.state==='current').dataset.level,6);
+ assert.ok(qe.get('mapProgress').textContent.startsWith('Nivel actual: 7'));
+ const winsBefore=qr('data.completed.length');qr("renderMap()");assert.equal(qr('data.completed.length'),winsBefore);
+ // All ten steps fit the same portrait frame, with separated hit targets, locks and label.
+ for(let chapter=0;chapter<6;chapter++)for(const [width,height] of [[320,390],[375,500],[430,650],[500,700]]){
+  const w=Math.min(width,height*4/7),h=w*7/4,stepW=Math.max(44,Math.min(64,w*.16)),stepH=Math.max(44,Math.min(52,w*.13));
+  const rectangles=Array.from({length:10},(_,i)=>{const p=qr(`mapPosition(${i},${chapter})`);return {left:p.x/400*w-stepW/2,right:p.x/400*w+stepW/2+19,top:p.y/700*h-stepH/2,bottom:p.y/700*h+stepH/2+15}});
+  assert.ok(rectangles.every(r=>r.left>=0&&r.right<=w&&r.top>=0&&r.bottom<=h));
   for(let i=0;i<10;i++)for(let j=i+1;j<10;j++){const a=rectangles[i],b=rectangles[j];assert.ok(a.right<=b.left||b.right<=a.left||a.bottom<=b.top||b.bottom<=a.top)}
  }
+ qr('data.completed=Array.from({length:26},(_,i)=>i);start(26);openMap()');
+ assert.equal(qe.get('adventureMap').children.length,1);assert.equal(qr('mapChapter'),2);
+ qr('changeMapChapter(-1)');assert.equal(qr('mapChapter'),1);qr('changeMapChapter(100)');assert.equal(qr('mapChapter'),2);assert.equal(qe.get('mapNext').disabled,true);
+ qr('changeMapChapter(-100)');assert.equal(qr('mapChapter'),0);assert.equal(qe.get('mapPrevious').disabled,true);
+ // Finger drag follows pointer capture, pauses animation and persists without opening a resident.
+ qr("data.completed=Array.from({length:10},(_,i)=>i);data.behaviors={};data.forestCoordinates={};insects=[];renderForest();openForest()");
+ const frog=qe.get('forestResidents').children[0],event=(x,y,id=1)=>({pointerId:id,clientX:x,clientY:y,button:0,preventDefault(){}});
+ frog.onpointerdown(event(100,400));assert.equal(qr('ecosystem[0].dragging'),true);
+ const hopsBefore=qr('ecosystem[0].hops');qr('updateEcosystem(300000)');assert.equal(qr('ecosystem[0].hops'),hopsBefore);
+ frog.onpointermove(event(150,450));frog.onpointerup(event(150,450));assert.equal(qr('ecosystem[0].dragging'),false);
+ assert.ok(qr('data.forestCoordinates.sol.x')>0);const dragged=qr('JSON.stringify(data.forestCoordinates.sol)');
+ frog.onclick(event(150,450));assert.equal(qr("$('resident').open"),false);
+ qr('renderForest()');assert.equal(qr('JSON.stringify(ecosystem[0].position)'),dragged);
+ const dragReload=boot(JSON.parse(audit.storage['coquidoku-v1']));await settle();assert.equal(dragReload.run('JSON.stringify(data.forestCoordinates.sol)'),dragged);
+ const tap=qe.get('forestResidents').children[0];tap.onpointerdown(event(100,400));tap.onpointerup(event(100,400));tap.onclick(event(100,400));assert.equal(qe.get('resident').open,true);qe.get('resident').close();
+ tap.onpointerdown(event(100,400));tap.onpointermove(event(10000,-10000));tap.onpointercancel(event(10000,-10000));
+ assert.equal(qr('data.forestCoordinates.sol.x'),88);assert.equal(qr('data.forestCoordinates.sol.y'),45);
+ // Multiple simultaneous food locations are matched by distance, one distinct target per coqui.
+ qr("insects=[];data.behaviors={};ecosystem[0].position={x:15,y:70};ecosystem[1].position={x:80,y:70};ecosystem[2].position={x:50,y:82};feedAt(15,70,400000);feedAt(80,70,400000);feedAt(50,82,400000)");
+ assert.equal(qr('insects.length'),9);assert.equal(qr('new Set(ecosystem.map(s=>s.targetFood)).size'),3);
+ assert.ok(qr('ecosystem.every(s=>Math.hypot(insects.find(b=>b.id===s.targetFood).x-s.position.x,insects.find(b=>b.id===s.targetFood).y-s.position.y)<5)'));
+ qr("data.behaviors.sol='rest';distributeInsects(400010)");assert.equal(qr('ecosystem[0].targetFood'),null);
+ for(let i=0;i<7;i++)qr('feedAt(60,80,400010)');assert.equal(qr('insects.length'),30);assert.equal(qr('feedAt(40,70,400010)'),false);
+
  qr('openForest()');assert.equal(qe.get('forestBack').focused,true);assert.ok(!fs.readFileSync('index.html','utf8').includes('forest-atmosphere'));assert.ok(fs.readFileSync('index.html','utf8').includes('autofocus id="forestBack"'));
  assert.deepEqual(Array.from(qr('COQUIS.slice(0,6).map(c=>c.name)')),['Coquí Dorado','Pistoco','Amapola','Sila','Betances','Rita']);
  // A payout cannot be requested before any of the three objectives is solved.
@@ -220,7 +253,7 @@ const settle=()=>new Promise(r=>setImmediate(r));
   assert.equal(mr('data.points'),before+20);assert.equal(mr('completeBonus()'),false);assert.equal(mr('bonusPick(0)'),false);
  }
  console.log('PASS: 120 full minigame rounds, wrong answers and all intermediate memory steps; payout only at solved objective; replayed click and duplicate completion rejected.');
- console.log('PASS: all 61 progression states; completed green/current yellow/locked gray exclusive; exactly one current and caption; locks only beside locked steps; no layout collisions at 320–500px; replay cannot recolor completed level; finale fully green; initial focus stays off coquis; updated names; incomplete objectives cannot award points.');
+ console.log('PASS: all 61 progression states; completed green/current yellow/locked gray exclusive; exactly one current and caption; locks only beside locked steps; one region per screen, all ten stops visible, no layout collisions at 320–500px; finger dragging, saved coordinates and simultaneous distributed food; replay cannot recolor completed level; finale fully green; initial focus stays off coquis; updated names; incomplete objectives cannot award points.');
  console.log('PASS: insects retained until contact and then all eaten; no preselected feeding or character; reversed ascending route; only reached chapters rendered; no stars/Continue/manual decor; 120 generated challenges have valid counts, unique correct option and meaningful memory sequences.');
  console.log('PASS: real frame-clock hop at 800ms and exactly 15 seconds later; 36px apex; rest/motion pause; loop cleanup; feeding attracts without points/seeds; 10 reached-region stops; future level protection; legacy progression and in-progress game preserved; character close leads to map; exact user audio only.');
  console.log('PASS: real audio element plays directly from discovery and resident button; mute respected in game; playback session selected when supported; visible playback failures; no Web Audio dependency; native media playback and day/night preserved.');
