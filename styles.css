@@ -147,3 +147,18 @@ body[data-theme=garden]{--text-surface:#fff1f1}
 .map-music-toggle[data-playing=true]{border-color:#c8dca8;box-shadow:0 0 0 2px #a0c88730}
 .map-music-toggle[data-playing=false]:after{content:'';position:absolute;width:24px;height:2px;background:currentColor;transform:rotate(-45deg);box-shadow:0 0 2px #123c40}
 #mapMusic{display:none}
+
+/* Isla del Encanto: interfaz sin tarjetas opacas */
+.top,.status,.subnav,.career-nav,.career-nav>button,.map-header,.map-regions,.map-footer{background:transparent!important;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.top,.status,.subnav,.career-nav{border:0!important}
+.top:before,.status:before,.subnav:before,.career-nav:before{display:none!important}
+.map-header{background:linear-gradient(180deg,rgba(5,35,35,.78),rgba(5,35,35,0))!important}
+.map-regions,.map-footer{background:linear-gradient(0deg,rgba(5,35,35,.52),transparent)!important}
+.map-header h2{font-weight:900;letter-spacing:-.035em;text-shadow:0 3px 12px #102f35}
+.map-chapter{isolation:isolate}
+.map-chapter:after{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;background:radial-gradient(ellipse at 12% 18%,rgba(242,180,75,.17),transparent 25%),radial-gradient(ellipse at 80% 78%,rgba(0,141,176,.13),transparent 26%)}
+.board .cell.error{animation:coquiWrong .48s ease-out!important;position:relative;z-index:2}
+@keyframes coquiWrong{0%,100%{transform:translateX(0);filter:none}15%,45%,75%{transform:translateX(-4px);filter:brightness(1.15) sepia(.35)}30%,60%,90%{transform:translateX(4px);filter:brightness(1.2) sepia(.35)}}
+#hearts.heart-hit{animation:heartLoss .48s ease-out}
+@keyframes heartLoss{20%{transform:scale(1.2);color:#ff7f83}70%{transform:scale(.95)}100%{transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.board .cell.error,#hearts.heart-hit{animation:none!important}}
