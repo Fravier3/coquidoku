@@ -1,5 +1,13 @@
 # Coquídoku
 
+## v1.13.0 · Paisajes continuos de Puerto Rico
+
+Las seis regiones tienen una ilustración vertical propia que cubre toda la pantalla: cabecera, terreno, laterales y pie. El fondo del mapa se dibuja una sola vez en el diálogo; el contenedor de los escalones es transparente. Se elimina el marco separado y las superposiciones decorativas del terreno, evitando bordes y uniones entre imágenes. La proporción del arte se conserva con cover, sin estirar; los diez controles mantienen su encuadre proporcional 400×700 dentro del espacio disponible, estados y navegación.
+
+No cambian partidas, progresión, compras, audios ni minijuegos. Se actualiza la caché sin borrar almacenamiento. Los nuevos assets/map-scene-{0..5}.webp se generan individualmente con la herramienta integrada y conservan sus dimensiones nativas. Prompt base: One tall portrait 9:19.5 premium cozy animated-film 3D Puerto Rican environment, high overhead camera, no sky/horizon, single continuous edge-to-edge landscape, central 75 percent empty walkable gently textured terrain from 12 to91 percent height, fine details at extreme side edges, natural subtle continuous shade behind header/footer, no text, UI, steps, paths, numbers, frogs, locks, frames or collage. Temas: plaza de Viejo San Juan, playa de Luquillo, claro de El Yunque, bahía bioluminiscente nocturna, cafetal de Cayey y cumbre encantada con ruinas y orquídeas.
+
+Validación: regresión de progresión, geometría de los diez escalones, preservación de partida, tres audios y todos los recursos precargados. La revisión visual y táctil en iPhone físico sigue pendiente.
+
 ## v1.12.2 · Isla del Encanto
 
 La entrada siempre abre el mapa y conserva íntegra la partida, incluso sin vidas. Seleccionar una partida sin vidas muestra las opciones de recuperación. El mapa se llama Isla del Encanto y sus márgenes, cabecera y pie usan un marco 3D de Puerto Rico sin modificar el encuadre de las diez plataformas. Se retira la superposición vectorial sobre el terreno.
