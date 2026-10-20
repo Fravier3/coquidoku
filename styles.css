@@ -101,3 +101,34 @@ body[data-theme=garden]{--message-bg:#fff2ec}
 .reduced-motion .mini-win-frog,.reduced-motion .supper-bug.eaten img{animation:none}
 .reduced-motion .bridge-waiting.crossing{animation:none;left:85%;top:43%}
 @media(max-width:350px){#bonus{padding:15px}.leaf-scene{height:200px}.supper-scene{height:270px}.bridge-arm{width:20px;left:calc(50% - 10px)}}
+
+/* Opaque surfaces keep every label readable over day and night artwork. */
+body{--text-surface:#fff7e7}
+body[data-theme=night]{--text-surface:#153b43}
+body[data-theme=garden]{--text-surface:#fff1f1}
+.top,.status,.level-mission,.career-count,.subnav,.app>footer{background:var(--text-surface);border-radius:18px}
+.top{margin:calc(env(safe-area-inset-top) + 4px) 10px 8px;padding:14px 10px}
+.brand small{opacity:1;color:var(--sub)}
+.status{padding:13px 14px}
+.level-mission{line-height:1.55}
+.career-count{padding:10px;margin:8px 15px}
+.app>footer{margin:8px 15px 15px;padding:14px}
+.career-nav button,.tools button,.game-message{background:var(--text-surface)}
+.subnav{padding:10px 5px}
+.booster-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0 12px;min-height:52px}
+.shield-booster{display:flex;align-items:center;gap:8px;min-height:52px;padding:7px 11px;border:1px solid var(--line);border-radius:16px;background:var(--text-surface);color:var(--ink);box-shadow:0 4px 12px var(--shadow);font-size:11px;text-align:left}
+.shield-booster img{width:40px;height:40px;object-fit:contain}
+.shield-booster>span{display:flex;flex-direction:column;gap:3px}
+.shield-booster small{font-size:8px;color:var(--sub);max-width:160px;line-height:1.35}
+.shield-booster>b{display:grid;place-items:center;min-width:23px;height:23px;border-radius:50%;background:var(--accent);color:var(--bg);font-size:12px}
+.shield-booster:disabled{opacity:.8;cursor:default}
+.shield-timer{flex-shrink:0;display:inline-flex;align-items:center;gap:5px;padding:9px 11px;background:#d5efc9;color:#25452d;border:1px solid #679b62;border-radius:13px;font-variant-numeric:tabular-nums;font-size:14px;font-weight:800;box-shadow:0 3px 8px #0002}
+.shield-timer:before{content:'';display:block;width:18px;height:18px;background:url('assets/booster-shield.webp') center/contain no-repeat}
+.shield-timer[hidden]{display:none}
+#defeat{text-align:center}
+.defeat-art{font-size:55px;color:#c57473;line-height:1}
+#defeatBalance{font-weight:750;background:var(--button);border-radius:12px;padding:10px}
+.heart-shop{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.heart-shop button{min-height:54px;padding:10px 7px;border:1px solid var(--line);border-radius:14px;background:var(--button);font-size:12px;font-weight:700;color:var(--ink)}
+#retryLevelBtn{width:100%;font-size:13px;min-height:50px}
+@media(max-width:350px){.shield-booster{padding:6px;gap:5px}.shield-booster small{max-width:125px}.shield-booster img{width:34px;height:34px}.shield-timer{padding:8px;font-size:12px}.top{padding:12px 6px}}

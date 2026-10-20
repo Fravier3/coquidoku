@@ -11,7 +11,7 @@ class E{
 function boot(saved,options={}){
  const els=new Map(),themes=['leaf','night','garden'].map(t=>{const e=new E();e.dataset.pick=t;return e});
  const storage=saved?{'coquidoku-v1':JSON.stringify(saved)}:{};
- const ctx={console,Intl,Date,JSON,Math,Array,Number,String,Error,setTimeout:options.setTimeout||(()=>1),clearTimeout:options.clearTimeout||(()=>{}),location:{reload(){}},navigator:{},localStorage:{getItem:k=>storage[k]||null,setItem:(k,v)=>storage[k]=v},fetch:async()=>({ok:true,json:async()=>JSON.parse(fs.readFileSync('puzzles.json','utf8'))}),document:{body:new E(),visibilityState:'visible',getElementById:id=>{if(!els.has(id))els.set(id,new E(id));return els.get(id)},createElement:()=>new E(),createTextNode:text=>({textContent:text}),createDocumentFragment:()=>{const e=new E();e.fragment=true;return e},querySelector:()=>new E(),querySelectorAll:s=>s==='[data-pick]'?themes:[],listeners:{},addEventListener(type,callback){(this.listeners[type]??=[]).push(callback)}},window:{addEventListener(){},...(options.window||{})}};
+ const ctx={console,Intl,Date:options.Date||Date,JSON,Math,Array,Number,String,Error,setTimeout:options.setTimeout||(()=>1),clearTimeout:options.clearTimeout||(()=>{}),location:{reload(){}},navigator:{},localStorage:{getItem:k=>storage[k]||null,setItem:(k,v)=>storage[k]=v},fetch:async()=>({ok:true,json:async()=>JSON.parse(fs.readFileSync('puzzles.json','utf8'))}),document:{body:new E(),visibilityState:'visible',getElementById:id=>{if(!els.has(id))els.set(id,new E(id));return els.get(id)},createElement:()=>new E(),createTextNode:text=>({textContent:text}),createDocumentFragment:()=>{const e=new E();e.fragment=true;return e},querySelector:()=>new E(),querySelectorAll:s=>s==='[data-pick]'?themes:[],listeners:{},addEventListener(type,callback){(this.listeners[type]??=[]).push(callback)}},window:{addEventListener(){},...(options.window||{})}};
  vm.createContext(ctx);vm.runInContext(fs.readFileSync('app.js','utf8'),ctx);
  return {ctx,els,storage,run:s=>vm.runInContext(s,ctx)};
 }
@@ -296,12 +296,76 @@ function solveBonus(run){
  assert.equal(mr('JSON.stringify(game)'),mr('beforeCosmetic'));assert.equal(mr('data.theme'),'garden');
  const cosmeticsSaved=boot(JSON.parse(mini.storage['coquidoku-v1']));await settle();assert.equal(cosmeticsSaved.run('data.theme'),'garden');assert.equal(cosmeticsSaved.run('JSON.stringify(game)'),mr('beforeCosmetic'));
 
+
+ {
+ // Exactly four seconds after a mini-game win: "Lo lograste", then close results and show map.
+ let realNow=100000,nextId=0;const scheduled=new Map();
+ class GameDate extends Date{constructor(...args){super(...(args.length?args:[realNow]))}static now(){return realNow}}
+ const extra=boot(null,{Date:GameDate,setTimeout:(fn,delay)=>{const id=++nextId;scheduled.set(id,{fn,at:realNow+delay});return id},clearTimeout:id=>scheduled.delete(id)});
+ await settle();const xr=extra.run,xe=extra.els;
+ function advance(ms){const end=realNow+ms;for(;;){const next=[...scheduled].filter(([,task])=>task.at<=end).sort((a,b)=>a[1].at-b[1].at)[0];if(!next)break;realNow=next[1].at;scheduled.delete(next[0]);next[1].fn()}realNow=end}
+ xr("data.bonusPending='round:3';openBonus();$('result').showModal()");solveBonus(xr);
+ assert.equal(xe.get('bonusTitle').textContent,'Lo lograste');assert.equal(xe.get('bonus').open,true);
+ advance(3999);assert.equal(xe.get('bonus').open,true);advance(1);
+ assert.equal(xe.get('bonus').open,false);assert.equal(xe.get('result').open,false);assert.equal(xe.get('levels').open,true);
+ // Switching apps cannot lose the pending return or create a second reward.
+ xe.get('levels').close();xr("data.bonusPending='round:6';openBonus()");solveBonus(xr);const paid=xr('data.points');
+ extra.ctx.document.visibilityState='hidden';for(const fn of extra.ctx.document.listeners.visibilitychange)fn();advance(6000);
+ extra.ctx.document.visibilityState='visible';for(const fn of extra.ctx.document.listeners.visibilitychange)fn();advance(0);
+ assert.equal(xe.get('levels').open,true);assert.equal(xr('data.points'),paid);
+ // Protection is awarded once every third solved challenge, then consumed only on activation.
+ xe.get('levels').close();xr("data.bonusClaims=[];data.shields=0;data.points=0");
+ for(let n=1;n<=3;n++){xr(`data.bonusPending='round:${30+n}';openBonus()`);solveBonus(xr);assert.equal(xr('data.shields'),n===3?1:0)}
+ assert.equal(xr('data.points'),60);assert.equal(xr('completeBonus()'),false);assert.equal(xr('data.shields'),1);
+ xr("cancelBonusReturn();$('bonus').close();start(0)");
+ assert.equal(xr('activateProtection()'),true);assert.equal(xr('data.shields'),0);assert.equal(xr('activateProtection()'),false);
+ assert.equal(xe.get('shieldTimer').textContent,'00:30');assert.equal(xe.get('shieldTimer').hidden,false);
+ const protectedCell=xr('(puzzle().solution[0]+1)%8');xr(`play(${protectedCell})`);assert.equal(xr('game.lives'),4);
+ advance(29250);assert.equal(xe.get('shieldTimer').textContent,'00:01');xr(`play(${protectedCell})`);assert.equal(xr('game.lives'),4);
+ advance(750);assert.equal(xr('isProtected()'),false);assert.equal(xe.get('shieldTimer').hidden,true);xr(`play(${protectedCell})`);assert.equal(xr('game.lives'),3);
+ // Persisted absolute deadline survives reload; switching levels cannot replenish or carry it.
+ xr("data.shields=2;activateProtection();save()");const shieldSave=JSON.parse(extra.storage['coquidoku-v1']),expires=shieldSave.game.shieldUntil;
+ realNow+=10000;const shieldReload=boot(shieldSave,{Date:GameDate});await settle();
+ assert.equal(shieldReload.run('protectionRemaining()'),20000);assert.equal(shieldReload.run('data.shields'),1);
+ realNow=expires;assert.equal(shieldReload.run('isProtected()'),false);xr("start(2)");assert.equal(xr('isProtected()'),false);assert.equal(xr('data.shields'),1);
+ // Zero lives always block input, including old relaxed preferences and owned protection.
+ xr("data.points=19;data.relax=true;game.lives=0;data.shields=1;lost()");const deadCells=xr('JSON.stringify(game.cells)');
+ xr('play(puzzle().solution[0])');assert.equal(xr('JSON.stringify(game.cells)'),deadCells);assert.equal(xr('activateProtection()'),false);
+ assert.equal(xr('buyHearts(1)'),false);assert.equal(xr('data.points'),19);assert.equal(xr('game.lives'),0);assert.equal(xe.get('buyOneHeart').disabled,true);
+ xr("data.points=40;game.cells[puzzle().solution[0]]=2;game.hints=2;save();lost()");
+ const deadPuzzle=xr('game.puzzle'),deadVariant=xr('game.variant'),deadLevel=xr('game.level'),deadPosition=xr('JSON.stringify(game.cells)');
+ assert.equal(xr('buyHearts(2)'),true);assert.equal(xr('data.points'),0);assert.equal(xr('game.lives'),2);
+ assert.equal(xr('JSON.stringify(game.cells)'),deadPosition);assert.equal(xr('game.hints'),2);assert.equal(xr('buyHearts(2)'),false);assert.equal(xr('lost()'),false);
+ xr("game.lives=0;data.points=20;lost()");assert.equal(xr('buyHearts(1)'),true);assert.equal(xr('game.lives'),1);assert.equal(xr('data.points'),0);
+ xr('game.lives=0;lost()');assert.equal(xr('restartLostLevel()'),true);assert.equal(xr('game.lives'),4);assert.equal(xr('game.hints'),0);
+ assert.equal(xr('game.cells.every(c=>c===0)'),true);assert.equal(xr('game.puzzle'),deadPuzzle);assert.equal(xr('game.variant'),deadVariant);assert.equal(xr('game.level'),deadLevel);
+ const noRelax=boot({rulesV3:true,relax:true});await settle();assert.equal(noRelax.run('data.relax'),false);assert.ok(!fs.readFileSync('index.html','utf8').includes('relaxToggle'));
+ // Flower: first correct coqui/X gets 10 points once; wrong first, undo, replay and hints cannot farm.
+ const blossom=boot();await settle();const br=blossom.run;
+ br("data.points=0;data.flowerClaims=[];start(1);globalThis.flowerIndex=flowerCell();mode=puzzle().solution[flowerIndex>>3]===flowerIndex%8?'coqui':'mark';play(flowerIndex)");
+ assert.equal(br('data.points'),10);assert.equal(br('game.flowerCollected'),true);assert.equal(br('data.flowerClaims.length'),1);
+ blossom.els.get('undoBtn').onclick();br('play(flowerIndex)');assert.equal(br('data.points'),10);
+ br("start(1);flowerIndex=flowerCell();mode=puzzle().solution[flowerIndex>>3]===flowerIndex%8?'coqui':'mark';play(flowerIndex)");assert.equal(br('data.points'),10);
+ br("start(6);flowerIndex=flowerCell();globalThis.flowerHasCoqui=puzzle().solution[flowerIndex>>3]===flowerIndex%8;mode=flowerHasCoqui?'mark':'coqui';play(flowerIndex);mode=flowerHasCoqui?'coqui':'mark';play(flowerIndex);play(flowerIndex)");
+ assert.equal(br('data.points'),10);assert.equal(br('game.flowerCollected'),undefined);assert.equal(br('game.flowerAttempted'),true);
+ br("start(0,true,12346);flowerIndex=flowerCell();mode=puzzle().solution[flowerIndex>>3]===flowerIndex%8?'coqui':'mark';play(flowerIndex);save()");
+ assert.equal(br('data.points'),20);assert.ok(br("data.flowerClaims.includes('daily:12346')"));
+ const flowerReload=boot(JSON.parse(blossom.storage['coquidoku-v1']));await settle();assert.equal(flowerReload.run('data.flowerClaims.length'),2);
+ br("data.points=0;data.flowerClaims=[];for(let n=0;n<200;n++){start(1);if(puzzle().solution[flowerCell()>>3]===flowerCell()%8)break}for(let row=0;row<(flowerCell()>>3);row++)game.cells[row*8+puzzle().solution[row]]=2");
+ assert.equal(br('puzzle().solution[flowerCell()>>3]===flowerCell()%8'),true);
+ blossom.els.get('hintBtn').onclick();assert.equal(br('game.flowerAttempted'),true);assert.equal(br('data.points'),0);
+ // Text surfaces have at least 4.5:1 contrast for primary and secondary copy in all three themes.
+ const luminance=hex=>{const rgb=hex.match(/../g).map(x=>parseInt(x,16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);return .2126*rgb[0]+.7152*rgb[1]+.0722*rgb[2]};
+ for(const [surface,ink,sub] of [['fff7e7','284329','5d704e'],['153b43','f4e6c9','c3d2c5'],['fff1f1','654360','82677c']])for(const text of [ink,sub]){const x=luminance(surface),y=luminance(text);assert.ok((Math.max(x,y)+.05)/(Math.min(x,y)+.05)>=4.5)}
+ console.log('PASS: 4-second mini-game return; background/resume; shield award, spending, exact 30-second expiry and reload; zero-life blocking; exact heart prices and same-board restart; first-guess flower rewards and no farming; readable text contrast.');
+ }
+
  console.log('PASS: 300 full short mini-games, all 64 bridge orientations, 60 distinct level palettes, timed leaf shuffles, two food waves; one payout; stale callbacks rejected; close/background timer cleanup.');
  console.log('PASS: all 61 progression states; completed green/current yellow/locked gray exclusive; exactly one current and caption; locks only beside locked steps; one region per screen, all ten stops visible, no layout collisions at 320–500px; finger dragging, saved coordinates and simultaneous distributed food; replay cannot recolor completed level; finale fully green; initial focus stays off coquis; updated names; incomplete objectives cannot award points.');
  console.log('PASS: insects retained until contact and then all eaten; no preselected feeding or character; reversed ascending route; only reached chapters rendered; no stars/Continue/manual decor; 120 generated challenges have solvable bridges, three trackable swaps and two well-defined food waves.');
  console.log('PASS: real frame-clock hop at 800ms and exactly 15 seconds later; 36px apex; rest/motion pause; loop cleanup; feeding attracts without points/seeds; 10 reached-region stops; future level protection; legacy progression and in-progress game preserved; character close leads to map; exact user audio only.');
  console.log('PASS: real audio element plays directly from discovery and resident button; mute respected in game; playback session selected when supported; visible playback failures; no Web Audio dependency; native media playback and day/night preserved.');
- console.log('PASS: points exclusively from all three minigames; no duplicate payouts; confirmed purchases with exact balance; no purchase of finale; 60 distinct normal levels for Boricua; all unlocked residents; decor and positions persist; no locked forest previews; legacy friends retained.');
+ console.log('PASS: points from solved mini-games and first-guess flowers; no duplicate payouts; confirmed purchases with exact balance; no purchase of finale; 60 distinct normal levels for Boricua; all unlocked residents; decor and positions persist; no locked forest previews; legacy friends retained.');
  console.log('PASS: seven collectible coquis and all unlock thresholds; locked selection blocked; stable sprite replacement; progress restored; per-win plants; four forest stages; unique normal/daily rewards; existing progress migration.');
  const base=JSON.parse(fs.readFileSync('puzzles.json'))[0];
  const legacy={theme:'leaf',emptyStartV2:true,game:{puzzle:0,cells:Array(64).fill(0),fixed:[],lives:2,won:false,hints:1,daily:false}};legacy.game.cells[base.solution[0]]=2;
@@ -311,6 +375,6 @@ function solveBonus(run){
  const initial=boot(untouched);await settle();assert.equal(initial.run('game.cells.every(x=>x===0)'),true);assert.equal(initial.run('game.lives'),4);
  const capped=boot({...legacy,game:{...legacy.game,hints:5}});await settle();assert.equal(capped.run('game.hints'),3);assert.equal(capped.els.get('hintBtn').disabled,true);
  assert.ok(!fs.readFileSync('styles.css','utf8').includes('animation:pop'));
- console.log('PASS: immediate stable sprite nodes; four lives; three hints enforced including undo and relaxed mode; counters; reset; victory; saved theme; one-time migration preserves moves and mistakes.');
+ console.log('PASS: immediate stable sprite nodes; four lives; three hints enforced including undo; counters; reset; victory; saved theme; one-time migration preserves moves and mistakes.');
  console.log('PASS: empty starts; 100 randomized boards; eight transformations; stable daily and resumed game.');
 })().catch(e=>{console.error(e);process.exitCode=1});

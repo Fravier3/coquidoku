@@ -1,10 +1,13 @@
 const $=id=>document.getElementById(id);
 const KEY='coquidoku-v1';
-const defaults={theme:'night',sound:true,auto:false,relax:false,motion:false,difficulty:'calm',completed:[],dailyWins:[],character:null,points:0,earned:[],purchased:[],bonusClaims:[],bonusPending:null,bonusCounter:0,decorGifts:[],decor:[null,null,null],positions:{},forestCoordinates:{},feedings:0,behaviors:{},game:null};
+const defaults={theme:'night',sound:true,auto:false,relax:false,motion:false,difficulty:'calm',completed:[],dailyWins:[],character:null,points:0,shields:0,flowerClaims:[],earned:[],purchased:[],bonusClaims:[],bonusPending:null,bonusCounter:0,decorGifts:[],decor:[null,null,null],positions:{},forestCoordinates:{},feedings:0,behaviors:{},game:null};
 let data;try{data={...defaults,...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch{data={...defaults}}
 if(!['leaf','night','garden'].includes(data.theme))data.theme='night';
 data.completed=[...new Set((Array.isArray(data.completed)?data.completed:[]).filter(n=>Number.isInteger(n)&&n>=0&&n<60))];data.dailyWins=[...new Set((Array.isArray(data.dailyWins)?data.dailyWins:[]).filter(n=>Number.isInteger(n)&&n>=0))];
 data.points=Number.isSafeInteger(data.points)&&data.points>=0?data.points:0;
+data.shields=Number.isSafeInteger(data.shields)&&data.shields>=0?data.shields:0;
+data.flowerClaims=[...new Set((Array.isArray(data.flowerClaims)?data.flowerClaims:[]).filter(key=>typeof key==='string'&&/^(level|daily):\d+$/.test(key)))];
+data.relax=false;
 for(const k of ['earned','purchased'])data[k]=[...new Set((Array.isArray(data[k])?data[k]:[]).filter(x=>['sol','menta','brisa','flor','luna','aurora'].includes(x)))];
 data.bonusClaims=[...new Set((Array.isArray(data.bonusClaims)?data.bonusClaims:[]).filter(x=>typeof x==='string'&&/^(level|daily|round):\d+$/.test(x)))];
 if(typeof data.bonusPending!=='string'||!/^(level|daily|round):\d+$/.test(data.bonusPending)||data.bonusClaims.includes(data.bonusPending))data.bonusPending=null;
@@ -222,7 +225,7 @@ function stopBonusTimers(){bonusTimers.forEach(id=>clearTimeout(id));bonusTimers
 function bonusLater(r,callback,delay){
  const id=setTimeout(()=>{bonusTimers.delete(id);if(bonusRound===r&&$('bonus').open&&document.visibilityState!=='hidden')callback()},delay);bonusTimers.add(id);
 }
-function openBonus(){if(!data.bonusPending||data.bonusClaims.includes(data.bonusPending))return false;stopBonusTimers();bonusRound=buildBonus(data.bonusPending);renderBonus();$('bonus').showModal();return true}
+function openBonus(){if(!data.bonusPending||data.bonusClaims.includes(data.bonusPending))return false;cancelBonusReturn();stopBonusTimers();bonusRound=buildBonus(data.bonusPending);renderBonus();$('bonus').showModal();return true}
 function bonusSolved(r){
  if(!r)return false;
  if(r.type==='bridge')return r.moves>0&&bridgeConnected(r);
@@ -230,11 +233,33 @@ function bonusSolved(r){
  if(r.type==='supper')return r.wave===1&&r.caught.length===6&&new Set(r.caught).size===6&&r.caught.every(key=>{const [w,i]=key.split(':').map(Number);return (w===0||w===1)&&Number.isInteger(i)&&i>=0&&i<6&&r.waves[w][i]==='fly'});
  return false;
 }
-function completeBonus(){const r=bonusRound;if(!r||r.phase==='done'||!bonusSolved(r)||data.bonusPending!==r.key||data.bonusClaims.includes(r.key))return false;stopBonusTimers();data.bonusClaims.push(r.key);data.points+=20;data.bonusPending=null;r.phase='done';save();paintCareer();renderBonus();return true}
+let bonusReturnTimer=null;
+function cancelBonusReturn(){if(bonusReturnTimer!==null)clearTimeout(bonusReturnTimer);bonusReturnTimer=null}
+function returnBonusToMap(r){
+ if(r!==bonusRound||r.phase!=='done'||r.returned)return false;
+ r.returned=true;cancelBonusReturn();stopBonusTimers();
+ if($('bonus').open)$('bonus').close();
+ if($('result').open)$('result').close();
+ openMap();return true;
+}
+function armBonusReturn(r){
+ cancelBonusReturn();if(r!==bonusRound||r.phase!=='done'||r.returned)return;
+ bonusReturnTimer=setTimeout(()=>{bonusReturnTimer=null;returnBonusToMap(r)},Math.max(0,r.returnAt-Date.now()));
+}
+function completeBonus(){
+ const r=bonusRound;if(!r||r.phase==='done'||!bonusSolved(r)||data.bonusPending!==r.key||data.bonusClaims.includes(r.key))return false;
+ stopBonusTimers();data.bonusClaims.push(r.key);data.points+=20;
+ r.grantedShield=data.bonusClaims.length%3===0;if(r.grantedShield)data.shields++;
+ data.bonusPending=null;r.phase='done';r.returnAt=Date.now()+4000;
+ save();paintCareer();paintProtection();renderBonus();
+ $('bonusTitle').textContent='Lo lograste';
+ $('bonusNotice').textContent=(r.grantedShield?'¡Ganaste una protección de 30 segundos! ':'')+'En 4 segundos vuelves al mapa.';
+ armBonusReturn(r);return true;
+}
 function bonusImage(src,className='',alt=''){const img=document.createElement('img');img.src=src;img.alt=alt;img.className=className;img.draggable=false;return img}
 function renderBonus(){
  const r=bonusRound;if(!r)return;const area=$('bonusArea');area.replaceChildren();area.className='bonus-area mini-world '+r.type;
- $('bonusReward').textContent=r.phase==='done'?`¡+20 puntos! Saldo: ${data.points}`:'+20 puntos · sin reloj ni pérdida de vidas';
+ $('bonusReward').textContent=r.phase==='done'?`¡+20 puntos!${r.grantedShield?' +1 protección.':''} Saldo: ${data.points}`:'+20 puntos · sin reloj ni pérdida de vidas';
  $('bonusTitle').textContent={bridge:'El puente del río',leaves:'¿Dónde se escondió?',supper:'Cena de coquíes'}[r.type];
  $('bonusInstructions').textContent=r.phase==='done'?'¡Lo lograste! Tus puntos quedaron guardados.':{bridge:'Gira las tres piezas con flecha hasta conectar el coquí con la otra orilla.',leaves:'Mira bajo qué hoja se esconde. Sigue los tres cambios y toca su lugar.',supper:'Toca solo las mosquitas. Deja tranquilas a las mariposas y a la abeja.'}[r.type];
  $('bonusNotice').textContent=r.notice||'';
@@ -322,15 +347,38 @@ function bonusPick(value,expectedRound=bonusRound,expectedWave=bonusRound?.wave)
  }else return false;
  renderBonus();return true;
 }
-$('bonus').addEventListener('close',()=>{stopBonusTimers();leafButtons=[]});
+$('bonus').addEventListener('close',()=>{stopBonusTimers();leafButtons=[];if(bonusRound?.phase==='done')returnBonusToMap(bonusRound)});
 document.addEventListener('visibilitychange',()=>{
- if(document.visibilityState!=='hidden'||!bonusRound)return;
- stopBonusTimers();const r=bonusRound;
+ if(!bonusRound)return;const r=bonusRound;
+ if(document.visibilityState!=='hidden'){if(r.phase==='done'&&!r.returned)armBonusReturn(r);return}
+ stopBonusTimers();cancelBonusReturn();
  if(r.phase==='shuffle'){r.slots=[0,1,2];r.shuffleStep=0;r.phase='peek';r.notice='Mira otra vez. La pausa no te cuesta vidas.';renderBonus()}
  if(r.phase==='between')advanceSupper(r);
 });
 $('bonusBtn').onclick=openBonus;
 $('resultBonusBtn').onclick=()=>{$('result').close();openBonus()};
+
+let protectionTimer=null;
+function protectionRemaining(now=Date.now()){return game&&!game.won&&game.lives>0?Math.max(0,(game.shieldUntil||0)-now):0}
+function isProtected(now=Date.now()){return protectionRemaining(now)>0}
+function stopProtectionTimer(){if(protectionTimer!==null)clearTimeout(protectionTimer);protectionTimer=null}
+function paintProtection(){
+ stopProtectionTimer();const remaining=protectionRemaining(),active=remaining>0;
+ $('shieldCount').textContent=data.shields;
+ $('shieldStock').textContent=active?'Protección activa':`${data.shields} disponibles · gana una cada 3 minijuegos`;
+ $('shieldBtn').disabled=!game||game.won||game.lives<=0||data.shields===0||active;
+ $('shieldBtn').setAttribute('aria-label',active?'Protección de 30 segundos activa':`Usar una protección de 30 segundos. ${data.shields} disponibles`);
+ $('shieldTimer').hidden=!active;$('shieldTimer').textContent='00:'+String(Math.ceil(remaining/1000)).padStart(2,'0');
+ if(!active&&game?.shieldUntil){game.shieldUntil=0;save()}
+ if(active&&document.visibilityState!=='hidden')protectionTimer=setTimeout(()=>{protectionTimer=null;paintProtection()},250);
+}
+function activateProtection(){
+ if(!game||game.won||game.lives<=0||data.shields<1||isProtected())return false;
+ data.shields--;game.shieldUntil=Date.now()+30000;save();paintProtection();
+ feedback('Protección activada: durante 30 segundos los errores no cuestan corazones.');return true;
+}
+$('shieldBtn').onclick=activateProtection;
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')stopProtectionTimer();else paintProtection()});
 
 function save(){data.game=game;try{localStorage.setItem(KEY,JSON.stringify(data))}catch{feedback('El navegador no permite guardar. Puedes seguir jugando en esta sesión.')}}
 function feedback(s){$('feedback').textContent=s}
@@ -351,7 +399,7 @@ function paintBoardAppearance(){
  document.body.style.setProperty('--level-position',look.position);
  document.body.dataset.boardRegion=look.chapter;
 }
-function theme(){document.body.dataset.theme=data.theme;document.body.classList.toggle('reduced-motion',data.motion);document.querySelector('meta[name=theme-color]').content={leaf:'#f6efdd',night:'#102f35',garden:'#faeee4'}[data.theme];$('journey').textContent=names[data.theme];document.querySelectorAll('[data-pick]').forEach(b=>{b.classList.toggle('selected',b.dataset.pick===data.theme);b.setAttribute('aria-pressed',String(b.dataset.pick===data.theme))});for(const [id,key] of [['soundToggle','sound'],['autoToggle','auto'],['relaxToggle','relax'],['motionToggle','motion']])$(id).checked=data[key];paintBoardAppearance();}
+function theme(){document.body.dataset.theme=data.theme;document.body.classList.toggle('reduced-motion',data.motion);document.querySelector('meta[name=theme-color]').content={leaf:'#f6efdd',night:'#102f35',garden:'#faeee4'}[data.theme];$('journey').textContent=names[data.theme];document.querySelectorAll('[data-pick]').forEach(b=>{b.classList.toggle('selected',b.dataset.pick===data.theme);b.setAttribute('aria-pressed',String(b.dataset.pick===data.theme))});for(const [id,key] of [['soundToggle','sound'],['autoToggle','auto'],['motionToggle','motion']])$(id).checked=data[key];paintBoardAppearance();}
 function audioStatus(message){for(const id of ['residentAudioStatus','soundStatus'])$(id).textContent=message}
 function chirp(win=false,force=false){
  if(!data.sound&&!force)return Promise.resolve(false);
@@ -374,7 +422,7 @@ function puzzle(){const key=game.puzzle+':'+(game.variant||0);if(cachedLayout?.k
 function randomInt(n){return Math.floor(Math.random()*n)}
 function snapshot(){undo.push({cells:[...game.cells]});if(undo.length>100)undo.shift()}
 function isBlocked(i){const r=i>>3,c=i%8,g=puzzle().regions;return game.cells.some((v,j)=>v===2&&j!==i&&((j>>3)===r||j%8===c||g[j]===g[i]||(Math.abs((j>>3)-r)<=1&&Math.abs(j%8-c)<=1)))}
-function render(){paintBoardAppearance();const p=puzzle();$('levelTitle').replaceChildren(document.createTextNode(game.daily?'Reto del día':`Nivel ${(game.level??game.puzzle)+1}`));const subtitle=document.createElement('span');subtitle.textContent=`· ${difficulties[game.difficulty]||'Tranquilo'}`;$('levelTitle').append(subtitle);const count=game.cells.filter(v=>v===2).length;$('progress').textContent=`${count} / 8`;$('hearts').textContent=data.relax?'∞':Array.from({length:4},(_,i)=>i<game.lives?'♥':'♡').join(' ');$('hearts').setAttribute('aria-label',data.relax?'Sin límite de errores':`${game.lives} vidas`);const board=$('board'),fresh=board.children.length!==64,frag=fresh?document.createDocumentFragment():null;for(let i=0;i<64;i++){const b=fresh?document.createElement('button'):board.children[i],r=i>>3,c=i%8;b.type='button';b.className='cell';b.style.setProperty('--tile',`var(--tile${p.regions[i]})`);b.dataset.index=i;if(c<7&&p.regions[i]!==p.regions[i+1])b.classList.add('edge-r');if(r<7&&p.regions[i]!==p.regions[i+8])b.classList.add('edge-b');if(game.cells[i]!==2&&b.children.length)b.replaceChildren();let state='vacía';if(game.cells[i]===2){if(!b.firstElementChild){const img=document.createElement('img');img.src=activeCoqui().src;img.dataset.character=activeCoqui().id;img.alt='';b.append(img)}if(b.firstElementChild.dataset.character!==activeCoqui().id){b.firstElementChild.src=activeCoqui().src;b.firstElementChild.dataset.character=activeCoqui().id}state='coquí';if(game.fixed.includes(i)){b.classList.add('fixed');state='coquí inicial'}}else if(game.cells[i]===1){b.classList.add('mark');state='marcada con X'}else if(data.auto&&isBlocked(i)){b.classList.add('mark','auto');state='bloqueada automáticamente'}b.setAttribute('aria-label',`Fila ${r+1}, columna ${c+1}, región ${p.regions[i]+1}: ${state}`);b.setAttribute('aria-pressed',String(game.cells[i]===2));if(game.hinted===i)b.classList.add('hinted');if(fresh)frag.append(b)}if(fresh)board.replaceChildren(frag);$('undoBtn').disabled=!undo.length||game.won;$('modeLabel').textContent=mode==='coqui'?'Colocar coquí':'Marcar X';$('modeIcon').textContent=mode==='coqui'?'✦':'×';$('modeBtn').setAttribute('aria-label',mode==='coqui'?'Colocar coquí activado. Cambiar a marcar X':'Marcar X activado. Cambiar a colocar coquí');$('modeBtn').setAttribute('aria-pressed',String(mode==='coqui'));const remaining=Math.max(0,3-(game.hints||0));$('hintLabel').textContent=`Pista (${remaining}/3)`;$('hintBtn').setAttribute('aria-label',`${remaining} de 3 pistas disponibles`);$('hintBtn').disabled=game.won||remaining===0||(!data.relax&&game.lives===0);paintCareer();paintMission();save()}
+function render(){paintBoardAppearance();const p=puzzle();$('levelTitle').replaceChildren(document.createTextNode(game.daily?'Reto del día':`Nivel ${(game.level??game.puzzle)+1}`));const subtitle=document.createElement('span');subtitle.textContent=`· ${difficulties[game.difficulty]||'Tranquilo'}`;$('levelTitle').append(subtitle);const count=game.cells.filter(v=>v===2).length;$('progress').textContent=`${count} / 8`;$('hearts').textContent=Array.from({length:4},(_,i)=>i<game.lives?'♥':'♡').join(' ');$('hearts').setAttribute('aria-label',`${game.lives} vidas`);const board=$('board'),fresh=board.children.length!==64,frag=fresh?document.createDocumentFragment():null;for(let i=0;i<64;i++){const b=fresh?document.createElement('button'):board.children[i],r=i>>3,c=i%8;b.type='button';b.className='cell';b.style.setProperty('--tile',`var(--tile${p.regions[i]})`);b.dataset.index=i;if(c<7&&p.regions[i]!==p.regions[i+1])b.classList.add('edge-r');if(r<7&&p.regions[i]!==p.regions[i+8])b.classList.add('edge-b');if(game.cells[i]!==2&&b.children.length)b.replaceChildren();let state='vacía';if(game.cells[i]===2){if(!b.firstElementChild){const img=document.createElement('img');img.src=activeCoqui().src;img.dataset.character=activeCoqui().id;img.alt='';b.append(img)}if(b.firstElementChild.dataset.character!==activeCoqui().id){b.firstElementChild.src=activeCoqui().src;b.firstElementChild.dataset.character=activeCoqui().id}state='coquí';if(game.fixed.includes(i)){b.classList.add('fixed');state='coquí inicial'}}else if(game.cells[i]===1){b.classList.add('mark');state='marcada con X'}else if(data.auto&&isBlocked(i)){b.classList.add('mark','auto');state='bloqueada automáticamente'}b.setAttribute('aria-label',`Fila ${r+1}, columna ${c+1}, región ${p.regions[i]+1}: ${state}`);b.setAttribute('aria-pressed',String(game.cells[i]===2));if(game.hinted===i)b.classList.add('hinted');if(fresh)frag.append(b)}if(fresh)board.replaceChildren(frag);$('undoBtn').disabled=!undo.length||game.won;$('modeLabel').textContent=mode==='coqui'?'Colocar coquí':'Marcar X';$('modeIcon').textContent=mode==='coqui'?'✦':'×';$('modeBtn').setAttribute('aria-label',mode==='coqui'?'Colocar coquí activado. Cambiar a marcar X':'Marcar X activado. Cambiar a colocar coquí');$('modeBtn').setAttribute('aria-pressed',String(mode==='coqui'));const remaining=Math.max(0,3-(game.hints||0));$('hintLabel').textContent=`Pista (${remaining}/3)`;$('hintBtn').setAttribute('aria-label',`${remaining} de 3 pistas disponibles`);$('hintBtn').disabled=game.won||remaining===0||game.lives===0;paintCareer();paintMission();paintProtection();save()}
 function start(index,daily=false,seed=0){const previous=game?puzzle().solution.join(','):null;let base,variant;if(daily){base=seed%puzzles.length;variant=(seed>>>6)%8}else{let candidates=[];for(let b=0;b<puzzles.length;b++)for(let v=0;v<8;v++){if(game&&b===game.puzzle)continue;if(transformPuzzle(puzzles[b],v).solution.join(',')!==previous)candidates.push([b,v])}[base,variant]=candidates[randomInt(candidates.length)]}game={level:index,puzzle:base,variant,seed,cells:Array(64).fill(0),fixed:[],lives:4,won:false,daily,difficulty:'calm',hints:0,hinted:null,mistakes:0};undo=[];mode='coqui';render();feedback('Tablero vacío. Encuentra los ocho coquíes a tu ritmo.');save()}
 function finish(){
  if(game.won)return;const before=victories(),friendsBefore=COQUIS.filter(unlockedCoqui).map(c=>c.id),oldStage=forestStage();game.won=true;
@@ -391,30 +439,88 @@ function finish(){
 }
 function levelFeature(){return ['seed','flower','precision','fireflies','encounter'][(game.daily?game.seed:game.level||0)%5]}
 function flowerCell(){return ((game.level||0)*13+19)%64}
-function paintMission(){const type=levelFeature(),messages={seed:'Semilla nueva · haz crecer El Yunque',flower:'Flor escondida · deduce su casilla y consigue hibiscos',precision:'Precisión · sin errores ni pistas: un tronco para El Yunque',fireflies:'Noche de luciérnagas · una victoria nueva suma luz a El Yunque',encounter:'Encuentro · completa este nivel y visita a tus coquíes en El Yunque'};$('levelMission').textContent=messages[type];if($('board').children.length===64&&type==='flower')$('board').children[flowerCell()].classList.add('flower-cell')}
+function paintMission(){const type=levelFeature(),messages={seed:'Semilla nueva · haz crecer El Yunque',flower:'Flor escondida · +10 puntos si a la primera decides si lleva coquí o una X (no hay coquí). Las pistas no dan el premio.',precision:'Precisión · sin errores ni pistas: un tronco para El Yunque',fireflies:'Noche de luciérnagas · una victoria nueva suma luz a El Yunque',encounter:'Encuentro · completa este nivel y visita a tus coquíes en El Yunque'};$('levelMission').textContent=messages[type];if($('board').children.length===64&&type==='flower')$('board').children[flowerCell()].classList.add('flower-cell')}
 
-function lost(){ $('winRewards').hidden=true;$('resultTag').textContent='UN RESPIRO Y SEGUIMOS';$('resultTitle').textContent='Todo se aprende';$('resultText').textContent='Puedes continuar esta partida sin límite de errores, o volver al tablero y reiniciarla.';$('nextBtn').textContent='Continuar sin límite';$('result').showModal()}
-function play(i){if(game.won)return feedback('¡Tablero completado! Elige el siguiente nivel.');if(game.fixed.includes(i))return feedback('Este coquí es una pista inicial y ya está en su lugar.');if(!data.relax&&game.lives<=0){lost();return}game.hinted=null;if(mode==='mark'){if(game.cells[i]===2)return feedback('Un coquí encontrado ya está en su lugar. Puedes deshacer tu última jugada.');snapshot();game.cells[i]=game.cells[i]===1?0:1;if(levelFeature()==='flower'&&i===flowerCell()&&game.cells[i]===1&&puzzle().solution[i>>3]!==i%8)game.flowerCollected=true;render();feedback('Marca las casillas que puedes descartar.');return}if(game.cells[i]===2)return feedback('¡Este coquí ya encontró su rincón!');if(game.cells[i]===1){snapshot();game.cells[i]=0;render();return feedback('Marca retirada. Toca otra vez para colocar un coquí.')}if(puzzle().solution[i>>3]!==i%8){game.mistakes=(game.mistakes||0)+1;if(!data.relax)game.lives=Math.max(0,game.lives-1);render();const b=$('board').children[i];b.classList.add('error');clearTimeout(errorsTimer);errorsTimer=setTimeout(()=>b.classList.remove('error'),500);feedback(isBlocked(i)?'Aquí compartiría fila, columna, color o tocaría a otro coquí.':'Ese rincón impediría completar el tablero. Prueba con otra deducción.');if(game.lives===0&&!data.relax)setTimeout(lost,350);return}snapshot();game.cells[i]=2;if(levelFeature()==='flower'&&i===flowerCell())game.flowerCollected=true;if(game.cells.filter(v=>v===2).length<8)chirp();render();feedback('¡Coquí! Un rinconcito más en calma.');if(game.cells.filter(v=>v===2).length===8)finish()}
+function lost(){
+ if(!game||game.won||game.lives>0)return false;
+ pending=null;$('defeatBalance').textContent=`Tienes ${data.points} puntos`;
+ $('buyOneHeart').disabled=data.points<20;$('buyTwoHearts').disabled=data.points<40;
+ if(!$('defeat').open)$('defeat').showModal();return true;
+}
+function buyHearts(amount){
+ if(![1,2].includes(amount)||!game||game.won||game.lives!==0||data.points<amount*20)return false;
+ data.points-=amount*20;game.lives=amount;
+ $('defeat').close();render();feedback(`Compraste ${amount===1?'un corazón':'dos corazones'}. Continúa tu tablero.`);return true;
+}
+function restartLostLevel(){
+ if(!game||game.won||game.lives!==0)return false;
+ game={...game,cells:Array(64).fill(0),fixed:[],lives:4,won:false,hints:0,hinted:null,mistakes:0,flowerAttempted:false,flowerCollected:false,shieldUntil:0};
+ undo=[];mode='coqui';$('defeat').close();render();feedback('Mismo tablero, desde cero. Tienes cuatro corazones.');return true;
+}
+$('retryLevelBtn').onclick=restartLostLevel;
+$('buyOneHeart').onclick=()=>buyHearts(1);
+$('buyTwoHearts').onclick=()=>buyHearts(2);
+$('defeat').addEventListener('cancel',event=>event.preventDefault());
+function flowerRewardKey(){return game.daily?'daily:'+(game.seed||0):'level:'+(game.level??game.puzzle)}
+function recordFlowerGuess(i,hasCoqui,fromHint=false){
+ if(levelFeature()!=='flower'||i!==flowerCell()||game.flowerAttempted)return '';
+ game.flowerAttempted=true;
+ if(fromHint)return 'La pista resolvió la flor; el premio requiere tu primera deducción.';
+ const correct=(puzzle().solution[i>>3]===i%8)===hasCoqui;
+ if(!correct)return 'La primera elección en la flor no acertó. Esta vez no da puntos.';
+ game.flowerCollected=true;const key=flowerRewardKey();
+ if(data.flowerClaims.includes(key))return 'Ya recogiste el premio de esta flor.';
+ data.flowerClaims.push(key);data.points+=10;
+ return '¡Flor resuelta a la primera! +10 puntos.';
+}
+function play(i){
+ if(game.won)return feedback('¡Tablero completado! Elige el siguiente nivel.');
+ if(!Number.isInteger(i)||i<0||i>63)return;
+ if(game.fixed.includes(i))return feedback('Este coquí es una pista inicial y ya está en su lugar.');
+ if(game.lives<=0){lost();return}
+ game.hinted=null;
+ if(mode==='mark'){
+  if(game.cells[i]===2)return feedback('Un coquí encontrado ya está en su lugar. Puedes deshacer tu última jugada.');
+  snapshot();const flowerNotice=game.cells[i]===0?recordFlowerGuess(i,false):'';
+  game.cells[i]=game.cells[i]===1?0:1;
+  render();feedback('Marca las casillas que puedes descartar.'+(flowerNotice?' '+flowerNotice:''));return;
+ }
+ if(game.cells[i]===2)return feedback('¡Este coquí ya encontró su rincón!');
+ if(game.cells[i]===1){snapshot();game.cells[i]=0;render();return feedback('Marca retirada. Toca otra vez para colocar un coquí.')}
+ const flowerNotice=recordFlowerGuess(i,true);
+ if(puzzle().solution[i>>3]!==i%8){
+  game.mistakes=(game.mistakes||0)+1;const protectedNow=isProtected();
+  if(!protectedNow)game.lives=Math.max(0,game.lives-1);
+  render();const b=$('board').children[i];b.classList.add('error');clearTimeout(errorsTimer);errorsTimer=setTimeout(()=>b.classList.remove('error'),500);
+  feedback((protectedNow?'Protección activa: no perdiste corazón.':isBlocked(i)?'Aquí compartiría fila, columna, color o tocaría a otro coquí.':'Ese rincón impediría completar el tablero. Prueba con otra deducción.')+(flowerNotice?' '+flowerNotice:''));
+  if(game.lives===0)setTimeout(lost,350);return;
+ }
+ snapshot();game.cells[i]=2;
+ if(game.cells.filter(v=>v===2).length<8)chirp();
+ render();feedback('¡Coquí! Un rinconcito más en calma.'+(flowerNotice?' '+flowerNotice:''));
+ if(game.cells.filter(v=>v===2).length===8)finish();
+}
+
 function chooseNew(action){$('winRewards').hidden=true;if(game.cells.some((v,i)=>v!==0&&!game.fixed.includes(i))&&!game.won){$('resultTag').textContent='ANTES DE CAMBIAR';$('resultTitle').textContent='¿Empezar otra partida?';$('resultText').textContent='La partida actual se sustituirá. Tus niveles completados y preferencias se conservan.';$('nextBtn').textContent='Empezar partida';pending=action;$('result').showModal()}else action()}
 let pending=null;
 $('board').addEventListener('click',e=>{const b=e.target.closest('.cell');if(b)play(Number(b.dataset.index))});
 $('board').addEventListener('keydown',e=>{const i=Number(e.target.dataset.index);if(!Number.isInteger(i))return;const delta={ArrowRight:1,ArrowLeft:-1,ArrowDown:8,ArrowUp:-8}[e.key];if(delta){e.preventDefault();const next=i+delta;if(next>=0&&next<64)$('board').children[next].focus()}});
 $('modeBtn').onclick=()=>{mode=mode==='coqui'?'mark':'coqui';render();feedback(mode==='mark'?'Modo X: toca para marcar o quitar una marca.':'Modo coquí: toca el rincón donde debe estar.')};
 $('undoBtn').onclick=()=>{if(!undo.length||game.won)return;game.cells=undo.pop().cells;game.hinted=null;render();feedback('Jugada deshecha. Los errores consumidos no se recuperan.')};
-$('hintBtn').onclick=()=>{if(game.won||(!data.relax&&game.lives<=0))return;if((game.hints||0)>=3)return feedback('Ya usaste las 3 pistas de este tablero. Sigue con tus deducciones.');const r=puzzle().solution.findIndex((c,r)=>game.cells[r*8+c]!==2);if(r<0)return;const i=r*8+puzzle().solution[r];snapshot();game.cells[i]=2;game.hints++;game.hinted=i;if(game.cells.filter(v=>v===2).length<8)chirp();render();feedback(`Pista: coquí en fila ${r+1}, columna ${i%8+1}. Desde aquí descarta su fila, columna, región y casillas vecinas.`);if(game.cells.filter(v=>v===2).length===8)finish()};
+$('hintBtn').onclick=()=>{if(game.won||game.lives<=0)return;if((game.hints||0)>=3)return feedback('Ya usaste las 3 pistas de este tablero. Sigue con tus deducciones.');const r=puzzle().solution.findIndex((c,r)=>game.cells[r*8+c]!==2);if(r<0)return;const i=r*8+puzzle().solution[r];snapshot();recordFlowerGuess(i,true,true);game.cells[i]=2;game.hints++;game.hinted=i;if(game.cells.filter(v=>v===2).length<8)chirp();render();feedback(`Pista: coquí en fila ${r+1}, columna ${i%8+1}. Desde aquí descarta su fila, columna, región y casillas vecinas.`);if(game.cells.filter(v=>v===2).length===8)finish()};
 $('settingsBtn').onclick=()=>{$('settings').showModal()};$('helpBtn').onclick=()=>{$('help').showModal()};
 $('levelsBtn').onclick=openMap;
 $('restartBtn').onclick=()=>chooseNew(()=>start(game.level??game.puzzle,game.daily,game.seed||0));
 $('dailyBtn').onclick=()=>{const date=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Puerto_Rico',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());let hash=0;for(const c of date)hash=(hash*31+c.charCodeAt(0))>>>0;chooseNew(()=>start(0,true,hash))};
-$('nextBtn').onclick=()=>{$('result').close();if(pending){const action=pending;pending=null;action();return}if(!game.won){data.relax=true;theme();render();feedback('Modo relajado activado. Sigue a tu ritmo.');return}openMap()};
+$('nextBtn').onclick=()=>{$('result').close();if(pending){const action=pending;pending=null;action();return}if(game.won)openMap()};
 $('resultClose').onclick=()=>{pending=null;$('result').close();if(game.won)openMap()};
 $('result').addEventListener('close',()=>{if(!$('result').open)pending=null});
-document.querySelectorAll('dialog .close').forEach(b=>b.onclick=()=>b.closest('dialog').close());document.querySelectorAll('dialog').forEach(d=>d.addEventListener('click',e=>{if(e.target===d){const rect=d.getBoundingClientRect();if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom)d.close()}}));
+document.querySelectorAll('dialog .close').forEach(b=>b.onclick=()=>b.closest('dialog').close());document.querySelectorAll('dialog').forEach(d=>d.addEventListener('click',e=>{if(e.target===d&&d.id!=='defeat'){const rect=d.getBoundingClientRect();if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom)d.close()}}));
 document.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{data.theme=b.dataset.pick;theme();save()});
-for(const [id,key] of [['soundToggle','sound'],['autoToggle','auto'],['relaxToggle','relax'],['motionToggle','motion']])$(id).onchange=()=>{data[key]=$(id).checked;theme();render();if(key==='sound')chirp()};
+for(const [id,key] of [['soundToggle','sound'],['autoToggle','auto'],['motionToggle','motion']])$(id).onchange=()=>{data[key]=$(id).checked;theme();render();if(key==='sound')chirp()};
 
 function valid(g){return g&&Number.isInteger(g.puzzle)&&g.puzzle>=0&&g.puzzle<puzzles.length&&(g.variant===undefined||(Number.isInteger(g.variant)&&g.variant>=0&&g.variant<8))&&Array.isArray(g.cells)&&g.cells.length===64&&g.cells.every((x,i)=>[0,1,2].includes(x)&&(x!==2||transformPuzzle(puzzles[g.puzzle],g.variant||0).solution[i>>3]===i%8))&&Array.isArray(g.fixed)&&g.fixed.every(i=>Number.isInteger(i)&&i>=0&&i<64&&g.cells[i]===2)&&Number.isInteger(g.lives)&&g.lives>=0&&g.lives<=4}
-async function init(){theme();try{const response=await fetch('puzzles.json?v=12');if(!response.ok)throw Error('network');puzzles=await response.json();if(puzzles.length!==60)throw Error('data');if(!data.emptyStartV2){data.auto=false;data.emptyStartV2=true;if(data.game&&Array.isArray(data.game.cells)&&Array.isArray(data.game.fixed)){const untouched=data.game.cells.every((v,i)=>v===0||(v===2&&data.game.fixed.includes(i)));if(untouched&&data.game.lives===4&&!data.game.won){data.game.cells.fill(0);data.game.fixed=[]}}}theme();if(valid(data.game)){game=data.game;game.hints=Math.min(3,Math.max(0,Number(game.hints)||0));game.level??=game.puzzle;render()}else start(0);$('loading').hidden=true;if(!data.intro){data.intro=true;save();$('help').showModal()}}catch{$('loading').querySelector('p').textContent='No pudimos cargar los niveles. Comprueba la conexión e inténtalo otra vez.';$('retryBtn').hidden=false}}
+async function init(){theme();try{const response=await fetch('puzzles.json?v=13');if(!response.ok)throw Error('network');puzzles=await response.json();if(puzzles.length!==60)throw Error('data');if(!data.emptyStartV2){data.auto=false;data.emptyStartV2=true;if(data.game&&Array.isArray(data.game.cells)&&Array.isArray(data.game.fixed)){const untouched=data.game.cells.every((v,i)=>v===0||(v===2&&data.game.fixed.includes(i)));if(untouched&&data.game.lives===4&&!data.game.won){data.game.cells.fill(0);data.game.fixed=[]}}}theme();if(valid(data.game)){game=data.game;game.hints=Math.min(3,Math.max(0,Number(game.hints)||0));game.level??=game.puzzle;render()}else start(0);$('loading').hidden=true;if(game.lives===0&&!game.won)lost();else if(!data.intro){data.intro=true;save();$('help').showModal()}}catch{$('loading').querySelector('p').textContent='No pudimos cargar los niveles. Comprueba la conexión e inténtalo otra vez.';$('retryBtn').hidden=false}}
 $('retryBtn').onclick=()=>location.reload();
 window.addEventListener('pagehide',save);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save()});
 if('serviceWorker'in navigator){let refreshing=false;const wasControlled=!!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(refreshing||!wasControlled)return;refreshing=true;save();location.reload()});navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{reg.update();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reg.update()})}).catch(()=>{})}
