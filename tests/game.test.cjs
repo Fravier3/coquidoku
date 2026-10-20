@@ -4,7 +4,7 @@ class E{
  get firstElementChild(){return this.children[0]||null}
  append(...xs){for(const x of xs)this.children.push(...(x.fragment?x.children:[x]))}
  replaceChildren(...xs){this.children=[];this.append(...xs)}
- play(){this.playCount=(this.playCount||0)+1;return Promise.resolve()}pause(){this.pauseCount=(this.pauseCount||0)+1}
+ play(){this.playCount=(this.playCount||0)+1;this.paused=false;return Promise.resolve()}pause(){this.pauseCount=(this.pauseCount||0)+1;this.paused=true}
  getBoundingClientRect(){return {left:0,top:0,width:400,height:700}}setPointerCapture(id){this.capture=id}hasPointerCapture(id){return this.capture===id}releasePointerCapture(){this.capture=null}
  setAttribute(k,v){this.attrs[k]=v}addEventListener(type,callback){(this.listeners??={})[type]??=[];this.listeners[type].push(callback)}emit(type){for(const callback of this.listeners?.[type]||[])callback()}querySelector(){return new E()}showModal(){this.open=true}close(){this.open=false}focus(){this.focused=true}
 }
@@ -50,8 +50,8 @@ function solveBonus(run){
  assert.equal(run('game.won'),true);assert.equal(run('data.completed.includes(game.level)'),true);
  run('start(1)');assert.equal(run('game.hints'),0);assert.equal(els.get('hintLabel').textContent,'Pista (3/3)');
  assert.equal(run('valid(game)'),true);assert.equal(run('valid({...game,cells:[0]})'),false);
- run("data.theme='garden';theme();save()");assert.equal(JSON.parse(storage['coquidoku-v1']).theme,'garden');
- const restored=boot(JSON.parse(storage['coquidoku-v1']));await settle();assert.equal(restored.run('data.theme'),'garden');assert.equal(restored.run('game.lives'),4);
+ run("data.theme='garden';theme();save()");assert.equal(JSON.parse(storage['coquidoku-v1']).theme,'night');
+ const restored=boot(JSON.parse(storage['coquidoku-v1']));await settle();assert.equal(restored.run('data.theme'),'night');assert.equal(restored.run('game.lives'),4);
  const saved=run('JSON.stringify(game)');await run('init()');assert.equal(run('JSON.stringify(game)'),saved);
  for(let v=0;v<8;v++){run(`start(0,true,${v*64})`);const p=run('puzzle()');assert.equal(new Set(p.solution).size,8);assert.equal(new Set(p.solution.map((c,r)=>p.regions[r*8+c])).size,8);for(let r=1;r<8;r++)assert.ok(Math.abs(p.solution[r]-p.solution[r-1])>1)}
  let prev='';for(let i=0;i<100;i++){run('start(0)');const sol=run("puzzle().solution.join(',')");assert.notEqual(sol,prev);assert.equal(run('game.cells.every(x=>x===0)'),true);prev=sol}
@@ -291,10 +291,10 @@ function solveBonus(run){
   assert.equal(look.palette.length,8);assert.equal(new Set(look.palette).size,8);assert.equal(look.chapter,Math.floor(level/10));
   if(theme==='night'){palettes.add(look.palette.join(','));scenes.add(look.scene)}
  }
- assert.equal(palettes.size,60);assert.ok(scenes.size>=4);
+ assert.equal(palettes.size,60);assert.equal(scenes.size,1);assert.equal([...scenes][0],'assets/night.webp');
  mr("data.theme='garden';start(8);play(puzzle().solution[0]);globalThis.beforeCosmetic=JSON.stringify(game);theme();paintBoardAppearance()");
- assert.equal(mr('JSON.stringify(game)'),mr('beforeCosmetic'));assert.equal(mr('data.theme'),'garden');
- const cosmeticsSaved=boot(JSON.parse(mini.storage['coquidoku-v1']));await settle();assert.equal(cosmeticsSaved.run('data.theme'),'garden');assert.equal(cosmeticsSaved.run('JSON.stringify(game)'),mr('beforeCosmetic'));
+ assert.equal(mr('JSON.stringify(game)'),mr('beforeCosmetic'));assert.equal(mr('data.theme'),'night');
+ const cosmeticsSaved=boot(JSON.parse(mini.storage['coquidoku-v1']));await settle();assert.equal(cosmeticsSaved.run('data.theme'),'night');assert.equal(cosmeticsSaved.run('JSON.stringify(game)'),mr('beforeCosmetic'));
 
 
  {
@@ -358,6 +358,43 @@ function solveBonus(run){
  const luminance=hex=>{const rgb=hex.match(/../g).map(x=>parseInt(x,16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);return .2126*rgb[0]+.7152*rgb[1]+.0722*rgb[2]};
  for(const [surface,ink,sub] of [['fff7e7','284329','5d704e'],['153b43','f4e6c9','c3d2c5'],['fff1f1','654360','82677c']])for(const text of [ink,sub]){const x=luminance(surface),y=luminance(text);assert.ok((Math.max(x,y)+.05)/(Math.min(x,y)+.05)>=4.5)}
  console.log('PASS: 4-second mini-game return; background/resume; shield award, spending, exact 30-second expiry and reload; zero-life blocking; exact heart prices and same-board restart; first-guess flower rewards and no farming; readable text contrast.');
+ }
+
+
+ {
+ // No empty booster UI, no instructions around the board, and exactly one dark design.
+ const clean=boot({intro:true,theme:'garden'});await settle();const cr=clean.run,ce=clean.els;
+ assert.equal(cr('data.theme'),'night');assert.equal(ce.get('shieldBtn').hidden,true);assert.equal(ce.get('boosterRow').hidden,true);
+ cr("data.shields=1;paintProtection()");assert.equal(ce.get('shieldBtn').hidden,false);assert.equal(ce.get('boosterRow').hidden,false);
+ cr('activateProtection()');assert.equal(ce.get('shieldBtn').hidden,true);assert.equal(ce.get('boosterRow').hidden,false);assert.equal(ce.get('shieldTimer').hidden,false);
+ cr('game.shieldUntil=0;paintProtection()');assert.equal(ce.get('boosterRow').hidden,true);
+ const html=fs.readFileSync('index.html','utf8'),main=html.split('</main>')[0],help=html.split('<dialog id="help">')[1].split('</dialog>')[0];
+ assert.ok(!main.includes('levelMission'));assert.ok(!main.includes('game-message'));assert.ok(help.includes('levelMission'));assert.ok(!html.includes('data-pick='));
+ assert.ok(main.includes('id="feedback" class="sr-only"'));assert.ok(!main.includes('gana una cada'));
+ const fixedArt=Array.from({length:60},(_,level)=>cr(`boardAppearance(${level}).scene`));assert.ok(fixedArt.every(scene=>scene==='assets/night.webp'));
+ // Music is allowed only in a visible, topmost map, with immediate stop at every exit.
+ const winEvents={},music=boot({intro:true},{window:{addEventListener(type,fn){(winEvents[type]??=[]).push(fn)}}});await settle();
+ const ur=music.run,ue=music.els,track=ue.get('mapMusic');assert.equal(track.playCount||0,0);
+ ur('openMap()');assert.equal(track.playCount,1);await settle();assert.equal(ur('mapMusicPlaying'),true);assert.equal(track.volume,.65);assert.equal(track.loop,true);
+ ur('closeMap()');assert.equal(track.paused,true);assert.equal(ur('mapMusicPlaying'),false);
+ ur('openMap()');await settle();ue.get('mapForestBtn').onclick();assert.equal(track.paused,true);assert.equal(ur('mapMusicAllowed()'),false);
+ ur('closeForest()');await settle();assert.equal(ur('mapMusicAllowed()'),true);assert.equal(track.paused,false);
+ ur('selectMapLevel(0)');assert.equal(track.paused,true);assert.equal(ur('mapMusicAllowed()'),false);
+ ur('openMap()');await settle();music.ctx.document.visibilityState='hidden';for(const fn of music.ctx.document.listeners.visibilitychange)fn();
+ assert.equal(track.paused,true);assert.equal(ur('mapMusicAllowed()'),false);
+ music.ctx.document.visibilityState='visible';for(const fn of music.ctx.document.listeners.visibilitychange)fn();await settle();assert.equal(track.paused,false);
+ for(const fn of winEvents.pagehide)fn();assert.equal(track.paused,true);
+ ur('closeMap();openMap()');await settle();ue.get('mapMusicBtn').onclick();assert.equal(ur('data.mapMusic'),false);assert.equal(track.paused,true);
+ const mutedMusic=boot(JSON.parse(music.storage['coquidoku-v1']));await settle();mutedMusic.run('openMap()');assert.equal(mutedMusic.els.get('mapMusic').playCount||0,0);
+ // A delayed successful play cannot make music leak into the board.
+ ur('closeMap();data.mapMusic=true');let resolvePlay;track.play=()=>new Promise(resolve=>{resolvePlay=resolve});
+ ur('openMap();closeMap()');resolvePlay();await settle();assert.equal(track.paused,true);assert.equal(ur('mapMusicPlaying'),false);
+ // Autoplay rejection has a small recoverable map control; retry remains a user gesture.
+ track.play=()=>Promise.reject(new Error('gesture required'));ur('openMap()');await settle();assert.equal(ur('mapMusicBlocked'),true);
+ track.play=()=>{track.paused=false;return Promise.resolve()};ue.get('mapMusicBtn').onclick();await settle();assert.equal(track.paused,false);assert.equal(ur('mapMusicPlaying'),true);
+ ur('closeMap()');track.paused=false;track.emit('playing');assert.equal(track.paused,true);
+ ur('openMap()');await settle();ur("$('levels').close()");ue.get('levels').emit('close');assert.equal(track.paused,true);
+ console.log('PASS: fixed enchanted forest with 60 palettes; hidden empty booster and compact owned icon; instructions only in help; quiet map music stops on level selection, forest, close, background and pagehide; persistent mute, rejected/delayed playback recovery and no board leakage.');
  }
 
  console.log('PASS: 300 full short mini-games, all 64 bridge orientations, 60 distinct level palettes, timed leaf shuffles, two food waves; one payout; stale callbacks rejected; close/background timer cleanup.');

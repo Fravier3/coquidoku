@@ -132,3 +132,18 @@ body[data-theme=garden]{--text-surface:#fff1f1}
 .heart-shop button{min-height:54px;padding:10px 7px;border:1px solid var(--line);border-radius:14px;background:var(--button);font-size:12px;font-weight:700;color:var(--ink)}
 #retryLevelBtn{width:100%;font-size:13px;min-height:50px}
 @media(max-width:350px){.shield-booster{padding:6px;gap:5px}.shield-booster small{max-width:125px}.shield-booster img{width:34px;height:34px}.shield-timer{padding:8px;font-size:12px}.top{padding:12px 6px}}
+
+/* Compact board: explanations live in help; only owned boosters take space. */
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.booster-row{justify-content:flex-end;min-height:0;margin:0 0 8px;gap:7px}
+.shield-booster{position:relative;justify-content:center;width:48px;height:48px;min-height:48px;padding:3px;border-radius:15px}
+.shield-booster img{width:40px;height:40px}
+.shield-booster>b{position:absolute;right:-4px;top:-4px;min-width:21px;height:21px;font-size:11px}
+#boosterRow[hidden],#shieldBtn[hidden],#bonusBtn[hidden]{display:none!important}
+.shield-timer{min-height:38px}
+.context-help{padding:12px;border:1px solid var(--line);background:var(--button);border-radius:14px;font-size:12px;line-height:1.65}
+.map-music-toggle{width:44px;height:44px;padding:8px;position:relative}
+.map-music-toggle svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.8}
+.map-music-toggle[data-playing=true]{border-color:#c8dca8;box-shadow:0 0 0 2px #a0c88730}
+.map-music-toggle[data-playing=false]:after{content:'';position:absolute;width:24px;height:2px;background:currentColor;transform:rotate(-45deg);box-shadow:0 0 2px #123c40}
+#mapMusic{display:none}
