@@ -110,7 +110,11 @@ function bindResidentDrag(button,id){
  button.ondragstart=event=>event.preventDefault();
 }
 
-function openForest(returnTo='game'){forestReturn=returnTo;feeding=false;$('forestFeedBtn').setAttribute('aria-pressed','false');$('forestHint').textContent='Arrastra un coquí para moverlo. Toca Alimentar para repartir insectos.';forestTime=Math.random()<.5?'day':'night';renderForest();$('forest').showModal();$('forestBack').focus({preventScroll:true});startEcosystem()}
+function startForestAmbience(){const audio=$('forestAmbience');if(!audio)return;audio.volume=.5;audio.play().catch(()=>{});}
+function stopForestAmbience(){const audio=$('forestAmbience');if(!audio)return;audio.pause();audio.currentTime=0;}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)stopForestAmbience();else if($('forest')?.open)startForestAmbience()});
+window.addEventListener('pagehide',stopForestAmbience);
+function openForest(returnTo='game'){forestReturn=returnTo;feeding=false;$('forestFeedBtn').setAttribute('aria-pressed','false');$('forestHint').textContent='Arrastra un coquí para moverlo. Toca Alimentar para repartir insectos.';forestTime=Math.random()<.5?'day':'night';renderForest();$('forest').showModal();startForestAmbience();$('forestBack').focus({preventScroll:true});startEcosystem()}
 function stopEcosystem(){if(forestRaf!==null&&window.cancelAnimationFrame)window.cancelAnimationFrame(forestRaf);forestRaf=null}
 function startEcosystem(){stopEcosystem();if(!window.requestAnimationFrame||!$('forest').open||document.visibilityState==='hidden')return;const frame=t=>{forestRaf=null;if(!$('forest').open||document.visibilityState==='hidden')return;updateEcosystem(t);forestRaf=window.requestAnimationFrame(frame)};forestRaf=window.requestAnimationFrame(frame)}
 let insects=[],insectSerial=0;
@@ -131,7 +135,7 @@ function distributeInsects(t){
 function feedAt(x,y,t=forestClock){if(insects.length>27){$('forestHint').textContent='Todavía quedan insectos por comer.';return false}x=Math.max(10,Math.min(86,x));y=Math.max(58,Math.min(85,y));for(let i=0;i<3;i++)insects.push({id:++insectSerial,x:Math.max(8,Math.min(88,x+(i-1)*3)),y:Math.min(86,y+(i%2)*2),owner:null});renderInsects();distributeInsects(t);data.feedings++;save();$('forestHint').textContent='Toca otros lugares para repartir insectos. Cada coquí busca su propio alimento.';$('forestMeals').textContent=data.feedings;return true}
 
 function closeForest(){forestReturn=forestReturn==='map'?'map':'game';$('forest').close();handleForestClose()}
-function handleForestClose(){stopEcosystem();const back=forestReturn;forestReturn='game';if(back==='map')openMap()}
+function handleForestClose(){stopForestAmbience();stopEcosystem();const back=forestReturn;forestReturn='game';if(back==='map')openMap()}
 $('forestBack').onclick=closeForest;
 $('forest').addEventListener('close',handleForestClose);
 $('forestStatusBtn').onclick=()=>{$('forestCustomize').showModal()};
@@ -530,7 +534,7 @@ function play(i){
  if(puzzle().solution[i>>3]!==i%8){
   game.mistakes=(game.mistakes||0)+1;const protectedNow=isProtected();
   if(!protectedNow)game.lives=Math.max(0,game.lives-1);
-  render();const b=$('board').children[i];b.classList.add('error');clearTimeout(errorsTimer);errorsTimer=setTimeout(()=>b.classList.remove('error'),500);
+  render();const b=$('board').children[i];b.classList.remove('error');void b.offsetWidth;b.classList.add('error');if(!protectedNow){$('hearts').classList.remove('heart-hit');void $('hearts').offsetWidth;$('hearts').classList.add('heart-hit');if(navigator.vibrate)navigator.vibrate(80)}clearTimeout(errorsTimer);errorsTimer=setTimeout(()=>b.classList.remove('error'),500);
   feedback((protectedNow?'Protección activa: no perdiste corazón.':isBlocked(i)?'Aquí compartiría fila, columna, color o tocaría a otro coquí.':'Ese rincón impediría completar el tablero. Prueba con otra deducción.')+(flowerNotice?' '+flowerNotice:''));
   if(game.lives===0)setTimeout(lost,350);return;
  }
@@ -559,7 +563,7 @@ document.querySelectorAll('dialog .close').forEach(b=>b.onclick=()=>b.closest('d
 for(const [id,key] of [['soundToggle','sound'],['autoToggle','auto'],['motionToggle','motion']])$(id).onchange=()=>{data[key]=$(id).checked;theme();render();if(key==='sound')chirp()};
 
 function valid(g){return g&&Number.isInteger(g.puzzle)&&g.puzzle>=0&&g.puzzle<puzzles.length&&(g.variant===undefined||(Number.isInteger(g.variant)&&g.variant>=0&&g.variant<8))&&Array.isArray(g.cells)&&g.cells.length===64&&g.cells.every((x,i)=>[0,1,2].includes(x)&&(x!==2||transformPuzzle(puzzles[g.puzzle],g.variant||0).solution[i>>3]===i%8))&&Array.isArray(g.fixed)&&g.fixed.every(i=>Number.isInteger(i)&&i>=0&&i<64&&g.cells[i]===2)&&Number.isInteger(g.lives)&&g.lives>=0&&g.lives<=4}
-async function init(){theme();try{const response=await fetch('puzzles.json?v=14');if(!response.ok)throw Error('network');puzzles=await response.json();if(puzzles.length!==60)throw Error('data');if(!data.emptyStartV2){data.auto=false;data.emptyStartV2=true;if(data.game&&Array.isArray(data.game.cells)&&Array.isArray(data.game.fixed)){const untouched=data.game.cells.every((v,i)=>v===0||(v===2&&data.game.fixed.includes(i)));if(untouched&&data.game.lives===4&&!data.game.won){data.game.cells.fill(0);data.game.fixed=[]}}}theme();if(valid(data.game)){game=data.game;game.hints=Math.min(3,Math.max(0,Number(game.hints)||0));game.level??=game.puzzle;render()}else start(0);$('loading').hidden=true;if(game.lives===0&&!game.won)lost();else if(!data.intro){data.intro=true;save();$('help').showModal()}}catch{$('loading').querySelector('p').textContent='No pudimos cargar los niveles. Comprueba la conexión e inténtalo otra vez.';$('retryBtn').hidden=false}}
+async function init(){theme();try{const response=await fetch('puzzles.json?v=14');if(!response.ok)throw Error('network');puzzles=await response.json();if(puzzles.length!==60)throw Error('data');if(!data.emptyStartV2){data.auto=false;data.emptyStartV2=true;if(data.game&&Array.isArray(data.game.cells)&&Array.isArray(data.game.fixed)){const untouched=data.game.cells.every((v,i)=>v===0||(v===2&&data.game.fixed.includes(i)));if(untouched&&data.game.lives===4&&!data.game.won){data.game.cells.fill(0);data.game.fixed=[]}}}theme();if(valid(data.game)){game=data.game;game.hints=Math.min(3,Math.max(0,Number(game.hints)||0));game.level??=game.puzzle;render()}else start(0);$('loading').hidden=true;if(game.lives===0&&!game.won)lost();else {if(!data.intro){data.intro=true;save()}openMap()}}catch{$('loading').querySelector('p').textContent='No pudimos cargar los niveles. Comprueba la conexión e inténtalo otra vez.';$('retryBtn').hidden=false}}
 $('retryBtn').onclick=()=>location.reload();
 window.addEventListener('pagehide',save);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save()});
 if('serviceWorker'in navigator){let refreshing=false;const wasControlled=!!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(refreshing||!wasControlled)return;refreshing=true;save();location.reload()});navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{reg.update();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reg.update()})}).catch(()=>{})}
