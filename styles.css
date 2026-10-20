@@ -162,3 +162,13 @@ body[data-theme=garden]{--text-surface:#fff1f1}
 #hearts.heart-hit{animation:heartLoss .48s ease-out}
 @keyframes heartLoss{20%{transform:scale(1.2);color:#ff7f83}70%{transform:scale(.95)}100%{transform:scale(1)}}
 @media(prefers-reduced-motion:reduce){.board .cell.error,#hearts.heart-hit{animation:none!important}}
+
+/* Detalles culturales integrados en el mapa, sin bloquear los niveles */
+.map-chapter:before{content:"🇵🇷  🌺  🐸";position:absolute;top:8%;left:3%;width:94%;font-size:clamp(17px,4.5cqw,28px);letter-spacing:1.6em;text-shadow:0 2px 7px #123a32;opacity:.9;pointer-events:none;z-index:1}
+.map-chapter[data-region="0"]:before{content:"🇵🇷    🏰    🌺"}
+.map-chapter[data-region="1"]:before{content:"🌺    🇵🇷    🐚"}
+.map-chapter[data-region="2"]:before{content:"🌿    🐸    💧"}
+.map-chapter[data-region="3"]:before{content:"✨    🐚    🇵🇷"}
+.map-chapter[data-region="4"]:before{content:"☕    🌺    ⛰️"}
+.map-chapter[data-region="5"]:before{content:"🐸    🌿    🇵🇷"}
+.map-chapter .map-step{z-index:3}
