@@ -142,10 +142,10 @@ function solveBonus(run){
  let cancelled=0,scheduled=0;
  const habitat=boot(undefined,{window:{requestAnimationFrame:()=>++scheduled,cancelAnimationFrame:()=>cancelled++}});await settle();const hr=habitat.run,he=habitat.els;
  hr('openForest();updateEcosystem(0);updateEcosystem(800)');assert.equal(hr('ecosystem[0].hops'),1);
- hr('updateEcosystem(1250)');assert.ok(he.get('forestResidents').children[0].firstElementChild.style.transform.includes('-36px'));
- hr('updateEcosystem(1700);updateEcosystem(10799)');assert.equal(hr('ecosystem[0].hops'),1);
- hr('updateEcosystem(10800)');assert.equal(hr('ecosystem[0].hops'),2);
- hr("data.behaviors.sol='rest';updateEcosystem(31250);updateEcosystem(70000)");assert.equal(hr('ecosystem[0].hops'),2);assert.equal(he.get('forestResidents').children[0].firstElementChild.style.transform,'translate3d(0,0,0)');
+ hr('updateEcosystem(1250)');assert.equal(he.get('forestResidents').children[0].style.props['--hop-y'],'-36px');assert.equal(he.get('forestResidents').children[0].children[1],he.get('forestResidents').children[0].careBar);
+ hr('updateEcosystem(1700);updateEcosystem(10799)');assert.equal(hr('ecosystem[0].hops'),1);assert.equal(he.get('forestResidents').children[0].style.props['--hop-y'],'0px');
+ hr('updateEcosystem(10800);updateEcosystem(11250)');assert.equal(hr('ecosystem[0].hops'),2);assert.equal(he.get('forestResidents').children[0].style.props['--hop-y'],'-36px');
+ hr("data.behaviors.sol='rest';updateEcosystem(31250);updateEcosystem(70000)");assert.equal(hr('ecosystem[0].hops'),2);assert.equal(he.get('forestResidents').children[0].style.props['--hop-y'],'0px');assert.equal(he.get('forestResidents').children[0].firstElementChild.style.transform,'translate3d(0,0,0)');
  const currency=hr('data.points'),seeds=hr('victories()');hr("data.behaviors.sol='explore';feedAt(60,70,71000);updateEcosystem(71100);updateEcosystem(71550)");assert.equal(hr('data.feedings'),1);assert.equal(hr('data.points'),currency);assert.equal(hr('victories()'),seeds);assert.equal(hr('feedAt(30,80,71001)'),true);
  hr('data.motion=true;updateEcosystem(90000)');assert.equal(he.get('forestResidents').children[0].firstElementChild.style.transform,'translate3d(0,0,0)');
  hr('closeForest()');assert.ok(cancelled>0);assert.equal(hr('forestRaf'),null);assert.equal(he.get('forest').open,false);
@@ -500,6 +500,22 @@ function solveBonus(run){
  for(const fn of winEvents.pagehide)fn();assert.equal(track.paused,true);
  ur('closeMap();openMap()');await settle();ue.get('mapMusicBtn').onclick();assert.equal(ur('data.mapMusic'),false);assert.equal(track.paused,true);
  const mutedMusic=boot(JSON.parse(music.storage['coquidoku-v1']));await settle();assert.equal(mutedMusic.run('data.mapMusic'),true);assert.equal(mutedMusic.els.get('mapMusic').playCount,1);
+ // Initial blocked autoplay keeps a real gesture entry available, with an escape if audio fails.
+ const firstEntry=boot({intro:true,mapMusic:false}),fe=firstEntry.els,fr=firstEntry.run;
+ const entryTrack=fe.get('mapMusic');entryTrack.play=()=>Promise.reject(new Error('gesture required'));
+ await settle();assert.equal(fe.get('mapAudioGate').hidden,false);assert.equal(fe.get('levels').dataset.entryLocked,'true');
+ assert.equal(fe.get('mapAudioStart').hidden,true);assert.equal(fe.get('mapEnterMusic').focused,true);
+ fe.get('mapEnterMusic').onclick();await settle();assert.equal(fe.get('mapAudioGate').hidden,false);assert.ok(fe.get('mapEntryNotice').textContent.includes('reintentar'));
+ let entryStartedAt;entryTrack.currentTime=45;entryTrack.paused=true;entryTrack.play=()=>{entryStartedAt=entryTrack.currentTime;entryTrack.paused=false;return Promise.resolve()};
+ fe.get('mapEnterMusic').onclick();await settle();assert.equal(entryStartedAt,0);assert.equal(fe.get('mapAudioGate').hidden,true);assert.equal(fe.get('levels').dataset.entryLocked,'false');assert.equal(fr('mapMusicPlaying'),true);
+ const silentEntry=boot({intro:true}),se=silentEntry.els,sr=silentEntry.run;
+ se.get('mapMusic').play=()=>Promise.reject(new Error('unavailable'));await settle();assert.equal(se.get('mapAudioGate').hidden,false);
+ se.get('mapEnterSilent').onclick();assert.equal(se.get('mapAudioGate').hidden,true);assert.equal(sr('data.mapMusic'),false);assert.equal(se.get('mapMusic').paused,true);
+ sr('closeMap();openMap()');await settle();assert.equal(se.get('mapAudioGate').hidden,true);assert.equal(se.get('mapAudioStart').hidden,false);
+ const helpMarkup=fs.readFileSync('index.html','utf8').split('<dialog id="help"')[1].split('</dialog>')[0];
+ assert.ok(helpMarkup.indexOf('<ol>')<helpMarkup.indexOf('id="levelMission"'));
+ const mapMarkup=fs.readFileSync('index.html','utf8').split('<dialog id="levels"')[1].split('</dialog>')[0];
+ assert.ok(mapMarkup.indexOf('class="map-footer"')<mapMarkup.indexOf('id="mapHelpBtn"'));assert.ok(!mapMarkup.includes('class="quick-help'));
  // A delayed successful play cannot make music leak into the board.
  ur('closeMap();data.mapMusic=true');let resolvePlay;track.play=()=>new Promise(resolve=>{resolvePlay=resolve});
  ur('openMap();closeMap()');resolvePlay();await settle();assert.equal(track.paused,true);assert.equal(ur('mapMusicPlaying'),false);

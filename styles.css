@@ -209,3 +209,20 @@ body[data-theme=garden]{--text-surface:#fff1f1}
 .forest-food-picker nav button{display:flex;flex-direction:column;gap:5px;align-items:center;justify-content:center;min-height:79px;border:1px solid #e4e6bd55;border-radius:14px;background:#274e4ed9;color:#fff1cf;font-size:10px}
 .forest-food-picker img{width:35px;height:35px;object-fit:contain}.forest-food-picker small{display:block;font-size:10px;color:#d9e6cd;line-height:1.4}
 #forestFoodLabel{font-size:11px}.forest-tools #forestFoodIcon{width:28px;height:28px}#forestHoldAudio{display:none}
+
+/* Keep care indicators attached to the same moving resident, preserving its ground anchor. */
+#forest .forest-friend{transform:translate(-30%,-30%) translateY(var(--hop-y,0px));will-change:left,top,transform}
+#levels .map-footer{flex-direction:column;gap:0}
+#levels .map-footer #mapForestBtn{width:min(100%,460px);font-size:13px;min-height:46px;padding:9px;color:#ffedc9}
+#levels #mapHelpBtn{position:static;min-height:44px;width:auto;padding:8px 16px;border:0;border-radius:0;background:none;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;color:#fff1d6;font-size:12px;text-shadow:0 2px 5px #001e25,0 0 8px #001e25}
+#levels #mapHelpBtn:focus-visible{outline:2px solid #ffe6a8;outline-offset:-4px;border-radius:8px}
+#levels[data-entry-locked="true"]>:not(#mapAudioGate){visibility:hidden}
+.map-audio-gate{position:absolute;inset:0;z-index:50;display:grid;place-items:center;padding:calc(env(safe-area-inset-top) + 20px) 24px calc(env(safe-area-inset-bottom) + 20px);background:linear-gradient(#082b36c9,#082b36eb);color:#fff1d6;text-align:center;overflow-y:auto}
+.map-audio-gate[hidden]{display:none}
+.map-entry-content{width:min(100%,350px);margin:auto}
+.map-entry-content>img{width:120px;height:120px;object-fit:contain;filter:drop-shadow(0 8px 12px #0005)}
+.map-entry-content>small{display:block;letter-spacing:2px;font-size:10px;margin:14px 0 8px}
+.map-entry-content h2{font-size:clamp(25px,7vw,34px);line-height:1.15;margin:0 0 18px}
+.map-entry-content p{font-size:13px;line-height:1.6;min-height:42px}
+#mapEnterMusic{width:100%;min-height:52px;margin:16px 0 6px;background:#efd18e;color:#244b40;border:1px solid #ffedbc;border-radius:20px;box-shadow:0 4px 0 #826b3f;font-weight:700}
+#mapEnterSilent{min-height:44px;padding:8px 16px;background:none;border:0;color:#eee4c9}

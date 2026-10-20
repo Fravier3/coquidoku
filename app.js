@@ -95,7 +95,7 @@ function putResidentToSleep(id,now=Date.now()){
  const c=careFor(id,now);if(c.sleepUntil>now||now<c.nextSleepAt)return false;
  c.sleepUntil=now+careRandom(45000,120000);data.behaviors[id]='explore';
  const state=ecosystem.find(s=>s.id===id);
- if(state){state.started=null;state.targetFood=null;state.next=Infinity;state.image.style.transform='translate3d(0,0,0)';data.forestCoordinates[id]={...state.position}}
+ if(state){state.started=null;state.targetFood=null;state.next=Infinity;resetResidentPose(state);data.forestCoordinates[id]={...state.position}}
  insects.filter(b=>b.owner===id).forEach(b=>b.owner=null);
  tickResidentCare(now,true);save();return true;
 }
@@ -117,7 +117,7 @@ function tickResidentCare(now=Date.now(),force=false){
   state.button.careBar.style.setProperty('--care-color',care.satiety>55?'#9ac875':care.satiety>25?'#efc65f':'#e78770');
   state.button.sleepBadge.hidden=!(sleeping||sleepy);state.button.sleepBadge.textContent=sleeping?'Zz':'☾';
   state.button.setAttribute('aria-label',c.name+', alimento '+Math.round(care.satiety)+'%'+(sleeping?', durmiendo':sleepy?', tiene sueño':'')+'. Mantén pulsado para escuchar su canto.');
-  if(sleeping){state.started=null;state.targetFood=null;state.next=Infinity;state.image.style.transform='translate3d(0,0,0)'}
+  if(sleeping){state.started=null;state.targetFood=null;state.next=Infinity;resetResidentPose(state)}
   else if(state.next===Infinity)state.next=forestClock+careRandom(500,1500);
  }
  paintResidentDetail(now);
@@ -155,7 +155,7 @@ function bindResidentDrag(button,id){
   const s=ecosystem.find(s=>s.id===id);if(!s)return;
   cancelResidentPress?.();button.suppressClick=false;
   drag={pointer:event.pointerId,x:event.clientX,y:event.clientY,origin:{...s.position},moved:false};
-  s.dragging=true;s.started=null;s.image.style.transform='translate3d(0,0,0)';
+  s.dragging=true;s.started=null;resetResidentPose(s);
   button.setPointerCapture?.(event.pointerId);
   const press=drag;holdTimer=setTimeout(()=>{if(drag===press&&!drag.moved&&$('forest').open){drag.held=true;button.suppressClick=true;startResidentHold(id)}},450);
   cancelResidentPress=()=>finish({pointerId:event.pointerId});
@@ -222,7 +222,8 @@ function claimInsect(s,t){
  const bug=nearby[0];bug.owner=s.id;s.targetFood=bug.id;s.next=Math.min(s.next??Infinity,t+120);
 }
 function eatInsect(s,t){const bug=insects.find(b=>b.id===s.targetFood);if(bug&&Math.hypot(s.position.x-bug.x,s.position.y-bug.y)<.3){const meal=feedResident(s.id,bug.type||'fly');if(!meal)return;insects=insects.filter(b=>b!==bug);s.targetFood=null;renderInsects();tickResidentCare(Date.now(),true);$('forestHint').textContent=meal.after===100?'¡Ya está satisfecho!':'¡Qué rico! Su barra de alimento subió.';claimInsect(s,t)}else if(bug)s.next=t+280}
-function updateEcosystem(t){forestClock=t;tickResidentCare();if(insects.length)distributeInsects(t);for(let i=0;i<ecosystem.length;i++){const s=ecosystem[i];if(s.dragging)continue;if(data.behaviors[s.id]==='rest'||residentIsSleeping(s.id)){insects.filter(b=>b.owner===s.id).forEach(b=>b.owner=null);s.targetFood=null;s.image.style.transform='translate3d(0,0,0)';s.started=null;s.next=t+15000;continue}if(insects.length)claimInsect(s,t);if(s.next===null)s.next=t+800+i*1300;if(s.started===null&&t>=s.next){s.started=t;s.next=t+10000+((i*1297+s.hops*1931)%5001);s.from={...s.position};const bug=insects.find(b=>b.id===s.targetFood),goal=bug||{x:Math.max(8,Math.min(88,s.position.x+(s.direction?5:-5))),y:s.position.y},distance=Math.hypot(goal.x-s.position.x,goal.y-s.position.y),scale=distance>12?12/distance:1;s.target={x:s.position.x+(goal.x-s.position.x)*scale,y:s.position.y+(goal.y-s.position.y)*scale};s.direction=!s.direction;s.hops++}if(s.started!==null){const p=data.motion?1:Math.max(0,Math.min(1,(t-s.started)/900)),ease=p*p*(3-2*p),height=data.motion?0:36;s.position={x:s.from.x+(s.target.x-s.from.x)*ease,y:s.from.y+(s.target.y-s.from.y)*ease};s.button.style.left=s.position.x+'%';s.button.style.top=s.position.y+'%';s.image.style.transform=`translate3d(0,${-4*height*p*(1-p)}px,0) scale(${1+.06*Math.sin(p*Math.PI*2)},${1-.06*Math.sin(p*Math.PI*2)})`;if(p===1){s.started=null;s.image.style.transform='translate3d(0,0,0)';eatInsect(s,t)}}}}
+function resetResidentPose(state){state.button.style.setProperty('--hop-y','0px');state.image.style.transform='translate3d(0,0,0)'}
+function updateEcosystem(t){forestClock=t;tickResidentCare();if(insects.length)distributeInsects(t);for(let i=0;i<ecosystem.length;i++){const s=ecosystem[i];if(s.dragging)continue;if(data.behaviors[s.id]==='rest'||residentIsSleeping(s.id)){insects.filter(b=>b.owner===s.id).forEach(b=>b.owner=null);s.targetFood=null;resetResidentPose(s);s.started=null;s.next=t+15000;continue}if(insects.length)claimInsect(s,t);if(s.next===null)s.next=t+800+i*1300;if(s.started===null&&t>=s.next){s.started=t;s.next=t+10000+((i*1297+s.hops*1931)%5001);s.from={...s.position};const bug=insects.find(b=>b.id===s.targetFood),goal=bug||{x:Math.max(8,Math.min(88,s.position.x+(s.direction?5:-5))),y:s.position.y},distance=Math.hypot(goal.x-s.position.x,goal.y-s.position.y),scale=distance>12?12/distance:1;s.target={x:s.position.x+(goal.x-s.position.x)*scale,y:s.position.y+(goal.y-s.position.y)*scale};s.direction=!s.direction;s.hops++}if(s.started!==null){const p=data.motion?1:Math.max(0,Math.min(1,(t-s.started)/900)),ease=p*p*(3-2*p),height=data.motion?0:36;s.position={x:s.from.x+(s.target.x-s.from.x)*ease,y:s.from.y+(s.target.y-s.from.y)*ease};s.button.style.left=s.position.x+'%';s.button.style.top=s.position.y+'%';s.button.style.setProperty('--hop-y',`${-4*height*p*(1-p)}px`);s.image.style.transform=`scale(${1+.06*Math.sin(p*Math.PI*2)},${1-.06*Math.sin(p*Math.PI*2)})`;if(p===1){s.started=null;resetResidentPose(s);eatInsect(s,t)}}}}
 function distributeInsects(t){
  for(const bug of insects)bug.owner=closestResident(bug)?.id??null;
  for(const s of ecosystem){
@@ -289,7 +290,7 @@ function renderMap(){
 }
 $('mapPrevious').onclick=()=>changeMapChapter(-1);
 $('mapNext').onclick=()=>changeMapChapter(1);
-let mapMusicBlocked=false,mapMusicPlaying=false,mapMusicGeneration=0;
+let mapMusicBlocked=false,mapMusicPlaying=false,mapMusicGeneration=0,mapEntryPending=true,mapEntryGateOpen=false;
 function mapMusicAllowed(){
  return data.mapMusic&&$('levels').open&&document.visibilityState!=='hidden'&&!['settings','help','result','defeat','collection','forest','forestCustomize','resident','purchase','bonus'].some(id=>$(id).open);
 }
@@ -299,7 +300,12 @@ function paintMapMusic(){
  $('mapMusicBtn').setAttribute('aria-label',data.mapMusic?'Silenciar música del mapa':'Escuchar música del mapa');
  $('mapMusicBtn').title=data.mapMusic?'Silenciar música':'Escuchar música';
  $('mapMusicBtn').dataset.playing=String(data.mapMusic);
- $('mapAudioStart').hidden=!(data.mapMusic&&mapMusicBlocked&&$('levels').open);
+ const wasOpen=mapEntryGateOpen;
+ if(mapEntryPending&&mapMusicBlocked&&data.mapMusic&&$('levels').open)mapEntryGateOpen=true;
+ const gateVisible=mapEntryPending&&mapEntryGateOpen&&data.mapMusic&&$('levels').open;
+ $('mapAudioGate').hidden=!gateVisible;$('levels').dataset.entryLocked=String(gateVisible);
+ $('mapAudioStart').hidden=gateVisible||!(data.mapMusic&&mapMusicBlocked&&$('levels').open);
+ if(gateVisible&&!wasOpen)$('mapEnterMusic').focus({preventScroll:true});
 }
 function stopMapMusic(){mapMusicGeneration++;$('mapMusic').autoplay=false;$('mapMusic').pause();$('mapMusic').currentTime=0;mapMusicPlaying=false;paintMapMusic()}
 function syncMapMusic(){
@@ -311,7 +317,9 @@ function syncMapMusic(){
   return Promise.resolve(player.play()).then(()=>{
    if(!mapMusicAllowed()){player.pause();return false}
    if(ticket!==mapMusicGeneration)return false;
-   mapMusicPlaying=true;paintMapMusic();return true;
+   const enteredThroughGate=mapEntryGateOpen;
+   mapMusicPlaying=true;mapEntryPending=false;mapEntryGateOpen=false;paintMapMusic();
+   if(enteredThroughGate)$('mapBack').focus({preventScroll:true});return true;
   }).catch(()=>{if(ticket===mapMusicGeneration){mapMusicBlocked=true;mapMusicPlaying=false;paintMapMusic()}return false});
  }catch{mapMusicBlocked=true;mapMusicPlaying=false;paintMapMusic();return Promise.resolve(false)}
 }
@@ -320,12 +328,20 @@ $('mapMusicBtn').onclick=()=>{
  data.mapMusic=!data.mapMusic;if(data.mapMusic)syncMapMusic();else stopMapMusic();save();
 };
 $('mapAudioStart').onclick=()=>syncMapMusic();
+$('mapEnterMusic').onclick=()=>{
+ $('mapEntryNotice').textContent='Iniciando la música…';
+ // play() runs directly inside the real click, before any asynchronous work.
+ syncMapMusic().then(ok=>{if(!ok)$('mapEntryNotice').textContent='No se pudo iniciar el audio. Puedes reintentar o entrar sin sonido.'});
+};
+$('mapEnterSilent').onclick=()=>{
+ mapEntryPending=false;mapEntryGateOpen=false;data.mapMusic=false;stopMapMusic();save();$('mapBack').focus({preventScroll:true});
+};
 $('levels').addEventListener('close',stopMapMusic);
 $('levels').addEventListener('cancel',stopMapMusic);
 $('mapMusic').addEventListener('playing',()=>{if(!mapMusicAllowed())stopMapMusic()});
 $('mapMusic').addEventListener('error',()=>{mapMusicBlocked=true;mapMusicPlaying=false;paintMapMusic()});
 function retryMapAudio(event){
- if(data.mapMusic&&mapMusicAllowed()&&(mapMusicBlocked||!mapMusicPlaying)&&!event.target?.closest('#mapMusicBtn,#mapAudioStart'))syncMapMusic();
+ if(data.mapMusic&&mapMusicAllowed()&&(mapMusicBlocked||!mapMusicPlaying)&&!event.target?.closest('#mapMusicBtn,#mapAudioStart,#mapEnterMusic,#mapEnterSilent'))syncMapMusic();
 }
 for(const type of ['pointerdown','touchend','click','keydown'])document.addEventListener(type,retryMapAudio,{capture:true,passive:true});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')stopMapMusic();else if($('levels').open)syncMapMusic()});
