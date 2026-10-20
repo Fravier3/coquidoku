@@ -193,3 +193,19 @@ body[data-theme=garden]{--text-surface:#fff1f1}
 #levels .map-footer #mapForestBtn{background:rgba(5,14,20,.62);border:1px solid #fff4;box-shadow:inset 0 1px 0 #fff2,0 5px 18px #0003;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:16px}
 .map-audio-start{background:#071c29b8;color:#fff1d6;border:1px solid #fff5;border-radius:12px;min-height:36px;padding:6px 10px;margin-top:7px;font-size:10px}
 .map-audio-start[hidden],#boardCoquiAudio{display:none}
+
+.quick-help{position:absolute;z-index:32;min-height:44px;padding:7px 12px;border:1px solid #f4e6be66;border-radius:18px;background:#09242fba;color:#fff1d5;box-shadow:inset 0 1px 0 #fff2,0 3px 12px #0003;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-size:11px}
+.map-help{right:12px;top:calc(env(safe-area-inset-top) + 110px)}
+.forest-help{right:12px;top:calc(env(safe-area-inset-top) + 165px)}
+.guide-section h3{font-size:17px;margin:22px 0 8px}.guide-section ul{padding-left:19px}.guide-section p{margin:10px 0}
+.resident-hunger{position:absolute;top:-6px;left:15%;width:70%;height:6px;border:1px solid #fff9;border-radius:5px;overflow:hidden;background:#092b35c9;box-shadow:0 1px 3px #0008;pointer-events:none}
+.resident-hunger i{display:block;height:100%;width:85%;background:var(--care-color,#9ac875);border-radius:4px}
+.resident-sleep{position:absolute;right:-4px;top:-20px;min-width:22px;min-height:22px;padding:3px;border-radius:12px;background:#163747df;color:#ffe2a6;border:1px solid #ffe5b677;font-size:11px;font-weight:800;line-height:16px;pointer-events:none}
+.resident-sleep[hidden]{display:none}
+.resident-care-text{font-size:13px;line-height:1.5;color:var(--sub)}#residentSleepBtn{margin:2px 0 18px;font-size:13px}
+.forest-food-picker{position:absolute;bottom:calc(100% - 12px);left:12px;right:12px;max-width:430px;margin:auto;padding:12px;border:1px solid #e4e6bd66;border-radius:20px;background:#12353bf0;color:#fff0cf;box-shadow:0 8px 30px #0005;backdrop-filter:blur(14px)}
+.forest-food-picker[hidden]{display:none}.forest-food-picker>div{display:flex;align-items:center;justify-content:space-between;font-size:12px}.forest-food-picker>div button{background:none;color:inherit;border:0;min-height:44px;padding:5px 9px}
+.forest-food-picker nav{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:8px 0}
+.forest-food-picker nav button{display:flex;flex-direction:column;gap:5px;align-items:center;justify-content:center;min-height:79px;border:1px solid #e4e6bd55;border-radius:14px;background:#274e4ed9;color:#fff1cf;font-size:10px}
+.forest-food-picker img{width:35px;height:35px;object-fit:contain}.forest-food-picker small{display:block;font-size:10px;color:#d9e6cd;line-height:1.4}
+#forestFoodLabel{font-size:11px}.forest-tools #forestFoodIcon{width:28px;height:28px}#forestHoldAudio{display:none}

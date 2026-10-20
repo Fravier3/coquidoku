@@ -373,6 +373,53 @@ function solveBonus(run){
  assert.ok(!main.includes('levelMission'));assert.ok(!main.includes('game-message'));assert.ok(help.includes('levelMission'));assert.ok(!html.includes('data-pick='));
  assert.ok(main.includes('id="feedback" class="sr-only"'));assert.ok(!main.includes('gana una cada'));
  const fixedArt=Array.from({length:60},(_,level)=>cr(`boardAppearance(${level}).scene`));assert.ok(fixedArt.every(scene=>scene==='assets/night.webp'));
+ // Persistent pet care, real-time naps, four foods, and a hold that never becomes a tap.
+ {
+ let now=1800000000000,timerId=0;const timers=new Map();
+ class PetDate extends Date{static now(){return now}}
+ const pet=boot({intro:true,rulesV3:true,completed:Array.from({length:10},(_,i)=>i)},{Date:PetDate,setTimeout:(fn,ms)=>{timers.set(++timerId,{fn,ms});return timerId},clearTimeout:id=>timers.delete(id)});
+ await settle();const r=pet.run,e=pet.els;r('closeMap();openForest()');
+ r("data.care.sol.satiety=90;data.care.sol.hungerRate=.6;data.care.sol.nextSleepAt=Date.now()+120000;data.care.menta.nextSleepAt=Date.now()+600000");
+ now+=60000;r('tickResidentCare(Date.now(),true)');assert.ok(Math.abs(r('data.care.sol.satiety')-89.4)<.001);
+ r("openResident('sol')");assert.equal(e.get('residentSleepBtn').disabled,true);assert.equal(r("putResidentToSleep('sol')"),false);
+ now+=180000;r('tickResidentCare(Date.now(),true)');assert.equal(e.get('forestResidents').children[0].sleepBadge.hidden,false);assert.equal(e.get('residentSleepBtn').disabled,false);
+ r('globalThis.petRandom=Math.random;Math.random=()=>.5');const sprite=e.get('forestResidents').children[0].firstElementChild;
+ assert.equal(r("putResidentToSleep('sol')"),true);const until=r('data.care.sol.sleepUntil'),duration=until-now;
+ assert.ok(duration>=45000&&duration<=120000);assert.equal(r("putResidentToSleep('sol')"),false);assert.equal(r("putResidentToSleep('menta')"),false);
+ assert.equal(e.get('forestResidents').children[0].firstElementChild,sprite);assert.ok(sprite.src.endsWith('coqui-sol-sleep.webp'));
+ const hops=r('ecosystem[0].hops');r('updateEcosystem(1000);updateEcosystem(5000)');assert.equal(r('ecosystem[0].hops'),hops);
+ assert.equal(r("feedResident('sol','worm')"),null);
+ r("insects=[];feedAt(67,65,5000)");assert.ok(r("insects.every(b=>b.owner!=='sol')"));
+ const saved=JSON.parse(pet.storage['coquidoku-v1']),restored=boot(saved,{Date:PetDate});await settle();restored.run('openForest()');
+ assert.equal(restored.run('data.care.sol.sleepUntil'),until);assert.ok(restored.els.get('forestResidents').children[0].firstElementChild.src.endsWith('-sleep.webp'));
+ now=until-1;restored.run('tickResidentCare(Date.now(),true)');assert.equal(restored.run("residentIsSleeping('sol')"),true);
+ now++;restored.run('tickResidentCare(Date.now(),true)');assert.equal(restored.run("residentIsSleeping('sol')"),false);assert.ok(restored.els.get('forestResidents').children[0].firstElementChild.src.endsWith('coqui.webp'));assert.ok(restored.run('data.care.sol.nextSleepAt')>now);
+ r("careFor('sol');$('resident').close();data.behaviors={};insects=[];Math.random=()=>.99");
+ const points=r('data.points'),seeds=r('victories()');
+ for(const type of ['fly','butterfly','worm','ant']){
+  r("data.care.sol.satiety=20");const meal=r("feedResident('sol','"+type+"')");assert.ok(meal.after>20&&meal.after<100);
+  r("data.care.sol.satiety=20;Math.random=()=>.01");assert.equal(r("feedResident('sol','"+type+"').after"),100);r('Math.random=()=>.99');
+ }
+ assert.equal(r('data.points'),points);assert.equal(r('victories()'),seeds);
+ r("selectForestFood('worm');feedAt(67,60,9000)");assert.equal(r('data.forestFood'),'worm');assert.ok(r("insects.every(b=>b.type==='worm')"));assert.ok(e.get('forestFood').children.every(b=>b.src.endsWith('food-worm.webp')));
+ r("data.care.sol.satiety=20;ecosystem[0].targetFood=insects[0].id;insects[0].owner='sol';ecosystem[0].position={x:8,y:45};eatInsect(ecosystem[0],9001)");
+ assert.equal(r('insects.length'),3);assert.equal(r('data.care.sol.satiety'),20);
+ r("ecosystem[0].position={x:insects[0].x,y:insects[0].y};eatInsect(ecosystem[0],9002)");assert.equal(r('insects.length'),2);assert.ok(r('data.care.sol.satiety')>20);
+ const event=(x=100,y=400)=>({pointerId:1,clientX:x,clientY:y,preventDefault(){}});
+ const frog=e.get('forestResidents').children[0];r("data.sound=false;$('resident').close()");
+ frog.onpointerdown(event());const short=[...timers.values()].find(t=>t.ms===450).fn;frog.onpointerup(event());short();assert.equal(r('heldResident'),null);
+ frog.onpointerdown(event());[...timers.values()].find(t=>t.ms===450).fn();await settle();assert.equal(r('heldResident'),'sol');assert.equal(e.get('forestHoldAudio').paused,false);
+ frog.onpointerup(event());assert.equal(e.get('forestHoldAudio').paused,true);frog.onclick(event());assert.equal(e.get('resident').open,false);
+ frog.onpointerdown(event());const stale=[...timers.values()].find(t=>t.ms===450).fn;frog.onpointermove(event(120,420));stale();assert.equal(r('heldResident'),null);frog.onpointercancel(event(120,420));
+ frog.onpointerdown(event());[...timers.values()].find(t=>t.ms===450).fn();r('closeForest()');assert.equal(e.get('forestHoldAudio').paused,true);assert.equal(r('heldResident'),null);
+ r("Math.random=petRandom;openMap()");e.get('mapHelpBtn').onclick();assert.equal(e.get('help').open,true);assert.equal(e.get('mapMusic').paused,true);
+ r("$('help').close()");e.get('help').emit('close');await settle();assert.equal(e.get('mapMusic').paused,false);
+ const map=e.get('mapMusic');map.play=()=>Promise.reject(Error('gesture'));await r('syncMapMusic()');map.play=()=>{map.paused=false;return Promise.resolve()};
+ for(const fn of pet.ctx.document.listeners.click)fn({target:{closest:()=>null}});await settle();assert.equal(map.paused,false);
+ r('closeMap();openForest()');e.get('forestHelpBtn').onclick();assert.equal(e.get('forestAmbience').paused,true);r("$('help').close()");e.get('help').emit('close');await settle();assert.equal(e.get('forestAmbience').paused,false);
+ now+=24*60*60*1000;r('tickResidentCare(Date.now(),true)');assert.equal(r('data.care.sol.satiety'),0);assert.equal(r('progression().unlocked.length'),3);
+ console.log('PASS: slow real-time hunger; four variable foods and random one-bite fullness without points; consumption only at contact; sleep icon, closed eyes and no hops/eating; 45–120s naps persist over reload and wake automatically; hold/release/drag/cancel/exit sound lifecycle; guide close and trusted-click music retry; no loss of characters after a day away.');
+ }
  // Decoded effects start before rendering, and the master switch stops every board channel.
  {
  const sources=[],gains=[];let activeRun=null;
@@ -384,7 +431,7 @@ function solveBonus(run){
   createBufferSource(){const node={connect(){},disconnect(){},start(when){this.when=when;this.renderAtStart=activeRun?.('renderCounter')},stop(){this.stopped=true;this.onended?.()}};sources.push(node);return node}
  }
  const audio=boot({intro:true,mapMusic:false},{window:{AudioContext:FastAudioContext}});await settle();const r=audio.run,e=audio.els;activeRun=r;
- assert.equal(r('fxBuffers.size'),2);assert.equal(r('fxContext.decodes'),2);assert.equal(r('fxContext.options.latencyHint'),'interactive');
+ assert.equal(r('fxBuffers.size'),3);assert.equal(r('fxContext.decodes'),3);assert.equal(r('fxContext.options.latencyHint'),'interactive');
  assert.equal(r('data.mapMusic'),true);assert.equal(e.get('mapMusicBtn').attrs['aria-pressed'],'true');
  r("closeMap();globalThis.renderCounter=0;globalThis.realRender=render;render=()=>{renderCounter++;realRender()};mode='mark';play(0)");
  assert.equal(sources.length,1);assert.equal(sources[0].when,0);assert.equal(sources[0].renderAtStart,0);assert.equal(e.get('clickAudio')?.playCount||0,0);
@@ -399,7 +446,8 @@ function solveBonus(run){
  map.play=()=>{map.paused=false;return Promise.resolve()};await e.get('mapAudioStart').onclick();assert.equal(map.paused,false);assert.equal(e.get('mapAudioStart').hidden,true);
  e.get('mapMusicBtn').onclick();assert.equal(map.paused,true);assert.equal(r('data.mapMusic'),false);
  r('closeMap();openMap()');assert.equal(r('data.mapMusic'),true);assert.equal(map.currentTime,0);
- console.log('PASS: decoded effects prepared once, gesture-resumed interactive context, immediate start before DOM updates, no media restart for effects; master mute stops music/effects/soft coqui; map enabled on each entry and reload, blocked autoplay shown as enabled with one-tap recovery.');
+ r("closeMap();openForest();startResidentHold('sol')");assert.equal(sources.at(-1).loop,true);r('stopResidentHold()');assert.equal(sources.at(-1).stopped,true);
+ console.log('PASS: decoded effects prepared once, gesture-resumed interactive context, immediate start before DOM updates, no media restart for effects; decoded held call loops and stops; master mute stops music/effects/soft coqui; map enabled on each entry and reload, blocked autoplay shown as enabled with one-tap recovery.');
  }
  // Music is allowed only in a visible, topmost map, with immediate stop at every exit.
  {

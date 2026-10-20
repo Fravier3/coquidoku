@@ -1,5 +1,27 @@
 # Coquídoku
 
+## v1.16.0 · El Yunque como refugio de mascotas
+
+Los siete habitantes tienen una versión con ojos cerrados. La barrita sobre cada personaje indica saciedad de 0 a 100; cada uno pierde solo 0.45–0.75 puntos por minuto de reloj real, y durante el sueño el descenso es cinco veces menor. El estado por personaje se guarda en care dentro de coquidoku-v1, conservando partida, colección, compras y coordenadas. Al volver tras una ausencia se aplica el tiempo transcurrido; tener hambre no elimina personajes, puntos ni progreso.
+
+El primer aviso de sueño aparece independientemente entre 2 y 5 minutos después de crear el estado del personaje. Luego de cada siesta, el siguiente aviso llega entre 3 y 7 minutos. La luna indica que se puede abrir su ficha y pulsar Dormir un ratito. Cada siesta dura entre 45 y 120 segundos elegidos al azar; la hora de despertar se guarda y se comprueba al volver a abrir. Mientras duerme, usa el sprite de ojos cerrados y no salta ni recibe comida. Despierta solo; el receso manual sigue siendo un control separado.
+
+Alimentar abre un selector de insectos, mariposas, gusanitos y hormigas. Una porción deja tres bocaditos, con el aspecto del alimento elegido; cada bocado se asigna al coquí despierto más cercano dentro del alcance local. Solo al llegar desaparece el alimento y sube la barra. El aporte normal es distinto por tipo (insecto 6–13, mariposa 9–18, gusanito 13–23, hormiga 4–11). Cualquier bocado tiene una probabilidad de 12% de dejarlo completamente satisfecho, independiente del tipo y de los bocados anteriores; ningún alimento es el favorito permanente. No hay cobros, premios de puntos ni ventajas en la cuadrícula por cuidar habitantes.
+
+Mantener pulsado sin arrastrar durante 450 ms inicia el canto en bucle mientras se sostiene al personaje. Soltar, arrastrar, cancelar el puntero, perder captura, abrir la ayuda, salir o pasar a segundo plano detiene la llamada. No se abre su ficha después de un gesto largo ni de un arrastre. La llamada usa el canto original precargado y decodificado, con alternativa nativa.
+
+Cómo jugar tiene accesos discretos en una esquina del mapa y de El Yunque, un diálogo desplazable y cierre con X. Explica reglas, niveles, estados del mapa, tres minijuegos, puntos, compras, corazones, escudos, colección y el cuidado del refugio. Al cerrar vuelve el sonido propio de la pantalla anterior. La música del mapa se solicita automáticamente y se vuelve a intentar desde pointerdown, touchend, clic y teclado; el archivo se precarga. Se respeta el rechazo del navegador y se conserva el botón de inicio por gesto. HTML no puede sobrepasar las políticas del navegador: referencias oficiales https://webkit.org/blog/6784/new-video-policies-for-ios/ y https://developer.chrome.com/blog/autoplay .
+
+Pruebas adicionales con reloj y azar controlados: descenso lento, cuatro aportes nutricionales y saciedad completa aleatoria, alimentación solo al contacto, ausencia sin pérdida de personajes, aviso de sueño y bloqueo de acciones mientras duerme, recarga durante una siesta y despertar en el límite exacto, nodos de imagen estables, canto mantenido nativo/decodificado y limpieza por soltar/arrastrar/cancelar/salir, ayuda y recuperación de audio por clic. Se conservan las regresiones de 60 niveles, 300 minijuegos, movimiento, compras y siete MP3 offline. La percepción visual, tacto y políticas de audio en iPhone físico siguen pendientes.
+
+### Arte de esta versión
+
+Herramienta integrada de generación/edición; siete ediciones individuales de los sprites originales, convertidas a WebP con alfa sin cambiar dimensiones nativas de 1254×1254: assets/coqui-sol-sleep.webp (Coquí Dorado), assets/coqui-menta-sleep.webp (Pistoco), assets/coqui-brisa-sleep.webp (Amapola), assets/coqui-flor-sleep.webp (Sila), assets/coqui-luna-sleep.webp (Betances), assets/coqui-aurora-sleep.webp (Rita), assets/coqui-boricua-sleep.webp (Boricua). El usuario recibe una imagen de cada uno en el chat.
+
+Prompt final de edición: Edit the supplied existing game character sprite, named {name}. Create the same exact coqui with both eyes closed peacefully. Change only open eyes into gently closed eyelids in the same eye sockets, subtle calm sleepy expression. Preserve exact skin colors, forehead emblem, accessories, flower or Puerto Rican flag pattern, mouth shape, body proportions, pose, hands, toes, front-facing camera and lighting. Whole body with all toes visible, centered with generous padding. Genuine transparent alpha background, no floor, rectangle, bed, pillow, nightcap, Z letters, sleep icon, objects or text. One single character, not a sheet.
+
+Recursos adicionales assets/food-worm.webp y assets/food-ant.webp, generados individualmente, 1536×1024 nativos con alfa. Prompts: One cute tiny bright green segmented caterpillar, clear curved worm silhouette, tiny friendly eyes, three-quarter overhead view; y One friendly warm-brown ant, three-segment body, six legs, two antennae, readable silhouette. Ambos: premium cozy 3D animated-film game sprite, centered with padding, genuine transparent alpha, no floor, text, extra objects or atlas.
+
 ## v1.15.0 · Respuesta rápida y silencio completo del tablero
 
 El canto de descubrimiento, pistas y victoria del tablero usa assets/coqui-board-soft.mp3, copia del audio aportado con ganancia 0.5 (aproximadamente −6 dB). La reducción está en el archivo para que se respete también cuando iOS controla el volumen de medios desde el dispositivo. La ficha de El Yunque y el reproductor de prueba conservan el original.
