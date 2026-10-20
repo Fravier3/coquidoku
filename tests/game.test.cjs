@@ -144,8 +144,8 @@ function solveBonus(run){
  const habitat=boot(undefined,{window:{requestAnimationFrame:()=>++scheduled,cancelAnimationFrame:()=>cancelled++}});await settle();const hr=habitat.run,he=habitat.els;
  hr('openForest();updateEcosystem(0);updateEcosystem(800)');assert.equal(hr('ecosystem[0].hops'),1);
  hr('updateEcosystem(1250)');assert.ok(he.get('forestResidents').children[0].firstElementChild.style.transform.includes('-36px'));
- hr('updateEcosystem(1700);updateEcosystem(15799)');assert.equal(hr('ecosystem[0].hops'),1);
- hr('updateEcosystem(15800)');assert.equal(hr('ecosystem[0].hops'),2);
+ hr('updateEcosystem(1700);updateEcosystem(10799)');assert.equal(hr('ecosystem[0].hops'),1);
+ hr('updateEcosystem(10800)');assert.equal(hr('ecosystem[0].hops'),2);
  hr("data.behaviors.sol='rest';updateEcosystem(31250);updateEcosystem(70000)");assert.equal(hr('ecosystem[0].hops'),2);assert.equal(he.get('forestResidents').children[0].firstElementChild.style.transform,'translate3d(0,0,0)');
  const currency=hr('data.points'),seeds=hr('victories()');hr("data.behaviors.sol='explore';feedAt(60,70,71000);updateEcosystem(71100);updateEcosystem(71550)");assert.equal(hr('data.feedings'),1);assert.equal(hr('data.points'),currency);assert.equal(hr('victories()'),seeds);assert.equal(hr('feedAt(30,80,71001)'),true);
  hr('data.motion=true;updateEcosystem(90000)');assert.equal(he.get('forestResidents').children[0].firstElementChild.style.transform,'translate3d(0,0,0)');
@@ -159,7 +159,7 @@ function solveBonus(run){
  hr("data.completed=Array.from({length:60},(_,i)=>i);renderMap()");assert.ok(he.get('mapProgress').textContent.includes('Completaste'));assert.equal(hr('nextAdventureLevel()'),59);
  const crypto=require('node:crypto');assert.equal(crypto.createHash('sha256').update(fs.readFileSync('assets/coqui-user.mp3')).digest('hex'),'e3092efeaecbdb2ad01f0de6df52c20959e28ac7a961a4fab4df0dcbc880e18b');assert.ok(!fs.existsSync('assets/coqui-call.mp3'));
  // Food remains until actual arrival, then only the reached insect is consumed.
- hr("data.motion=false;data.behaviors={};insects=[];renderForest();feedAt(18,80,100000)");assert.equal(hr('insects.length'),3);
+ hr("data.motion=false;data.behaviors={};insects=[];renderForest();feedAt(65,60,100000)");assert.equal(hr('insects.length'),3);
  hr('updateEcosystem(100050);renderForest()');assert.equal(hr('insects.length'),3);
  for(let t=100120;t<120000;t+=100)hr(`updateEcosystem(${t})`);
  assert.equal(hr('insects.length'),0);assert.equal(he.get('forestFood').children.length,0);
@@ -375,6 +375,43 @@ function solveBonus(run){
  assert.ok(main.includes('id="feedback" class="sr-only"'));assert.ok(!main.includes('gana una cada'));
  const fixedArt=Array.from({length:60},(_,level)=>cr(`boardAppearance(${level}).scene`));assert.ok(fixedArt.every(scene=>scene==='assets/night.webp'));
  // Music is allowed only in a visible, topmost map, with immediate stop at every exit.
+ {
+ const scene=boot({intro:true});await settle();const r=scene.run,e=scene.els,map=e.get('mapMusic'),board=e.get('boardMusic');
+ assert.equal(r('data.mapMusic'),true);assert.equal(map.currentTime,0);assert.equal(board.playCount||0,0);
+ map.currentTime=42;r('selectMapLevel(0)');await settle();assert.equal(map.currentTime,0);assert.equal(board.paused,false);assert.equal(board.loop,true);assert.equal(board.volume,.65);
+ r("showDialog('settings')");assert.equal(board.paused,true);r("$('settings').close()");e.get('settings').emit('close');await settle();assert.equal(board.paused,false);
+ r('openMap()');assert.equal(board.paused,true);assert.equal(map.currentTime,0);
+ map.currentTime=26;r('closeMap();openMap()');assert.equal(map.currentTime,0);
+ r('closeMap();openForest()');await settle();assert.equal(board.paused,true);assert.equal(e.get('forestAmbience').paused,false);
+ r('closeForest()');await settle();assert.equal(board.paused,false);
+ scene.ctx.document.visibilityState='hidden';for(const fn of scene.ctx.document.listeners.visibilitychange)fn();assert.equal(board.paused,true);
+ scene.ctx.document.visibilityState='visible';for(const fn of scene.ctx.document.listeners.visibilitychange)fn();await settle();assert.equal(board.paused,false);
+ e.get('boardMusicBtn').onclick();assert.equal(r('data.boardMusic'),false);assert.equal(board.paused,true);
+ const savedScene=boot(JSON.parse(scene.storage['coquidoku-v1']));await settle();savedScene.run('closeMap()');assert.equal(savedScene.els.get('boardMusic').playCount||0,0);
+ r('data.boardMusic=true;stopBoardMusic()');let resolve;board.play=()=>{board.paused=false;return new Promise(done=>resolve=done)};
+ r('syncBoardMusic();openMap()');resolve();await settle();assert.equal(board.paused,true);
+ r('closeMap();stopBoardMusic()');board.play=()=>Promise.reject(Error('gesture'));await r('syncBoardMusic()');assert.equal(r('boardMusicBlocked'),true);
+ board.play=()=>{board.paused=false;return Promise.resolve()};e.get('boardMusicBtn').onclick();await settle();assert.equal(board.paused,false);
+ r("data.sound=true;start(0);mode='mark';play(0)");assert.equal(e.get('clickAudio').playCount,1);
+ r("play(0)");assert.equal(e.get('clickAudio').playCount,1);
+ r('data.auto=true;render()');assert.equal(e.get('clickAudio').playCount,1);
+ r("mode='coqui';play((puzzle().solution[0]+1)%8)");assert.equal(e.get('failAudio').playCount,1);assert.equal(e.get('failAudio').currentTime,0);assert.equal(r('game.lives'),3);
+ r("data.sound=false;mode='mark';play(1);mode='coqui';play((puzzle().solution[1]+1)%8+8)");
+ assert.equal(e.get('clickAudio').playCount,1);assert.equal(e.get('failAudio').playCount,1);
+ r("openForest();data.completed=Array.from({length:60},(_,i)=>i);data.behaviors={};insects=[];renderForest()");
+ const last=Array(7).fill(null),sequences=Array.from({length:7},()=>[]);
+ for(let t=0;t<=180000;t+=50){
+  const before=Array.from(r('ecosystem.map(s=>s.hops)'));r('updateEcosystem('+t+')');
+  const after=Array.from(r('ecosystem.map(s=>s.hops)'));
+  after.forEach((n,i)=>{if(n>before[i]){if(last[i]!==null)assert.ok(t-last[i]>=10000&&t-last[i]<=15050);last[i]=t;sequences[i].push(t);assert.ok(r('ecosystem['+i+'].next')-t<=15000)}});
+ }
+ assert.equal(new Set(sequences.map(xs=>xs.join(','))).size,7);assert.ok(sequences.every(xs=>xs.length>=12));
+ r("data.completed=Array.from({length:10},(_,i)=>i);insects=[];renderForest();ecosystem[0].position={x:15,y:70};ecosystem[1].position={x:80,y:70};ecosystem[2].position={x:50,y:45};feedAt(15,70,200000)");
+ assert.ok(r("insects.every(b=>b.owner==='sol')"));assert.equal(r('ecosystem[1].targetFood'),null);assert.equal(r('ecosystem[2].targetFood'),null);
+ r("insects=[];feedAt(80,70,200001)");assert.ok(r("insects.every(b=>b.owner==='menta')"));
+ r("insects=[];data.behaviors.menta='rest';feedAt(80,70,200002)");assert.ok(r('insects.every(b=>b.owner===null)'));
+ console.log('PASS: map starts at zero and respects mute; quiet board music isolated from every scene, background and delayed/rejected plays; X-add-only click and immediate failure audio; seven independent 10–15 second hop schedules for 3 minutes; nearest-only food, far and resting coquis excluded.');
+ }
  const winEvents={},music=boot({intro:true},{window:{addEventListener(type,fn){(winEvents[type]??=[]).push(fn)}}});await settle();
  const ur=music.run,ue=music.els,track=ue.get('mapMusic');assert.equal(track.playCount,1);ur('closeMap()');track.playCount=0;
  ur('openMap()');assert.equal(track.playCount,1);await settle();assert.equal(ur('mapMusicPlaying'),true);assert.equal(track.volume,.65);assert.equal(track.loop,true);
@@ -423,7 +460,7 @@ function solveBonus(run){
  }
  console.log('PASS: all 61 progression states; completed green/current yellow/locked gray exclusive; exactly one current and caption; locks only beside locked steps; one region per screen, all ten stops visible, no layout collisions at 320–500px; finger dragging, saved coordinates and simultaneous distributed food; replay cannot recolor completed level; finale fully green; initial focus stays off coquis; updated names; incomplete objectives cannot award points.');
  console.log('PASS: insects retained until contact and then all eaten; no preselected feeding or character; reversed ascending route; only reached chapters rendered; no stars/Continue/manual decor; 120 generated challenges have solvable bridges, three trackable swaps and two well-defined food waves.');
- console.log('PASS: real frame-clock hop at 800ms and exactly 15 seconds later; 36px apex; rest/motion pause; loop cleanup; feeding attracts without points/seeds; 10 reached-region stops; future level protection; legacy progression and in-progress game preserved; character close leads to map; exact user audio only.');
+ console.log('PASS: real frame-clock hop at 800ms and independently 10–15 seconds later; 36px apex; rest/motion pause; loop cleanup; feeding attracts without points/seeds; 10 reached-region stops; future level protection; legacy progression and in-progress game preserved; character close leads to map; exact user audio only.');
  console.log('PASS: real audio element plays directly from discovery and resident button; mute respected in game; playback session selected when supported; visible playback failures; no Web Audio dependency; native media playback and day/night preserved.');
  console.log('PASS: points from solved mini-games and first-guess flowers; no duplicate payouts; confirmed purchases with exact balance; no purchase of finale; 60 distinct normal levels for Boricua; all unlocked residents; decor and positions persist; no locked forest previews; legacy friends retained.');
  console.log('PASS: seven collectible coquis and all unlock thresholds; locked selection blocked; stable sprite replacement; progress restored; per-win plants; four forest stages; unique normal/daily rewards; existing progress migration.');

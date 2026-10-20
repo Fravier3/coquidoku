@@ -181,3 +181,11 @@ body[data-theme=garden]{--text-surface:#fff1f1}
 #levels{background-color:#102f35;background-image:linear-gradient(#061f3680,transparent 22%,transparent 78%,#061f36a8),var(--map-scene);background-position:center;background-size:cover;background-repeat:no-repeat}
 #levels .map-chapter,#levels .map-scroll{background:none}
 #levels .map-header,#levels .map-regions,#levels .map-footer{background:none!important}
+
+.pr-flag{display:inline-flex;width:28px;height:19px;vertical-align:middle;margin-left:3px;transform:rotate(-7deg);filter:drop-shadow(0 2px 2px #001c26)}
+.pr-flag svg{width:100%;height:100%;border-radius:2px}
+.board-music-toggle{display:grid;place-items:center;position:relative;flex-shrink:0;min-width:36px;min-height:44px;padding:5px;background:none;border:0;color:#f4e6c9}
+.board-music-toggle svg{width:21px;height:21px}
+.board-music-toggle[data-playing=false]:after{content:'';position:absolute;width:24px;height:2px;background:currentColor;transform:rotate(-45deg)}
+#boardMusic,#clickAudio,#failAudio{display:none}
+@media(max-width:350px){.badges{gap:5px;padding:4px}.board-music-toggle{min-width:30px;padding:3px}.pr-flag{width:23px;height:16px}}
