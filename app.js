@@ -174,7 +174,7 @@ function renderMap(){
  $('mapPrevious').disabled=c===0;$('mapNext').disabled=c===lastChapter;
  $('mapRegion').textContent=`${CHAPTERS[c]} · ${c*10+1}–${c*10+10}`;
  const section=document.createElement('section');section.className='map-chapter';section.setAttribute('aria-label',`Mapa de ${CHAPTERS[c]}, niveles ${c*10+1} a ${c*10+10}`);
- section.style.setProperty('--map-art',`url('assets/map-${c}.webp?v=18')`);
+ section.style.setProperty('--map-art',`url('assets/map-${c}.webp?v=18')`);section.dataset.region=c;
  const path=document.createElement('div');path.className='map-route';let d='';
  for(let j=0;j<10;j++){const p=mapPosition(j);if(j===0)d=`M ${p.x} ${p.y}`;else{const prev=mapPosition(j-1),mid=(prev.y+p.y)/2;d+=` C ${prev.x} ${mid}, ${p.x} ${mid}, ${p.x} ${p.y}`}}
  path.innerHTML=`<svg viewBox="0 0 400 700" aria-hidden="true"><path d="${d}" class="route-shadow"/><path d="${d}" class="route-light"/></svg>`;section.append(path);
