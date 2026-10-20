@@ -172,3 +172,7 @@ body[data-theme=garden]{--text-surface:#fff1f1}
 .map-chapter[data-region="4"]:before{content:"☕    🌺    ⛰️"}
 .map-chapter[data-region="5"]:before{content:"🐸    🌿    🇵🇷"}
 .map-chapter .map-step{z-index:3}
+
+/* Ilustraciones vectoriales de Puerto Rico en los laterales de la ruta */
+.map-chapter:before{content:""!important;position:absolute;inset:0!important;top:0!important;left:0!important;width:100%!important;height:100%!important;opacity:.94!important;letter-spacing:normal!important;background:url('assets/map-puertorico.svg') center center/100% 100% no-repeat!important;pointer-events:none;z-index:1}
+.map-chapter .map-step,.map-chapter .map-route{z-index:3}
