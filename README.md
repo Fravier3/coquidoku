@@ -1,5 +1,17 @@
 # Coquídoku
 
+## v1.12.2 · Isla del Encanto
+
+La entrada siempre abre el mapa y conserva íntegra la partida, incluso sin vidas. Seleccionar una partida sin vidas muestra las opciones de recuperación. El mapa se llama Isla del Encanto y sus márgenes, cabecera y pie usan un marco 3D de Puerto Rico sin modificar el encuadre de las diez plataformas. Se retira la superposición vectorial sobre el terreno.
+
+El tablero elimina los fondos de cabecera, estado, corazones, herramientas, navegación y pie. Un sombreado continuo del paisaje y sombras del texto mantienen la lectura sin paneles. Los fallos muestran una X roja, contorno y temblor breve en la casilla; los corazones reaccionan solo cuando se pierde una vida. La opción de reducir movimiento conserva la señal roja sin temblor. Se limpian los estados anteriores al fallar en otra casilla.
+
+El audio adjunto se copia íntegro a assets/forest-ambience.mp3 y se reproduce en bucle exclusivamente en El Yunque, a volumen de medios 0.5. Salir, abrir la colección, cambiar de aplicación o abandonar la página lo detiene. Un botón de nota permite iniciar o pausar si el navegador requiere interacción. Las promesas tardías no permiten audio fuera de la escena. Se incluye en caché con soporte Range de Safari. La música del mapa y el canto del coquí se conservan separados.
+
+Pruebas: entrada y recuperación de cero vidas, persistencia de partida, aislamiento del ambiente, colección, segundo plano, reproducción tardía y rechazo automático; limpieza de errores consecutivos; las tres pistas offline con rangos exactos; regresión de los 60 tableros y 300 rondas. Sin navegador de QA disponible: la percepción visual, volumen y tacto requieren comprobación en un iPhone físico.
+
+Arte generado con herramienta integrada: assets/map-isla-frame.webp, retrato nativo 853×1844 convertido a WebP sin deformación. Prompt: Production mobile game portrait backdrop frame, tall 9:19.5, cozy 3D Puerto Rico island, quiet dark teal center for a separate map; garita, pastel San Juan rooftops, Puerto Rican flag, flamboyan and hibiscus at top edges; coffee berries, leaves, shells at bottom corners; turquoise ocean and palms on thin side edges; no text, UI, stepping stones, characters or watermark. Se entrega también una referencia conceptual de la pantalla, no una captura de navegador.
+
 Juego de lógica original con coquíes de Puerto Rico. Tableros de 8 × 8, 60 niveles con solución única, reto diario, 3 pistas gratuitas por tablero y tres ambientes en Preferencias: Aventura en la hoja, Bosque encantado y Nido tropical.
 
 ## Jugar

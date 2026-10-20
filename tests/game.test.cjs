@@ -29,6 +29,7 @@ function solveBonus(run){
  assert.equal(run('game.cells.length'),64);assert.equal(els.get('board').children.length,64);
  assert.equal(run('game.cells.every(x=>x===0)'),true);assert.equal(run('game.lives'),4);
  assert.equal(run('data.character'),null);
+ assert.equal(els.get('levels').open,true);assert.equal(els.get('help').open,false);
  assert.equal(run('data.theme'),'night');assert.equal(ctx.document.body.dataset.theme,'night');
  assert.equal(els.get('hearts').textContent,'♥ ♥ ♥ ♥');assert.equal(els.get('hintLabel').textContent,'Pista (3/3)');
  const correct=run('puzzle().solution[0]');run(`play(${correct})`);
@@ -52,6 +53,7 @@ function solveBonus(run){
  assert.equal(run('valid(game)'),true);assert.equal(run('valid({...game,cells:[0]})'),false);
  run("data.theme='garden';theme();save()");assert.equal(JSON.parse(storage['coquidoku-v1']).theme,'night');
  const restored=boot(JSON.parse(storage['coquidoku-v1']));await settle();assert.equal(restored.run('data.theme'),'night');assert.equal(restored.run('game.lives'),4);
+ assert.equal(restored.els.get('levels').open,true);
  const saved=run('JSON.stringify(game)');await run('init()');assert.equal(run('JSON.stringify(game)'),saved);
  for(let v=0;v<8;v++){run(`start(0,true,${v*64})`);const p=run('puzzle()');assert.equal(new Set(p.solution).size,8);assert.equal(new Set(p.solution.map((c,r)=>p.regions[r*8+c])).size,8);for(let r=1;r<8;r++)assert.ok(Math.abs(p.solution[r]-p.solution[r-1])>1)}
  let prev='';for(let i=0;i<100;i++){run('start(0)');const sol=run("puzzle().solution.join(',')");assert.notEqual(sol,prev);assert.equal(run('game.cells.every(x=>x===0)'),true);prev=sol}
@@ -374,7 +376,7 @@ function solveBonus(run){
  const fixedArt=Array.from({length:60},(_,level)=>cr(`boardAppearance(${level}).scene`));assert.ok(fixedArt.every(scene=>scene==='assets/night.webp'));
  // Music is allowed only in a visible, topmost map, with immediate stop at every exit.
  const winEvents={},music=boot({intro:true},{window:{addEventListener(type,fn){(winEvents[type]??=[]).push(fn)}}});await settle();
- const ur=music.run,ue=music.els,track=ue.get('mapMusic');assert.equal(track.playCount||0,0);
+ const ur=music.run,ue=music.els,track=ue.get('mapMusic');assert.equal(track.playCount,1);ur('closeMap()');track.playCount=0;
  ur('openMap()');assert.equal(track.playCount,1);await settle();assert.equal(ur('mapMusicPlaying'),true);assert.equal(track.volume,.65);assert.equal(track.loop,true);
  ur('closeMap()');assert.equal(track.paused,true);assert.equal(ur('mapMusicPlaying'),false);
  ur('openMap()');await settle();ue.get('mapForestBtn').onclick();assert.equal(track.paused,true);assert.equal(ur('mapMusicAllowed()'),false);
@@ -398,6 +400,27 @@ function solveBonus(run){
  }
 
  console.log('PASS: 300 full short mini-games, all 64 bridge orientations, 60 distinct level palettes, timed leaf shuffles, two food waves; one payout; stale callbacks rejected; close/background timer cleanup.');
+ {
+ const t=boot({intro:true});await settle();const r=t.run,e=t.els,a=e.get('forestAmbience');
+ assert.equal(a.playCount||0,0);
+ r("closeMap();openForest()");await settle();assert.equal(a.paused,false);assert.equal(e.get('mapMusic').paused,true);
+ r("openCollection('forest')");assert.equal(a.paused,true);
+ r("$('collection').close();handleCollectionClose()");await settle();assert.equal(a.paused,false);
+ t.ctx.document.visibilityState='hidden';for(const f of t.ctx.document.listeners.visibilitychange)f();assert.equal(a.paused,true);
+ t.ctx.document.visibilityState='visible';for(const f of t.ctx.document.listeners.visibilitychange)f();await settle();assert.equal(a.paused,false);
+ r('closeForest()');assert.equal(a.paused,true);assert.equal(a.currentTime,0);
+ let resolve;a.play=()=>new Promise(done=>resolve=done);r('openForest();closeForest()');resolve();await settle();assert.equal(a.paused,true);
+ a.play=()=>Promise.reject(Error('gesture'));r('openForest()');await settle();assert.equal(r('forestAudioBlocked'),true);
+ a.play=()=>{a.paused=false;return Promise.resolve()};e.get('forestAudioBtn').onclick();await settle();assert.equal(a.paused,false);r('closeForest()');
+ r("game.lives=0;save()");const zero=boot(JSON.parse(t.storage['coquidoku-v1']));await settle();
+ assert.equal(zero.els.get('levels').open,true);assert.equal(zero.els.get('defeat').open,false);
+ zero.run('selectMapLevel(game.level)');assert.equal(zero.els.get('defeat').open,true);
+ const callbacks=[],err=boot({intro:true},{setTimeout:fn=>{callbacks.push(fn);return callbacks.length}});await settle();
+ err.run("closeMap();play((puzzle().solution[0]+1)%8)");const first=err.run('errorCell');assert.equal(err.run('game.lives'),3);
+ err.run("play((puzzle().solution[0]+2)%8)");assert.notEqual(err.run('errorCell'),first);
+ callbacks.at(-1)();assert.equal(err.run('errorCell'),null);assert.equal(err.run('game.lives'),2);
+ console.log('PASS: map-first startup and zero-life resume; forest audio only within its scene, collection pause, background, delayed play and gesture recovery; repeated error cleanup.');
+ }
  console.log('PASS: all 61 progression states; completed green/current yellow/locked gray exclusive; exactly one current and caption; locks only beside locked steps; one region per screen, all ten stops visible, no layout collisions at 320–500px; finger dragging, saved coordinates and simultaneous distributed food; replay cannot recolor completed level; finale fully green; initial focus stays off coquis; updated names; incomplete objectives cannot award points.');
  console.log('PASS: insects retained until contact and then all eaten; no preselected feeding or character; reversed ascending route; only reached chapters rendered; no stars/Continue/manual decor; 120 generated challenges have solvable bridges, three trackable swaps and two well-defined food waves.');
  console.log('PASS: real frame-clock hop at 800ms and exactly 15 seconds later; 36px apex; rest/motion pause; loop cleanup; feeding attracts without points/seeds; 10 reached-region stops; future level protection; legacy progression and in-progress game preserved; character close leads to map; exact user audio only.');

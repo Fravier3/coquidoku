@@ -176,3 +176,23 @@ body[data-theme=garden]{--text-surface:#fff1f1}
 /* Ilustraciones vectoriales de Puerto Rico en los laterales de la ruta */
 .map-chapter:before{content:""!important;position:absolute;inset:0!important;top:0!important;left:0!important;width:100%!important;height:100%!important;opacity:.94!important;letter-spacing:normal!important;background:url('assets/map-puertorico.svg') center center/100% 100% no-repeat!important;pointer-events:none;z-index:1}
 .map-chapter .map-step,.map-chapter .map-route{z-index:3}
+
+/* Unframed board content; a continuous shade protects typography. */
+.app:before{background-image:linear-gradient(#061e2be6,#061e2b65 22%,#061e2b45 62%,#061e2bd9),var(--scene)}
+.app .top,.app .status,.app .badges,.app .tools button,.app .career-nav button,.app .subnav,.app .career-count,.app>footer{background:transparent;border:0;box-shadow:none;border-radius:0}
+.app .top,.app .status,.app .tools,.app .subnav,.app .career-nav,.app .career-count,.app>footer{color:#fff1d7;text-shadow:0 2px 5px #001a22,0 0 12px #001a22}
+.app .eyebrow,.app .brand small,.app #levelTitle span,.app .subnav,.app .career-nav small{color:#e0e8da}
+.app .tools button{min-height:64px;border-bottom:2px solid transparent}
+.app .tools button.active{border-bottom-color:#e5ca8b;color:#ffe5a2}
+#levels{background:#102f35 url('assets/map-isla-frame.webp') center/cover no-repeat}
+#levels .map-scroll{background:transparent}
+#levels .map-header,#levels .map-regions,#levels .map-footer{background:transparent!important;position:relative;text-shadow:0 2px 5px #001e25,0 0 12px #001e25}
+#levels .map-header{background:linear-gradient(#061f36b0,transparent)!important}
+#levels .map-footer{background:linear-gradient(transparent,#061f36a0)!important}
+#levels .map-chapter:before,#levels .map-chapter:after{display:none}
+#levels .map-header h2{font-size:clamp(19px,5.5vw,25px)}
+.forest-audio-toggle{position:absolute;top:calc(env(safe-area-inset-top) + 115px);right:16px;z-index:31;width:44px;height:44px}
+#forestAmbience{display:none}
+.board .cell.error{background:#ec8c84;box-shadow:inset 0 0 0 3px #9f3037}
+.board .cell.error:before{content:'×';color:#81232c;font-size:clamp(25px,8vw,39px);font-weight:700;line-height:1}
+.reduced-motion .board .cell.error,.reduced-motion #hearts.heart-hit{animation:none!important}

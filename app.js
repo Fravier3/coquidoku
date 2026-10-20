@@ -22,7 +22,7 @@ if(!data.rulesV3){data.theme='night';if(data.game&&Number.isInteger(data.game.li
 // Enable the requested call once on upgrade; later manual mute choices persist.
 if(!data.soundFixV141){data.sound=true;data.soundFixV141=true}
 data.feedings=Number.isSafeInteger(data.feedings)&&data.feedings>=0?data.feedings:0;
-let puzzles=[],game,mode='coqui',undo=[],errorsTimer;
+let puzzles=[],game,mode='coqui',undo=[],errorsTimer,errorCell=null;
 
 const COQUIS=[
  {id:'sol',name:'Coquí Dorado',at:0,price:0,detail:'Un rayito de calidez',src:'assets/coqui.webp'},
@@ -110,9 +110,23 @@ function bindResidentDrag(button,id){
  button.ondragstart=event=>event.preventDefault();
 }
 
-function startForestAmbience(){const audio=$('forestAmbience');if(!audio)return;audio.volume=.5;audio.play().catch(()=>{});}
-function stopForestAmbience(){const audio=$('forestAmbience');if(!audio)return;audio.pause();audio.currentTime=0;}
-document.addEventListener('visibilitychange',()=>{if(document.hidden)stopForestAmbience();else if($('forest')?.open)startForestAmbience()});
+let forestAudioGeneration=0,forestAudioBlocked=false;
+function forestAudioAllowed(){return $('forest').open&&document.visibilityState!=='hidden'&&!['levels','collection','settings','help','bonus'].some(id=>$(id).open)}
+function stopForestAmbience(){forestAudioGeneration++;const audio=$('forestAmbience');audio.pause();audio.currentTime=0}
+function startForestAmbience(){
+ if(!forestAudioAllowed()){stopForestAmbience();return Promise.resolve(false)}
+ stopMapMusic();const audio=$('forestAmbience'),ticket=++forestAudioGeneration;
+ audio.volume=.5;audio.loop=true;forestAudioBlocked=false;
+ try{return Promise.resolve(audio.play()).then(()=>{
+  if(!forestAudioAllowed()){audio.pause();return false}
+  return ticket===forestAudioGeneration;
+ }).catch(()=>{if(ticket===forestAudioGeneration)forestAudioBlocked=true;return false})}
+ catch{forestAudioBlocked=true;return Promise.resolve(false)}
+}
+$('forestAudioBtn').onclick=()=>{const audio=$('forestAmbience');if(audio.paused||forestAudioBlocked)startForestAmbience();else stopForestAmbience()};
+$('forestAmbience').addEventListener('playing',()=>{if(!forestAudioAllowed())stopForestAmbience()});
+document.addEventListener('pointerdown',()=>{if(forestAudioBlocked&&forestAudioAllowed())startForestAmbience()});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')stopForestAmbience();else if(forestAudioAllowed())startForestAmbience()});
 window.addEventListener('pagehide',stopForestAmbience);
 function openForest(returnTo='game'){forestReturn=returnTo;feeding=false;$('forestFeedBtn').setAttribute('aria-pressed','false');$('forestHint').textContent='Arrastra un coquí para moverlo. Toca Alimentar para repartir insectos.';forestTime=Math.random()<.5?'day':'night';renderForest();$('forest').showModal();startForestAmbience();$('forestBack').focus({preventScroll:true});startEcosystem()}
 function stopEcosystem(){if(forestRaf!==null&&window.cancelAnimationFrame)window.cancelAnimationFrame(forestRaf);forestRaf=null}
@@ -145,8 +159,8 @@ $('forestScene').addEventListener('click',event=>{if(!feeding||event.target.clos
 $('residentRest').onchange=()=>{data.behaviors[residentId]=$('residentRest').checked?'rest':'explore';save();renderForest()};
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')stopEcosystem();else if($('forest').open)startEcosystem()});
 let collectionReturn='game';
-function openCollection(returnTo='game'){collectionReturn=returnTo;$('collectionReturnBtn').textContent=returnTo==='map'?'Volver al mapa':returnTo==='forest'?'Volver a El Yunque':'Volver a jugar';renderCollection();$('collection').showModal()}
-function handleCollectionClose(){const back=collectionReturn;collectionReturn='game';if(back==='map')openMap()}
+function openCollection(returnTo='game'){stopForestAmbience();collectionReturn=returnTo;$('collectionReturnBtn').textContent=returnTo==='map'?'Volver al mapa':returnTo==='forest'?'Volver a El Yunque':'Volver a jugar';renderCollection();$('collection').showModal()}
+function handleCollectionClose(){const back=collectionReturn;collectionReturn='game';if(back==='map')openMap();else if(back==='forest')startForestAmbience()}
 $('collection').addEventListener('close',handleCollectionClose);
 
 // Sixty numbered stops, with legacy progress preserved and a visible next level.
@@ -164,9 +178,9 @@ function mapLevelState(index){const current=currentAdventureLevel();if(current==
 const MAP_STOPS=Array.from({length:10},(_,i)=>({x:i%2?270:120,y:625-i*57}));
 function mapPosition(index,chapter=mapChapter??0){if(chapter===5&&index===0)return {x:200,y:630};if(chapter===5&&index===1)return {x:320,y:568};return MAP_STOPS[index]}
 let mapChapter=null;
-function openMap(){mapChapter=Math.floor((currentAdventureLevel()??59)/10);renderMap();$('levels').showModal();syncMapMusic()}
+function openMap(){mapChapter=Math.floor((currentAdventureLevel()??59)/10);renderMap();stopForestAmbience();if(!$('levels').open)$('levels').showModal();syncMapMusic()}
 function changeMapChapter(delta){mapChapter=Math.max(0,Math.min(Math.floor(unlockedThrough()/10),(mapChapter??Math.floor(unlockedThrough()/10))+delta));renderMap()}
-function selectMapLevel(index){if(!Number.isInteger(index)||index<0||index>unlockedThrough())return false;closeMap();if(game&&!game.daily&&!game.won&&game.level===index)return true;chooseNew(()=>start(index));return true}
+function selectMapLevel(index){if(!Number.isInteger(index)||index<0||index>unlockedThrough())return false;closeMap();if(game&&!game.daily&&!game.won&&game.level===index){if(game.lives===0)lost();return true;}chooseNew(()=>start(index));return true}
 function renderMap(){
  const current=currentAdventureLevel(),available=unlockedThrough(),lastChapter=Math.floor(available/10);
  const c=Math.max(0,Math.min(lastChapter,mapChapter??Math.floor((current??59)/10)));mapChapter=c;
@@ -229,7 +243,7 @@ document.addEventListener('pointerdown',event=>{
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')stopMapMusic();else if($('levels').open)syncMapMusic()});
 window.addEventListener('pagehide',stopMapMusic);
 
-$('mapBack').onclick=()=>closeMap();
+$('mapBack').onclick=()=>{closeMap();if(game.lives===0&&!game.won)lost()};
 $('mapForestBtn').onclick=()=>{closeMap();openForest('map')};
 $('resultMapBtn').onclick=()=>{$('result').close();openMap()};
 
@@ -534,8 +548,11 @@ function play(i){
  if(puzzle().solution[i>>3]!==i%8){
   game.mistakes=(game.mistakes||0)+1;const protectedNow=isProtected();
   if(!protectedNow)game.lives=Math.max(0,game.lives-1);
-  render();const b=$('board').children[i];b.classList.remove('error');void b.offsetWidth;b.classList.add('error');if(!protectedNow){$('hearts').classList.remove('heart-hit');void $('hearts').offsetWidth;$('hearts').classList.add('heart-hit');if(navigator.vibrate)navigator.vibrate(80)}clearTimeout(errorsTimer);errorsTimer=setTimeout(()=>b.classList.remove('error'),500);
-  feedback((protectedNow?'Protección activa: no perdiste corazón.':isBlocked(i)?'Aquí compartiría fila, columna, color o tocaría a otro coquí.':'Ese rincón impediría completar el tablero. Prueba con otra deducción.')+(flowerNotice?' '+flowerNotice:''));
+  render();const b=$('board').children[i];if(errorCell)errorCell.classList.remove('error');clearTimeout(errorsTimer);
+  errorCell=b;b.classList.remove('error');void b.offsetWidth;b.classList.add('error');
+  if(!protectedNow){$('hearts').classList.remove('heart-hit');void $('hearts').offsetWidth;$('hearts').classList.add('heart-hit');}
+  errorsTimer=setTimeout(()=>{b.classList.remove('error');$('hearts').classList.remove('heart-hit');if(errorCell===b)errorCell=null},550);
+  feedback((protectedNow?'Protección activa: no perdiste corazón.':isBlocked(i)?'Aquí compartiría fila, columna, color o tocaría a otro coquí.':'Ese rincón impediría completar el tablero. Prueba con otra deducción.')+(!protectedNow?' Perdiste un corazón.':'')+(flowerNotice?' '+flowerNotice:''));
   if(game.lives===0)setTimeout(lost,350);return;
  }
  snapshot();game.cells[i]=2;
@@ -563,7 +580,7 @@ document.querySelectorAll('dialog .close').forEach(b=>b.onclick=()=>b.closest('d
 for(const [id,key] of [['soundToggle','sound'],['autoToggle','auto'],['motionToggle','motion']])$(id).onchange=()=>{data[key]=$(id).checked;theme();render();if(key==='sound')chirp()};
 
 function valid(g){return g&&Number.isInteger(g.puzzle)&&g.puzzle>=0&&g.puzzle<puzzles.length&&(g.variant===undefined||(Number.isInteger(g.variant)&&g.variant>=0&&g.variant<8))&&Array.isArray(g.cells)&&g.cells.length===64&&g.cells.every((x,i)=>[0,1,2].includes(x)&&(x!==2||transformPuzzle(puzzles[g.puzzle],g.variant||0).solution[i>>3]===i%8))&&Array.isArray(g.fixed)&&g.fixed.every(i=>Number.isInteger(i)&&i>=0&&i<64&&g.cells[i]===2)&&Number.isInteger(g.lives)&&g.lives>=0&&g.lives<=4}
-async function init(){theme();try{const response=await fetch('puzzles.json?v=14');if(!response.ok)throw Error('network');puzzles=await response.json();if(puzzles.length!==60)throw Error('data');if(!data.emptyStartV2){data.auto=false;data.emptyStartV2=true;if(data.game&&Array.isArray(data.game.cells)&&Array.isArray(data.game.fixed)){const untouched=data.game.cells.every((v,i)=>v===0||(v===2&&data.game.fixed.includes(i)));if(untouched&&data.game.lives===4&&!data.game.won){data.game.cells.fill(0);data.game.fixed=[]}}}theme();if(valid(data.game)){game=data.game;game.hints=Math.min(3,Math.max(0,Number(game.hints)||0));game.level??=game.puzzle;render()}else start(0);$('loading').hidden=true;if(game.lives===0&&!game.won)lost();else {if(!data.intro){data.intro=true;save()}openMap()}}catch{$('loading').querySelector('p').textContent='No pudimos cargar los niveles. Comprueba la conexión e inténtalo otra vez.';$('retryBtn').hidden=false}}
+async function init(){theme();try{const response=await fetch('puzzles.json?v=14');if(!response.ok)throw Error('network');puzzles=await response.json();if(puzzles.length!==60)throw Error('data');if(!data.emptyStartV2){data.auto=false;data.emptyStartV2=true;if(data.game&&Array.isArray(data.game.cells)&&Array.isArray(data.game.fixed)){const untouched=data.game.cells.every((v,i)=>v===0||(v===2&&data.game.fixed.includes(i)));if(untouched&&data.game.lives===4&&!data.game.won){data.game.cells.fill(0);data.game.fixed=[]}}}theme();if(valid(data.game)){game=data.game;game.hints=Math.min(3,Math.max(0,Number(game.hints)||0));game.level??=game.puzzle;render()}else start(0);$('loading').hidden=true;if(!data.intro){data.intro=true;save()}openMap()}catch{$('loading').querySelector('p').textContent='No pudimos cargar los niveles. Comprueba la conexión e inténtalo otra vez.';$('retryBtn').hidden=false}}
 $('retryBtn').onclick=()=>location.reload();
 window.addEventListener('pagehide',save);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save()});
 if('serviceWorker'in navigator){let refreshing=false;const wasControlled=!!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(refreshing||!wasControlled)return;refreshing=true;save();location.reload()});navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{reg.update();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reg.update()})}).catch(()=>{})}
