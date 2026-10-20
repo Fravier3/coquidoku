@@ -187,23 +187,148 @@ $('mapBack').onclick=()=>$('levels').close();
 $('mapForestBtn').onclick=()=>{$('levels').close();openForest('map')};
 $('resultMapBtn').onclick=()=>{$('result').close();openMap()};
 
-// Each challenge has an explicit, verifiable goal and a single payout.
-const BONUS_TYPES=['pairs','song','count'];
-let bonusRound=null;
+// Short mini-games: deterministic challenges, explicit goals and one payout.
+const BONUS_TYPES=['bridge','leaves','supper'];
+let bonusRound=null,bonusTimers=new Set(),leafButtons=[];
 function missionKey(){return 'round:'+data.bonusCounter}
 function roundFor(key){let seed=0;for(const c of key)seed=(seed*31+c.charCodeAt(0))>>>0;return {type:BONUS_TYPES[(Number(key.split(':')[1])||1)%3],seed}}
-function buildBonus(key){const {type,seed}=roundFor(key);let state=seed||1;const random=()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state/4294967296};const shuffle=items=>{for(let i=items.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[items[i],items[j]]=[items[j],items[i]]}return items};const sequence=[];for(let i=0;i<4;i++){let note=Math.floor(random()*3);if(i&&note===sequence[i-1])note=(note+1)%3;sequence.push(note)}const answer=3+Math.floor(random()*4),countItems=shuffle([...Array(answer).fill('fly'),...Array(3).fill('flower')]);return {key,type,seed,sequence,answer,countItems,options:shuffle([answer-1,answer,answer+1]),cards:shuffle([0,0,1,1,2,2]),matched:[],revealed:[],input:[],turns:0,phase:type==='song'?'show':'play',notice:''}}
-function openBonus(){if(!data.bonusPending||data.bonusClaims.includes(data.bonusPending))return false;bonusRound=buildBonus(data.bonusPending);renderBonus();$('bonus').showModal();return true}
-function bonusSolved(r){if(!r)return false;if(r.type==='pairs')return new Set(r.matched).size===6&&r.matched.every(i=>Number.isInteger(i)&&i>=0&&i<6);if(r.type==='song')return r.phase==='answer'&&r.input.length===r.sequence.length&&r.input.every((value,i)=>value===r.sequence[i]);if(r.type==='count')return Number.isInteger(r.submittedAnswer)&&r.submittedAnswer===r.countItems.filter(x=>x==='fly').length;return false}
-function completeBonus(){const r=bonusRound;if(!r||r.phase==='done'||!bonusSolved(r)||data.bonusPending!==r.key||data.bonusClaims.includes(r.key))return false;data.bonusClaims.push(r.key);data.points+=20;data.bonusPending=null;r.phase='done';save();paintCareer();renderBonus();return true}
-function renderBonus(){const r=bonusRound;if(!r)return;const area=$('bonusArea');area.replaceChildren();$('bonusReward').textContent=r.phase==='done'?`¡+20 puntos! Saldo: ${data.points}`:'+20 puntos al completar el objetivo';$('bonusTitle').textContent={pairs:'Parejas del bosque',song:'Recuerda el sendero',count:'Cuenta los insectos'}[r.type];$('bonusInstructions').textContent=r.phase==='done'?(r.type==='count'?`Correcto: ${r.submittedAnswer} insectos. Recompensa guardada.`:r.type==='pairs'?'Encontraste las 3 parejas. Recompensa guardada.':'Repetiste los 4 símbolos en orden. Recompensa guardada.'):r.type==='pairs'?'Encuentra las 3 parejas de imágenes iguales. Cada turno permite destapar dos cartas.':r.type==='song'?'Memoriza los 4 símbolos de izquierda a derecha. Pulsa Listo y repítelos en el mismo orden.':'¿Cuántos insectos hay? Cuenta solo las mosquitas. Las flores no cuentan.';$('bonusNotice').textContent=r.notice||'';if(r.phase==='done')return;
- if(r.type==='pairs'){area.className='bonus-area pairs-grid';r.cards.forEach((v,i)=>{const b=document.createElement('button'),visible=r.matched.includes(i)||r.revealed.includes(i);if(visible){const img=document.createElement('img');img.src=['assets/decor-flowers.webp','assets/decor-fern.webp','assets/coqui.webp'][v];img.alt='';b.append(img)}else b.textContent='?';b.className=r.matched.includes(i)?'matched':r.revealed.includes(i)?'revealed':'';b.setAttribute('aria-label',`Carta ${i+1}: ${visible?['flor','hoja','coquí'][v]:'oculta'}`);b.disabled=visible;b.onclick=()=>bonusPick(i);area.append(b)});if(r.revealed.length===2){const next=document.createElement('button');next.textContent='Ocultar y seguir';next.className='primary';next.onclick=()=>{r.revealed=[];renderBonus()};area.append(next)}$('bonusNotice').textContent=`${r.matched.length/2}/3 parejas · ${r.turns} turnos${r.revealed.length===2?' · No coinciden. Ocúltalas para continuar.':''}`}
- else if(r.type==='song'){area.className='bonus-area';const symbols=['☀','☾','❀'];if(r.phase==='show'){const line=document.createElement('p');line.className='memory-sequence';r.sequence.forEach((v,i)=>{const item=document.createElement('span');item.textContent=symbols[v];item.setAttribute('aria-label',`Paso ${i+1}: ${['sol','luna','flor'][v]}`);line.append(item)});const ready=document.createElement('button');ready.className='primary';ready.textContent='Listo · ocultar símbolos';ready.onclick=()=>{r.phase='answer';r.input=[];r.notice='';renderBonus()};area.append(line,ready)}else{const text=document.createElement('p');text.textContent=`Paso ${r.input.length+1} de 4 · ${r.input.length} correctos`;const progress=document.createElement('div');progress.className='memory-progress';for(let i=0;i<4;i++){const dot=document.createElement('span');dot.textContent=i<r.input.length?'✓':String(i+1);dot.className=i<r.input.length?'correct':'';progress.append(dot)}area.append(progress);area.append(text);const choices=document.createElement('div');choices.className='bonus-choices';symbols.forEach((symbol,i)=>{const b=document.createElement('button');b.textContent=symbol;b.setAttribute('aria-label',['Sol','Luna','Flor'][i]);b.onclick=()=>bonusPick(i);choices.append(b)});const replay=document.createElement('button');replay.className='text-btn';replay.textContent='Ver el orden otra vez';replay.onclick=()=>{r.phase='show';r.input=[];r.notice='';renderBonus()};area.append(choices,replay)}}
- else{area.className='bonus-area';const picture=document.createElement('div');picture.className='count-clearing';r.countItems.forEach(type=>{const img=document.createElement('img');img.src=type==='fly'?'assets/insect-fly.webp':'assets/decor-flowers.webp';img.alt=type==='fly'?'Insecto':'Flor';picture.append(img)});const choices=document.createElement('div');choices.className='bonus-choices';for(const value of r.options){const b=document.createElement('button');b.textContent=value;b.setAttribute('aria-label',`${value} insectos`);b.onclick=()=>bonusPick(value);choices.append(b)}area.append(picture,choices)}
+function rotateMask(mask,turns){for(let i=0;i<turns;i++)mask=((mask<<1)&15)|(mask>>3);return mask}
+function bridgeMask(r,index){const tile=r.tiles.find(t=>t.index===index);return tile?rotateMask(tile.base,tile.rotation):0}
+function bridgeConnected(r){
+ if(!r||r.type!=='bridge'||r.tiles.length!==5)return false;
+ let index=3,entry=3;const visited=new Set();
+ for(let step=0;step<6;step++){
+  const mask=bridgeMask(r,index);if(!(mask&(1<<entry))||visited.has(index))return false;
+  visited.add(index);const exit=[0,1,2,3].find(d=>d!==entry&&(mask&(1<<d)));
+  if(exit===undefined)return false;
+  if(index===5&&exit===1)return visited.size===5;
+  const row=Math.floor(index/3)+[-1,0,1,0][exit],col=index%3+[0,1,0,-1][exit];
+  if(row<0||row>2||col<0||col>2)return false;
+  index=row*3+col;entry=(exit+2)%4;
+ }return false;
 }
-function bonusPick(value){const r=bonusRound;if(!r||r.phase==='done'||data.bonusPending!==r.key)return false;if(r.type==='pairs'){if(!Number.isInteger(value)||value<0||value>=6||r.matched.includes(value)||r.revealed.includes(value)||r.revealed.length===2)return false;r.revealed.push(value);if(r.revealed.length===2){r.turns++;if(r.cards[r.revealed[0]]===r.cards[r.revealed[1]]){r.matched.push(...r.revealed);r.revealed=[]}}if(r.matched.length===6)return completeBonus()}
- else if(r.type==='song'){if(r.phase!=='answer'||![0,1,2].includes(value))return false;if(value!==r.sequence[r.input.length]){r.input=[];r.notice='Ese símbolo no seguía en el orden. Empieza de nuevo o vuelve a verlo.'}else{r.input.push(value);r.notice='';if(r.input.length===4)return completeBonus()}}
- else{if(!r.options.includes(value))return false;if(value===r.countItems.filter(x=>x==='fly').length){r.submittedAnswer=value;return completeBonus()}r.notice='Vuelve a contar solo los insectos, sin las flores.'}renderBonus();return true}
+function buildBonus(key){
+ const {type,seed}=roundFor(key);let state=seed||1;
+ const random=()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state/4294967296};
+ const shuffle=items=>{for(let i=items.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[items[i],items[j]]=[items[j],items[i]]}return items};
+ const tiles=[{index:3,base:3,rotation:3,fixed:true},{index:0,base:3,rotation:1,fixed:false},{index:1,base:5,rotation:1,fixed:true},{index:2,base:3,rotation:2,fixed:false},{index:5,base:3,rotation:0,fixed:false}];
+ for(const tile of tiles)if(!tile.fixed)tile.rotation=(tile.rotation+1+Math.floor(random()*3))%4;
+ const targetLeaf=Math.floor(random()*3),slots=[0,1,2],swaps=[];let targetSlot=targetLeaf;
+ for(let i=0;i<3;i++){const other=(targetSlot+1+Math.floor(random()*2))%3;swaps.push([targetSlot,other]);targetSlot=other}
+ const waves=Array.from({length:2},()=>shuffle(['fly','fly','fly','butterfly','butterfly','bee']));
+ return {key,type,seed,tiles,moves:0,targetLeaf,slots,swaps,shuffleStep:0,choice:null,waves,wave:0,caught:[],phase:type==='leaves'?'peek':'play',notice:''};
+}
+function stopBonusTimers(){bonusTimers.forEach(id=>clearTimeout(id));bonusTimers.clear()}
+function bonusLater(r,callback,delay){
+ const id=setTimeout(()=>{bonusTimers.delete(id);if(bonusRound===r&&$('bonus').open&&document.visibilityState!=='hidden')callback()},delay);bonusTimers.add(id);
+}
+function openBonus(){if(!data.bonusPending||data.bonusClaims.includes(data.bonusPending))return false;stopBonusTimers();bonusRound=buildBonus(data.bonusPending);renderBonus();$('bonus').showModal();return true}
+function bonusSolved(r){
+ if(!r)return false;
+ if(r.type==='bridge')return r.moves>0&&bridgeConnected(r);
+ if(r.type==='leaves')return r.phase==='answer'&&r.shuffleStep===r.swaps.length&&Number.isInteger(r.choice)&&r.slots[r.targetLeaf]===r.choice;
+ if(r.type==='supper')return r.wave===1&&r.caught.length===6&&new Set(r.caught).size===6&&r.caught.every(key=>{const [w,i]=key.split(':').map(Number);return (w===0||w===1)&&Number.isInteger(i)&&i>=0&&i<6&&r.waves[w][i]==='fly'});
+ return false;
+}
+function completeBonus(){const r=bonusRound;if(!r||r.phase==='done'||!bonusSolved(r)||data.bonusPending!==r.key||data.bonusClaims.includes(r.key))return false;stopBonusTimers();data.bonusClaims.push(r.key);data.points+=20;data.bonusPending=null;r.phase='done';save();paintCareer();renderBonus();return true}
+function bonusImage(src,className='',alt=''){const img=document.createElement('img');img.src=src;img.alt=alt;img.className=className;img.draggable=false;return img}
+function renderBonus(){
+ const r=bonusRound;if(!r)return;const area=$('bonusArea');area.replaceChildren();area.className='bonus-area mini-world '+r.type;
+ $('bonusReward').textContent=r.phase==='done'?`¡+20 puntos! Saldo: ${data.points}`:'+20 puntos · sin reloj ni pérdida de vidas';
+ $('bonusTitle').textContent={bridge:'El puente del río',leaves:'¿Dónde se escondió?',supper:'Cena de coquíes'}[r.type];
+ $('bonusInstructions').textContent=r.phase==='done'?'¡Lo lograste! Tus puntos quedaron guardados.':{bridge:'Gira las tres piezas con flecha hasta conectar el coquí con la otra orilla.',leaves:'Mira bajo qué hoja se esconde. Sigue los tres cambios y toca su lugar.',supper:'Toca solo las mosquitas. Deja tranquilas a las mariposas y a la abeja.'}[r.type];
+ $('bonusNotice').textContent=r.notice||'';
+ if(r.phase==='done'){
+  if(r.type==='bridge'){renderBridge(r,area);$('bonusNotice').textContent='¡Ya puede cruzar! Recompensa guardada.';return}
+  if(r.type==='leaves'){renderLeaves(r,area);$('bonusNotice').textContent='¡Encontraste a tu coquí! Recompensa guardada.';return}
+  const win=document.createElement('div');win.className='mini-victory '+r.type;
+  const frog=bonusImage(activeCoqui().src,'mini-win-frog');win.append(frog);
+  const caption=document.createElement('p');caption.textContent={bridge:'¡Ya puede cruzar el arroyo!',leaves:'¡Encontraste a tu coquí!',supper:'¡Seis mosquitas y una pancita feliz!'}[r.type];
+  win.append(caption);area.append(win);return;
+ }
+ if(r.type==='bridge')renderBridge(r,area);else if(r.type==='leaves')renderLeaves(r,area);else renderSupper(r,area);
+}
+function renderBridge(r,area){
+ const scene=document.createElement('div');scene.className='bridge-scene';
+ const grid=document.createElement('div');grid.className='bridge-grid';
+ for(let i=0;i<9;i++){
+  const tile=r.tiles.find(t=>t.index===i),b=document.createElement(tile?'button':'div');b.className=tile?'bridge-tile'+(tile.fixed?' fixed':' turnable'):'bridge-water';
+  if(tile){
+   const mask=bridgeMask(r,i);b.disabled=tile.fixed||r.phase==='done';b.setAttribute('aria-label',`Pieza ${i+1}${tile.fixed?', fija':', girar un cuarto de vuelta'}`);
+   for(let d=0;d<4;d++)if(mask&(1<<d)){const arm=document.createElement('span');arm.className='bridge-arm';arm.style.transform=`rotate(${d*90}deg)`;b.append(arm)}
+   const center=document.createElement('span');center.className='bridge-joint';b.append(center);
+   if(!tile.fixed&&r.phase!=='done'){const turn=document.createElement('span');turn.className='bridge-turn';turn.textContent='↻';b.append(turn)}
+   b.onclick=()=>bonusPick(i,r);
+  }grid.append(b);
+ }
+ scene.append(grid,bonusImage(activeCoqui().src,'bridge-waiting'+(r.phase==='done'?' crossing':'')));
+ const goal=document.createElement('span');goal.className='bridge-goal';goal.textContent='META';scene.append(goal);
+ area.append(scene);const progress=document.createElement('p');progress.className='mini-caption';progress.textContent=r.phase==='done'?`Puente completo en ${r.moves} giros`:`${r.moves} giros · toca las piezas ↻`;area.append(progress);
+}
+function renderLeaves(r,area){
+ const scene=document.createElement('div');scene.className='leaf-scene';leafButtons=[];
+ if(['peek','miss','done'].includes(r.phase)){const frog=bonusImage(activeCoqui().src,'shell-frog');frog.style.left=(r.slots[r.targetLeaf]*33.333+16.667)+'%';scene.append(frog)}
+ for(let id=0;id<3;id++){
+  const b=document.createElement('button');b.className='shell-leaf'+(['peek','miss','done'].includes(r.phase)&&id===r.targetLeaf?' lifted':'');
+  b.style.left=(r.slots[id]*33.333)+'%';b.append(bonusImage('assets/bonus-leaf.webp'));
+  b.disabled=r.phase!=='answer';b.setAttribute('aria-label',`Hoja en lugar ${r.slots[id]+1}`);b.onclick=()=>bonusPick(r.slots[id],r);
+  leafButtons.push(b);scene.append(b);
+ }
+ const labels=document.createElement('div');labels.className='leaf-labels';for(let i=1;i<=3;i++){const label=document.createElement('span');label.textContent=i;labels.append(label)}scene.append(labels);area.append(scene);
+ if(r.phase==='done')return;
+ const watch=document.createElement('button');watch.className='primary mini-watch';watch.disabled=r.phase==='shuffle';watch.textContent=r.phase==='shuffle'?'Sigue las hojas…':r.phase==='answer'?'Verlo otra vez':r.phase==='miss'?'Intentar otra vez':'Listo · seguir las hojas';watch.onclick=()=>startLeafShuffle(r);area.append(watch);
+}
+function startLeafShuffle(r=bonusRound){
+ if(!r||r!==bonusRound||r.type!=='leaves'||r.phase==='done'||r.phase==='shuffle'||!$('bonus').open)return false;
+ stopBonusTimers();r.slots=[0,1,2];r.shuffleStep=0;r.choice=null;r.phase='shuffle';r.notice='El coquí sigue debajo de la misma hoja.';renderBonus();
+ bonusLater(r,()=>advanceLeafShuffle(r),700);return true;
+}
+function advanceLeafShuffle(r){
+ if(r!==bonusRound||r.phase!=='shuffle'||!$('bonus').open)return false;
+ if(r.shuffleStep===r.swaps.length){r.phase='answer';r.notice='¿En cuál de los tres lugares quedó?';renderBonus();return true}
+ const [a,b]=r.swaps[r.shuffleStep];r.slots=r.slots.map(slot=>slot===a?b:slot===b?a:slot);r.shuffleStep++;
+ leafButtons.forEach((button,id)=>{button.style.left=(r.slots[id]*33.333)+'%';button.setAttribute('aria-label',`Hoja en lugar ${r.slots[id]+1}`)});
+ $('bonusNotice').textContent=`Cambio ${r.shuffleStep}/3 · lugares ${a+1} y ${b+1}`;
+ bonusLater(r,()=>advanceLeafShuffle(r),data.motion?1400:1100);return true;
+}
+function renderSupper(r,area){
+ const scene=document.createElement('div');scene.className='supper-scene';
+ const frog=bonusImage(activeCoqui().src,'supper-frog');scene.append(frog);
+ const bugs=document.createElement('div');bugs.className='supper-bugs';
+ r.waves[r.wave].forEach((kind,i)=>{
+  const b=document.createElement('button'),caught=r.caught.includes(r.wave+':'+i),wave=r.wave;
+  b.className='supper-bug'+(caught?' eaten':'');b.disabled=caught||r.phase!=='play';
+  b.setAttribute('aria-label',caught?'Mosquita comida':{fly:'Mosquita, alimento del coquí',butterfly:'Mariposa, déjala volar',bee:'Abeja, déjala volar'}[kind]);
+  b.append(bonusImage({fly:'assets/insect-fly.webp',butterfly:'assets/bonus-butterfly.webp',bee:'assets/bonus-bee.webp'}[kind]));
+  b.onclick=()=>bonusPick(i,r,wave);bugs.append(b);
+ });scene.append(bugs);area.append(scene);
+ const caption=document.createElement('p');caption.className='mini-caption';caption.textContent=`${r.caught.length}/6 mosquitas · tanda ${r.wave+1} de 2`;area.append(caption);
+}
+function advanceSupper(r){if(r!==bonusRound||r.type!=='supper'||r.phase!=='between'||!$('bonus').open||r.caught.filter(key=>key.startsWith('0:')).length!==3)return false;r.wave=1;r.phase='play';r.notice='Últimas tres mosquitas.';renderBonus();return true}
+function bonusPick(value,expectedRound=bonusRound,expectedWave=bonusRound?.wave){
+ const r=bonusRound;if(!r||r!==expectedRound||r.phase==='done'||data.bonusPending!==r.key||!$('bonus').open||!Number.isInteger(value))return false;
+ if(r.type==='bridge'){
+  const tile=r.tiles.find(t=>t.index===value);if(r.phase!=='play'||!tile||tile.fixed)return false;
+  tile.rotation=(tile.rotation+1)%4;r.moves++;r.notice='';if(bridgeConnected(r))return completeBonus();
+ }else if(r.type==='leaves'){
+  if(r.phase!=='answer'||value<0||value>2)return false;r.choice=value;
+  if(r.slots[r.targetLeaf]===value)return completeBonus();r.phase='miss';r.notice='Estaba bajo la hoja levantada. Puedes repetir los tres cambios.';
+ }else if(r.type==='supper'){
+  if(r.phase!=='play'||expectedWave!==r.wave||value<0||value>5)return false;
+  if(r.waves[r.wave][value]!=='fly'){r.notice='Esa ayuda al bosque. Busca las mosquitas de cuerpo oscuro.';$('bonusNotice').textContent=r.notice;return false}
+  const key=r.wave+':'+value;if(r.caught.includes(key))return false;r.caught.push(key);r.notice='¡Ñam! Una mosquita más.';
+  if(r.caught.length===6)return completeBonus();
+  if(r.wave===0&&r.caught.length===3){r.phase='between';r.notice='¡Primera tanda lista! Vienen otras tres.';renderBonus();bonusLater(r,()=>advanceSupper(r),650);return true}
+ }else return false;
+ renderBonus();return true;
+}
+$('bonus').addEventListener('close',()=>{stopBonusTimers();leafButtons=[]});
+document.addEventListener('visibilitychange',()=>{
+ if(document.visibilityState!=='hidden'||!bonusRound)return;
+ stopBonusTimers();const r=bonusRound;
+ if(r.phase==='shuffle'){r.slots=[0,1,2];r.shuffleStep=0;r.phase='peek';r.notice='Mira otra vez. La pausa no te cuesta vidas.';renderBonus()}
+ if(r.phase==='between')advanceSupper(r);
+});
 $('bonusBtn').onclick=openBonus;
 $('resultBonusBtn').onclick=()=>{$('result').close();openBonus()};
 
@@ -211,7 +336,22 @@ function save(){data.game=game;try{localStorage.setItem(KEY,JSON.stringify(data)
 function feedback(s){$('feedback').textContent=s}
 const names={leaf:'AVENTURA EN LA HOJA',night:'BOSQUE ENCANTADO',garden:'NIDO TROPICAL'};
 const difficulties={calm:'Tranquilo',normal:'Curioso',hard:'Experto'};
-function theme(){document.body.dataset.theme=data.theme;document.body.classList.toggle('reduced-motion',data.motion);document.querySelector('meta[name=theme-color]').content={leaf:'#f6efdd',night:'#102f35',garden:'#faeee4'}[data.theme];$('journey').textContent=names[data.theme];document.querySelectorAll('[data-pick]').forEach(b=>{b.classList.toggle('selected',b.dataset.pick===data.theme);b.setAttribute('aria-pressed',String(b.dataset.pick===data.theme))});for(const [id,key] of [['soundToggle','sound'],['autoToggle','auto'],['relaxToggle','relax'],['motionToggle','motion']])$(id).checked=data[key];}
+
+function boardAppearance(level,selectedTheme=data.theme){
+ const chapter=Math.floor(Math.max(0,Math.min(59,level))/10),offset=level%10;
+ const hues=[44,88,135,180,215,260,305,345];
+ const palette=Array.from({length:8},(_,region)=>{const h=(hues[(region+offset)%8]+chapter*3+Math.floor(offset/8)*8)%360;return `hsl(${h} ${selectedTheme==='garden'?45:38}% ${selectedTheme==='night'?68:selectedTheme==='garden'?81:78}%)`});
+ const scene=selectedTheme==='night'?`assets/yunque-${[0,1,2,3,2,3][chapter]}-night.webp`:selectedTheme==='garden'?`assets/yunque-${[0,1,2,3,2,3][chapter]}-day.webp`:`assets/map-${chapter}.webp?v=18`;
+ return {chapter,palette,scene,position:`${45+offset}% center`};
+}
+function paintBoardAppearance(){
+ if(!game)return;const level=game.daily?(game.seed||0)%60:game.level||0,look=boardAppearance(level);
+ look.palette.forEach((color,i)=>document.body.style.setProperty('--tile'+i,color));
+ document.body.style.setProperty('--level-scene',`url('${look.scene}')`);
+ document.body.style.setProperty('--level-position',look.position);
+ document.body.dataset.boardRegion=look.chapter;
+}
+function theme(){document.body.dataset.theme=data.theme;document.body.classList.toggle('reduced-motion',data.motion);document.querySelector('meta[name=theme-color]').content={leaf:'#f6efdd',night:'#102f35',garden:'#faeee4'}[data.theme];$('journey').textContent=names[data.theme];document.querySelectorAll('[data-pick]').forEach(b=>{b.classList.toggle('selected',b.dataset.pick===data.theme);b.setAttribute('aria-pressed',String(b.dataset.pick===data.theme))});for(const [id,key] of [['soundToggle','sound'],['autoToggle','auto'],['relaxToggle','relax'],['motionToggle','motion']])$(id).checked=data[key];paintBoardAppearance();}
 function audioStatus(message){for(const id of ['residentAudioStatus','soundStatus'])$(id).textContent=message}
 function chirp(win=false,force=false){
  if(!data.sound&&!force)return Promise.resolve(false);
@@ -234,7 +374,7 @@ function puzzle(){const key=game.puzzle+':'+(game.variant||0);if(cachedLayout?.k
 function randomInt(n){return Math.floor(Math.random()*n)}
 function snapshot(){undo.push({cells:[...game.cells]});if(undo.length>100)undo.shift()}
 function isBlocked(i){const r=i>>3,c=i%8,g=puzzle().regions;return game.cells.some((v,j)=>v===2&&j!==i&&((j>>3)===r||j%8===c||g[j]===g[i]||(Math.abs((j>>3)-r)<=1&&Math.abs(j%8-c)<=1)))}
-function render(){const p=puzzle();$('levelTitle').replaceChildren(document.createTextNode(game.daily?'Reto del día':`Nivel ${(game.level??game.puzzle)+1}`));const subtitle=document.createElement('span');subtitle.textContent=`· ${difficulties[game.difficulty]||'Tranquilo'}`;$('levelTitle').append(subtitle);const count=game.cells.filter(v=>v===2).length;$('progress').textContent=`${count} / 8`;$('hearts').textContent=data.relax?'∞':Array.from({length:4},(_,i)=>i<game.lives?'♥':'♡').join(' ');$('hearts').setAttribute('aria-label',data.relax?'Sin límite de errores':`${game.lives} vidas`);const board=$('board'),fresh=board.children.length!==64,frag=fresh?document.createDocumentFragment():null;for(let i=0;i<64;i++){const b=fresh?document.createElement('button'):board.children[i],r=i>>3,c=i%8;b.type='button';b.className='cell';b.style.setProperty('--tile',`var(--tile${p.regions[i]})`);b.dataset.index=i;if(c<7&&p.regions[i]!==p.regions[i+1])b.classList.add('edge-r');if(r<7&&p.regions[i]!==p.regions[i+8])b.classList.add('edge-b');if(game.cells[i]!==2&&b.children.length)b.replaceChildren();let state='vacía';if(game.cells[i]===2){if(!b.firstElementChild){const img=document.createElement('img');img.src=activeCoqui().src;img.dataset.character=activeCoqui().id;img.alt='';b.append(img)}if(b.firstElementChild.dataset.character!==activeCoqui().id){b.firstElementChild.src=activeCoqui().src;b.firstElementChild.dataset.character=activeCoqui().id}state='coquí';if(game.fixed.includes(i)){b.classList.add('fixed');state='coquí inicial'}}else if(game.cells[i]===1){b.classList.add('mark');state='marcada con X'}else if(data.auto&&isBlocked(i)){b.classList.add('mark','auto');state='bloqueada automáticamente'}b.setAttribute('aria-label',`Fila ${r+1}, columna ${c+1}, región ${p.regions[i]+1}: ${state}`);b.setAttribute('aria-pressed',String(game.cells[i]===2));if(game.hinted===i)b.classList.add('hinted');if(fresh)frag.append(b)}if(fresh)board.replaceChildren(frag);$('undoBtn').disabled=!undo.length||game.won;$('modeLabel').textContent=mode==='coqui'?'Colocar coquí':'Marcar X';$('modeIcon').textContent=mode==='coqui'?'✦':'×';$('modeBtn').setAttribute('aria-label',mode==='coqui'?'Colocar coquí activado. Cambiar a marcar X':'Marcar X activado. Cambiar a colocar coquí');$('modeBtn').setAttribute('aria-pressed',String(mode==='coqui'));const remaining=Math.max(0,3-(game.hints||0));$('hintLabel').textContent=`Pista (${remaining}/3)`;$('hintBtn').setAttribute('aria-label',`${remaining} de 3 pistas disponibles`);$('hintBtn').disabled=game.won||remaining===0||(!data.relax&&game.lives===0);paintCareer();paintMission();save()}
+function render(){paintBoardAppearance();const p=puzzle();$('levelTitle').replaceChildren(document.createTextNode(game.daily?'Reto del día':`Nivel ${(game.level??game.puzzle)+1}`));const subtitle=document.createElement('span');subtitle.textContent=`· ${difficulties[game.difficulty]||'Tranquilo'}`;$('levelTitle').append(subtitle);const count=game.cells.filter(v=>v===2).length;$('progress').textContent=`${count} / 8`;$('hearts').textContent=data.relax?'∞':Array.from({length:4},(_,i)=>i<game.lives?'♥':'♡').join(' ');$('hearts').setAttribute('aria-label',data.relax?'Sin límite de errores':`${game.lives} vidas`);const board=$('board'),fresh=board.children.length!==64,frag=fresh?document.createDocumentFragment():null;for(let i=0;i<64;i++){const b=fresh?document.createElement('button'):board.children[i],r=i>>3,c=i%8;b.type='button';b.className='cell';b.style.setProperty('--tile',`var(--tile${p.regions[i]})`);b.dataset.index=i;if(c<7&&p.regions[i]!==p.regions[i+1])b.classList.add('edge-r');if(r<7&&p.regions[i]!==p.regions[i+8])b.classList.add('edge-b');if(game.cells[i]!==2&&b.children.length)b.replaceChildren();let state='vacía';if(game.cells[i]===2){if(!b.firstElementChild){const img=document.createElement('img');img.src=activeCoqui().src;img.dataset.character=activeCoqui().id;img.alt='';b.append(img)}if(b.firstElementChild.dataset.character!==activeCoqui().id){b.firstElementChild.src=activeCoqui().src;b.firstElementChild.dataset.character=activeCoqui().id}state='coquí';if(game.fixed.includes(i)){b.classList.add('fixed');state='coquí inicial'}}else if(game.cells[i]===1){b.classList.add('mark');state='marcada con X'}else if(data.auto&&isBlocked(i)){b.classList.add('mark','auto');state='bloqueada automáticamente'}b.setAttribute('aria-label',`Fila ${r+1}, columna ${c+1}, región ${p.regions[i]+1}: ${state}`);b.setAttribute('aria-pressed',String(game.cells[i]===2));if(game.hinted===i)b.classList.add('hinted');if(fresh)frag.append(b)}if(fresh)board.replaceChildren(frag);$('undoBtn').disabled=!undo.length||game.won;$('modeLabel').textContent=mode==='coqui'?'Colocar coquí':'Marcar X';$('modeIcon').textContent=mode==='coqui'?'✦':'×';$('modeBtn').setAttribute('aria-label',mode==='coqui'?'Colocar coquí activado. Cambiar a marcar X':'Marcar X activado. Cambiar a colocar coquí');$('modeBtn').setAttribute('aria-pressed',String(mode==='coqui'));const remaining=Math.max(0,3-(game.hints||0));$('hintLabel').textContent=`Pista (${remaining}/3)`;$('hintBtn').setAttribute('aria-label',`${remaining} de 3 pistas disponibles`);$('hintBtn').disabled=game.won||remaining===0||(!data.relax&&game.lives===0);paintCareer();paintMission();save()}
 function start(index,daily=false,seed=0){const previous=game?puzzle().solution.join(','):null;let base,variant;if(daily){base=seed%puzzles.length;variant=(seed>>>6)%8}else{let candidates=[];for(let b=0;b<puzzles.length;b++)for(let v=0;v<8;v++){if(game&&b===game.puzzle)continue;if(transformPuzzle(puzzles[b],v).solution.join(',')!==previous)candidates.push([b,v])}[base,variant]=candidates[randomInt(candidates.length)]}game={level:index,puzzle:base,variant,seed,cells:Array(64).fill(0),fixed:[],lives:4,won:false,daily,difficulty:'calm',hints:0,hinted:null,mistakes:0};undo=[];mode='coqui';render();feedback('Tablero vacío. Encuentra los ocho coquíes a tu ritmo.');save()}
 function finish(){
  if(game.won)return;const before=victories(),friendsBefore=COQUIS.filter(unlockedCoqui).map(c=>c.id),oldStage=forestStage();game.won=true;
@@ -274,7 +414,7 @@ document.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{data.theme=b.
 for(const [id,key] of [['soundToggle','sound'],['autoToggle','auto'],['relaxToggle','relax'],['motionToggle','motion']])$(id).onchange=()=>{data[key]=$(id).checked;theme();render();if(key==='sound')chirp()};
 
 function valid(g){return g&&Number.isInteger(g.puzzle)&&g.puzzle>=0&&g.puzzle<puzzles.length&&(g.variant===undefined||(Number.isInteger(g.variant)&&g.variant>=0&&g.variant<8))&&Array.isArray(g.cells)&&g.cells.length===64&&g.cells.every((x,i)=>[0,1,2].includes(x)&&(x!==2||transformPuzzle(puzzles[g.puzzle],g.variant||0).solution[i>>3]===i%8))&&Array.isArray(g.fixed)&&g.fixed.every(i=>Number.isInteger(i)&&i>=0&&i<64&&g.cells[i]===2)&&Number.isInteger(g.lives)&&g.lives>=0&&g.lives<=4}
-async function init(){theme();try{const response=await fetch('puzzles.json?v=11');if(!response.ok)throw Error('network');puzzles=await response.json();if(puzzles.length!==60)throw Error('data');if(!data.emptyStartV2){data.auto=false;data.emptyStartV2=true;if(data.game&&Array.isArray(data.game.cells)&&Array.isArray(data.game.fixed)){const untouched=data.game.cells.every((v,i)=>v===0||(v===2&&data.game.fixed.includes(i)));if(untouched&&data.game.lives===4&&!data.game.won){data.game.cells.fill(0);data.game.fixed=[]}}}theme();if(valid(data.game)){game=data.game;game.hints=Math.min(3,Math.max(0,Number(game.hints)||0));game.level??=game.puzzle;render()}else start(0);$('loading').hidden=true;if(!data.intro){data.intro=true;save();$('help').showModal()}}catch{$('loading').querySelector('p').textContent='No pudimos cargar los niveles. Comprueba la conexión e inténtalo otra vez.';$('retryBtn').hidden=false}}
+async function init(){theme();try{const response=await fetch('puzzles.json?v=12');if(!response.ok)throw Error('network');puzzles=await response.json();if(puzzles.length!==60)throw Error('data');if(!data.emptyStartV2){data.auto=false;data.emptyStartV2=true;if(data.game&&Array.isArray(data.game.cells)&&Array.isArray(data.game.fixed)){const untouched=data.game.cells.every((v,i)=>v===0||(v===2&&data.game.fixed.includes(i)));if(untouched&&data.game.lives===4&&!data.game.won){data.game.cells.fill(0);data.game.fixed=[]}}}theme();if(valid(data.game)){game=data.game;game.hints=Math.min(3,Math.max(0,Number(game.hints)||0));game.level??=game.puzzle;render()}else start(0);$('loading').hidden=true;if(!data.intro){data.intro=true;save();$('help').showModal()}}catch{$('loading').querySelector('p').textContent='No pudimos cargar los niveles. Comprueba la conexión e inténtalo otra vez.';$('retryBtn').hidden=false}}
 $('retryBtn').onclick=()=>location.reload();
 window.addEventListener('pagehide',save);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save()});
 if('serviceWorker'in navigator){let refreshing=false;const wasControlled=!!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(refreshing||!wasControlled)return;refreshing=true;save();location.reload()});navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{reg.update();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reg.update()})}).catch(()=>{})}

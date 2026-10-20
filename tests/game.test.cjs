@@ -6,16 +6,24 @@ class E{
  replaceChildren(...xs){this.children=[];this.append(...xs)}
  play(){this.playCount=(this.playCount||0)+1;return Promise.resolve()}pause(){this.pauseCount=(this.pauseCount||0)+1}
  getBoundingClientRect(){return {left:0,top:0,width:400,height:700}}setPointerCapture(id){this.capture=id}hasPointerCapture(id){return this.capture===id}releasePointerCapture(){this.capture=null}
- setAttribute(k,v){this.attrs[k]=v}addEventListener(){}querySelector(){return new E()}showModal(){this.open=true}close(){this.open=false}focus(){this.focused=true}
+ setAttribute(k,v){this.attrs[k]=v}addEventListener(type,callback){(this.listeners??={})[type]??=[];this.listeners[type].push(callback)}emit(type){for(const callback of this.listeners?.[type]||[])callback()}querySelector(){return new E()}showModal(){this.open=true}close(){this.open=false}focus(){this.focused=true}
 }
 function boot(saved,options={}){
  const els=new Map(),themes=['leaf','night','garden'].map(t=>{const e=new E();e.dataset.pick=t;return e});
  const storage=saved?{'coquidoku-v1':JSON.stringify(saved)}:{};
- const ctx={console,Intl,Date,JSON,Math,Array,Number,String,Error,setTimeout:()=>1,clearTimeout(){},location:{reload(){}},navigator:{},localStorage:{getItem:k=>storage[k]||null,setItem:(k,v)=>storage[k]=v},fetch:async()=>({ok:true,json:async()=>JSON.parse(fs.readFileSync('puzzles.json','utf8'))}),document:{body:new E(),visibilityState:'visible',getElementById:id=>{if(!els.has(id))els.set(id,new E(id));return els.get(id)},createElement:()=>new E(),createTextNode:text=>({textContent:text}),createDocumentFragment:()=>{const e=new E();e.fragment=true;return e},querySelector:()=>new E(),querySelectorAll:s=>s==='[data-pick]'?themes:[],addEventListener(){}},window:{addEventListener(){},...(options.window||{})}};
+ const ctx={console,Intl,Date,JSON,Math,Array,Number,String,Error,setTimeout:options.setTimeout||(()=>1),clearTimeout:options.clearTimeout||(()=>{}),location:{reload(){}},navigator:{},localStorage:{getItem:k=>storage[k]||null,setItem:(k,v)=>storage[k]=v},fetch:async()=>({ok:true,json:async()=>JSON.parse(fs.readFileSync('puzzles.json','utf8'))}),document:{body:new E(),visibilityState:'visible',getElementById:id=>{if(!els.has(id))els.set(id,new E(id));return els.get(id)},createElement:()=>new E(),createTextNode:text=>({textContent:text}),createDocumentFragment:()=>{const e=new E();e.fragment=true;return e},querySelector:()=>new E(),querySelectorAll:s=>s==='[data-pick]'?themes:[],listeners:{},addEventListener(type,callback){(this.listeners[type]??=[]).push(callback)}},window:{addEventListener(){},...(options.window||{})}};
  vm.createContext(ctx);vm.runInContext(fs.readFileSync('app.js','utf8'),ctx);
  return {ctx,els,storage,run:s=>vm.runInContext(s,ctx)};
 }
 const settle=()=>new Promise(r=>setImmediate(r));
+
+function solveBonus(run){
+ const type=run('bonusRound.type');
+ if(type==='bridge')run("for(const [i,target] of [[0,6],[2,12],[5,3]])for(let n=0;n<4&&bridgeMask(bonusRound,i)!==target;n++)bonusPick(i)");
+ else if(type==='leaves')run("startLeafShuffle();for(let n=0;n<4;n++)advanceLeafShuffle(bonusRound);bonusPick(bonusRound.slots[bonusRound.targetLeaf])");
+ else run("for(let i=0;i<6;i++)if(bonusRound.waves[0][i]==='fly')bonusPick(i);advanceSupper(bonusRound);for(let i=0;i<6;i++)if(bonusRound.waves[1][i]==='fly')bonusPick(i)");
+}
+
 (async()=>{
  const {ctx,els,storage,run}=boot();await settle();
  assert.equal(run('game.cells.length'),64);assert.equal(els.get('board').children.length,64);
@@ -74,23 +82,14 @@ const settle=()=>new Promise(r=>setImmediate(r));
  assert.equal(er('data.points'),0);
  er("for(let r=0;r<8;r++)game.cells[r*8+puzzle().solution[r]]=2;finish()");
  assert.equal(er('data.points'),0);assert.ok(ee.get('bonus').open);assert.equal(er('victories()'),1);
- // Exercise every challenge, including invalid answers, restart, and duplicate claim protection.
- for(const type of ['pairs','song','count']){
-  er(`data.bonusCounter++;data.bonusPending=missionKey();openBonus();bonusRound.type='${type}';bonusRound.cards=[0,0,1,1,2,2];renderBonus()`);
-  const balance=er('data.points');
-  if(type==='pairs'){
-   er("bonusRound.cards=[0,1,2,0,1,2];bonusRound.matched=[];bonusRound.revealed=[];bonusPick(0);bonusPick(1)");
-   assert.equal(er('data.points'),balance);assert.equal(er('bonusPick(2)'),false);
-   er("bonusRound.revealed=[];for(const [a,b] of [[0,3],[1,4],[2,5]]){bonusPick(a);bonusPick(b)}");
-  }else if(type==='song'){
-   er("bonusRound.phase='answer';bonusPick((bonusRound.sequence[0]+1)%3)");assert.equal(er('data.points'),balance);
-   er("for(const v of bonusRound.sequence)bonusPick(v)");
-  }else{
-   er("bonusPick(bonusRound.options.find(v=>v!==bonusRound.answer))");assert.equal(er('data.points'),balance);
-   er("bonusPick(bonusRound.answer)");
-  }
-  assert.equal(er('data.points'),balance+20);assert.equal(er('completeBonus()'),false);assert.equal(er('data.points'),balance+20);
+ // Exercise all short games and one-time payouts; invalid inputs never earn points.
+ for(let n=1;n<=3;n++){
+  er("data.bonusCounter++;data.bonusPending=missionKey();openBonus()");
+  const balance=er('data.points');assert.equal(er('completeBonus()'),false);
+  assert.equal(er('bonusPick(-1)'),false);assert.equal(er('bonusPick(99)'),false);
+  solveBonus(er);assert.equal(er('data.points'),balance+20);assert.equal(er('completeBonus()'),false);
  }
+
  er("data.points=80;data.completed=[];data.dailyWins=[];data.earned=['sol'];data.purchased=[]");
  assert.equal(er("buyCoqui('brisa')"),false);assert.equal(er('data.points'),80);
  assert.equal(er("requestPurchase('menta')"),true);assert.equal(er('data.points'),80);ee.get('purchaseConfirm').onclick();
@@ -111,10 +110,8 @@ const settle=()=>new Promise(r=>setImmediate(r));
  const flow=boot();await settle();const fr=flow.run;
  for(let level=0;level<6;level++){
   const balance=fr('data.points');fr(`start(${level});for(let r=0;r<8;r++)game.cells[r*8+puzzle().solution[r]]=2;finish()`);
-  assert.equal(fr('data.points'),balance);assert.equal(fr('bonusRound.type'),['song','count','pairs'][level%3]);
-  if(fr('bonusRound.type')==='song')fr("bonusRound.phase='answer';for(const v of bonusRound.sequence)bonusPick(v)");
-  else if(fr('bonusRound.type')==='count')fr('bonusPick(bonusRound.answer)');
-  else fr("for(let v=0;v<3;v++)for(let i=0;i<6;i++)if(bonusRound.cards[i]===v)bonusPick(i)");
+  assert.equal(fr('data.points'),balance);assert.equal(fr('bonusRound.type'),['leaves','supper','bridge'][level%3]);
+  solveBonus(fr);
   assert.equal(fr('data.points'),balance+20);
  }
  assert.equal(fr('data.bonusClaims.length'),6);assert.equal(fr('data.completed.length'),6);
@@ -171,8 +168,11 @@ const settle=()=>new Promise(r=>setImmediate(r));
  const mapButtons=he.get('adventureMap').children.flatMap(c=>c.children.filter(e=>e.dataset.level!==undefined));assert.ok(mapButtons.every(b=>!b.children.some(c=>String(c.textContent).includes('★')||c.textContent==='Bloqueado')));
  assert.ok(!fs.readFileSync('index.html','utf8').includes('mapContinue'));assert.ok(!fs.readFileSync('index.html','utf8').includes('forestCustomizeBtn'));
  for(let seed=1;seed<=120;seed++){
-  const round=fr(`buildBonus('round:${seed}')`);assert.equal(round.countItems.filter(x=>x==='fly').length,round.answer);assert.equal(round.options.filter(x=>x===round.answer).length,1);assert.equal(new Set(round.options).size,3);assert.equal(round.sequence.length,4);assert.ok(round.sequence.slice(1).every((v,i)=>v!==round.sequence[i]));assert.deepEqual([...round.cards].sort(),[0,0,1,1,2,2]);
+  const round=fr(`buildBonus('round:${seed}')`);assert.equal(round.tiles.length,5);assert.equal(round.tiles.filter(t=>!t.fixed).length,3);
+  assert.equal(round.swaps.length,3);assert.equal(new Set(round.slots).size,3);
+  for(const wave of round.waves){assert.equal(wave.filter(x=>x==='fly').length,3);assert.equal(wave.filter(x=>x==='butterfly').length,2);assert.equal(wave.filter(x=>x==='bee').length,1)}
  }
+
  // Check every normal progression boundary, including a replay and the finale.
  const audit=boot();await settle();const qr=audit.run,qe=audit.els;
  const mapNodes=()=>qe.get('adventureMap').children.flatMap(c=>c.children.filter(e=>e.dataset.level!==undefined));
@@ -228,33 +228,77 @@ const settle=()=>new Promise(r=>setImmediate(r));
 
  qr('openForest()');assert.equal(qe.get('forestBack').focused,true);assert.ok(!fs.readFileSync('index.html','utf8').includes('forest-atmosphere'));assert.ok(fs.readFileSync('index.html','utf8').includes('autofocus id="forestBack"'));
  assert.deepEqual(Array.from(qr('COQUIS.slice(0,6).map(c=>c.name)')),['Coquí Dorado','Pistoco','Amapola','Sila','Betances','Rita']);
- // A payout cannot be requested before any of the three objectives is solved.
- for(const type of ['pairs','song','count']){
-  qr(`data.bonusCounter++;data.bonusPending=missionKey();openBonus();bonusRound.type='${type}'`);
-  const balance=qr('data.points');assert.equal(qr('completeBonus()'),false);assert.equal(qr('data.points'),balance);
-  if(type==='song'){qr("bonusRound.phase='answer';bonusPick((bonusRound.sequence[0]+1)%3)");assert.equal(qr('bonusRound.input.length'),0)}
-  if(type==='count'){qr('bonusPick(bonusRound.answer+100)');assert.equal(qr('bonusRound.submittedAnswer'),undefined)}
- }
- // Complete every challenge type over 120 generated rounds, including wrong inputs.
+
+ // Exhaustive bridge rotations: exactly one arrangement of the three corners connects.
+ let working=0;
+ qr("data.bonusPending='round:3';openBonus()");
+ for(let a=0;a<4;a++)for(let b=0;b<4;b++)for(let c=0;c<4;c++){
+  const valid=qr(`bonusRound.tiles.find(t=>t.index===0).rotation=${a};bonusRound.tiles.find(t=>t.index===2).rotation=${b};bonusRound.tiles.find(t=>t.index===5).rotation=${c};bridgeConnected(bonusRound)`);
+  if(valid)working++;
+ }assert.equal(working,1);
+ // 300 complete challenges: legal solutions, wrong choices, all stages, duplicate/stale inputs.
  const mini=boot();await settle();const mr=mini.run;
- for(let n=1;n<=120;n++){
-  mr(`data.bonusPending='round:${10000+n}';bonusRound=buildBonus(data.bonusPending);renderBonus()`);const before=mr('data.points'),type=mr('bonusRound.type');
+ const uniqueBridges=new Set(),uniqueLeafEnds=new Set(),uniqueDinners=new Set();
+ for(let n=1;n<=300;n++){
+  mr(`data.bonusPending='round:${10000+n}';openBonus()`);const balance=mr('data.points'),type=mr('bonusRound.type');
   assert.equal(mr('completeBonus()'),false);
-  if(type==='pairs'){
-   mr('bonusPick(0);bonusPick(bonusRound.cards.findIndex((v,i)=>i!==0&&v!==bonusRound.cards[0]))');assert.equal(mr('data.points'),before);assert.equal(mr('bonusRound.matched.length'),0);
-   mr('bonusRound.revealed=[];for(let value=0;value<3;value++)for(let i=0;i<6;i++)if(bonusRound.cards[i]===value)bonusPick(i)');
-  }else if(type==='song'){
-   mr("bonusRound.phase='answer';bonusPick((bonusRound.sequence[0]+1)%3)");assert.equal(mr('data.points'),before);
-   const sequence=Array.from(mr('bonusRound.sequence'));for(let i=0;i<4;i++){mr(`bonusPick(${sequence[i]})`);assert.equal(mr('data.points'),before+(i===3?20:0))}
+  if(type==='bridge'){
+   uniqueBridges.add(mr('JSON.stringify(bonusRound.tiles.map(t=>t.rotation))'));
+   assert.equal(mr('bridgeConnected(bonusRound)'),false);
+   assert.equal(mr('bonusPick(3)'),false);assert.equal(mr('bonusPick(8)'),false);
+  }else if(type==='leaves'){
+   assert.equal(mr('bonusPick(0)'),false);assert.equal(mr('startLeafShuffle()'),true);
+   assert.equal(mr('startLeafShuffle()'),false);
+   for(let step=0;step<3;step++){mr('advanceLeafShuffle(bonusRound)');assert.equal(mr('completeBonus()'),false);assert.equal(mr('bonusPick(0)'),false)}
+   mr('advanceLeafShuffle(bonusRound)');uniqueLeafEnds.add(mr('bonusRound.slots[bonusRound.targetLeaf]'));
+   assert.equal(mr('bonusRound.phase'),'answer');
+   mr('bonusPick((bonusRound.slots[bonusRound.targetLeaf]+1)%3)');assert.equal(mr('bonusRound.phase'),'miss');assert.equal(mr('data.points'),balance);
   }else{
-   for(const wrong of Array.from(mr('bonusRound.options.filter(n=>n!==bonusRound.answer)'))){mr(`bonusPick(${wrong})`);assert.equal(mr('data.points'),before)}
-   mr('bonusPick(bonusRound.answer)');
+   uniqueDinners.add(mr('JSON.stringify(bonusRound.waves)'));
+   assert.equal(mr('advanceSupper(bonusRound)'),false);
+   mr("bonusPick(bonusRound.waves[0].findIndex(k=>k!=='fly'))");assert.equal(mr('bonusRound.caught.length'),0);
+   mr("globalThis.oldSupper=bonusRound;globalThis.firstFly=bonusRound.waves[0].indexOf('fly');bonusPick(firstFly)");
+   assert.equal(mr('bonusPick(firstFly)'),false);assert.equal(mr('completeBonus()'),false);
   }
-  assert.equal(mr('data.points'),before+20);assert.equal(mr('completeBonus()'),false);assert.equal(mr('bonusPick(0)'),false);
+  solveBonus(mr);
+  assert.equal(mr('data.points'),balance+20);assert.equal(mr('completeBonus()'),false);assert.equal(mr('bonusPick(0)'),false);
+  if(type==='bridge')assert.ok(mr('bonusRound.moves')<=9);
+  if(type==='supper')assert.equal(mr('bonusPick(firstFly,oldSupper,0)'),false);
  }
- console.log('PASS: 120 full minigame rounds, wrong answers and all intermediate memory steps; payout only at solved objective; replayed click and duplicate completion rejected.');
+ assert.ok(uniqueBridges.size>12);assert.equal(uniqueLeafEnds.size,3);assert.ok(uniqueDinners.size>50);
+ // Real scheduled callbacks: 4 seconds to follow leaves; close and background cancel work.
+ let clock=0,serial=0;const tasks=new Map();
+ const timed=boot(null,{setTimeout:(fn,delay)=>{const id=++serial;tasks.set(id,{fn,at:clock+delay});return id},clearTimeout:id=>tasks.delete(id)});
+ await settle();const tr=timed.run,te=timed.els;
+ function tick(ms){const end=clock+ms;for(;;){const next=[...tasks].filter(([,v])=>v.at<=end).sort((a,b)=>a[1].at-b[1].at)[0];if(!next)break;clock=next[1].at;tasks.delete(next[0]);next[1].fn()}clock=end}
+ tr("data.bonusPending='round:1';openBonus();startLeafShuffle()");
+ tick(699);assert.equal(tr('bonusRound.shuffleStep'),0);tick(1);assert.equal(tr('bonusRound.shuffleStep'),1);
+ tick(2200);assert.equal(tr('bonusRound.shuffleStep'),3);assert.equal(tr('bonusRound.phase'),'shuffle');tick(1100);assert.equal(tr('bonusRound.phase'),'answer');assert.equal(tr('bonusTimers.size'),0);
+ tr('startLeafShuffle()');tick(200);te.get('bonus').close();te.get('bonus').emit('close');assert.equal(tr('bonusTimers.size'),0);tick(10000);assert.equal(tr('data.points'),0);
+ tr('openBonus();startLeafShuffle()');tick(700);
+ timed.ctx.document.visibilityState='hidden';for(const fn of timed.ctx.document.listeners.visibilitychange)fn();
+ assert.equal(tr('bonusRound.phase'),'peek');assert.equal(tr('bonusTimers.size'),0);tick(10000);assert.equal(tr('data.points'),0);
+ timed.ctx.document.visibilityState='visible';tr('data.motion=true;startLeafShuffle()');tick(4900);assert.equal(tr('bonusRound.phase'),'answer');tr('bonusPick(bonusRound.slots[bonusRound.targetLeaf])');assert.equal(tr('data.points'),20);
+ tr("data.bonusPending='round:2';openBonus();for(let i=0;i<6;i++)if(bonusRound.waves[0][i]==='fly')bonusPick(i)");
+ assert.equal(tr('bonusRound.phase'),'between');tick(649);assert.equal(tr('bonusRound.wave'),0);tick(1);assert.equal(tr('bonusRound.wave'),1);
+ // Old DOM callbacks cannot affect a replacement challenge or a new insect wave.
+ tr("globalThis.prior=bonusRound;globalThis.stale=bonusRound.waves[0].indexOf('fly')");
+ assert.equal(tr('bonusPick(stale,prior,0)'),false);tr("data.bonusPending='round:3';openBonus()");assert.equal(tr('bonusPick(0,prior,1)'),false);
+ // Theme preferences and board contents survive cosmetic changes and reload.
+ const palettes=new Set(),scenes=new Set();
+ for(const theme of ['leaf','night','garden'])for(let level=0;level<60;level++){
+  const look=mr(`boardAppearance(${level},'${theme}')`);
+  assert.equal(look.palette.length,8);assert.equal(new Set(look.palette).size,8);assert.equal(look.chapter,Math.floor(level/10));
+  if(theme==='night'){palettes.add(look.palette.join(','));scenes.add(look.scene)}
+ }
+ assert.equal(palettes.size,60);assert.ok(scenes.size>=4);
+ mr("data.theme='garden';start(8);play(puzzle().solution[0]);globalThis.beforeCosmetic=JSON.stringify(game);theme();paintBoardAppearance()");
+ assert.equal(mr('JSON.stringify(game)'),mr('beforeCosmetic'));assert.equal(mr('data.theme'),'garden');
+ const cosmeticsSaved=boot(JSON.parse(mini.storage['coquidoku-v1']));await settle();assert.equal(cosmeticsSaved.run('data.theme'),'garden');assert.equal(cosmeticsSaved.run('JSON.stringify(game)'),mr('beforeCosmetic'));
+
+ console.log('PASS: 300 full short mini-games, all 64 bridge orientations, 60 distinct level palettes, timed leaf shuffles, two food waves; one payout; stale callbacks rejected; close/background timer cleanup.');
  console.log('PASS: all 61 progression states; completed green/current yellow/locked gray exclusive; exactly one current and caption; locks only beside locked steps; one region per screen, all ten stops visible, no layout collisions at 320–500px; finger dragging, saved coordinates and simultaneous distributed food; replay cannot recolor completed level; finale fully green; initial focus stays off coquis; updated names; incomplete objectives cannot award points.');
- console.log('PASS: insects retained until contact and then all eaten; no preselected feeding or character; reversed ascending route; only reached chapters rendered; no stars/Continue/manual decor; 120 generated challenges have valid counts, unique correct option and meaningful memory sequences.');
+ console.log('PASS: insects retained until contact and then all eaten; no preselected feeding or character; reversed ascending route; only reached chapters rendered; no stars/Continue/manual decor; 120 generated challenges have solvable bridges, three trackable swaps and two well-defined food waves.');
  console.log('PASS: real frame-clock hop at 800ms and exactly 15 seconds later; 36px apex; rest/motion pause; loop cleanup; feeding attracts without points/seeds; 10 reached-region stops; future level protection; legacy progression and in-progress game preserved; character close leads to map; exact user audio only.');
  console.log('PASS: real audio element plays directly from discovery and resident button; mute respected in game; playback session selected when supported; visible playback failures; no Web Audio dependency; native media playback and day/night preserved.');
  console.log('PASS: points exclusively from all three minigames; no duplicate payouts; confirmed purchases with exact balance; no purchase of finale; 60 distinct normal levels for Boricua; all unlocked residents; decor and positions persist; no locked forest previews; legacy friends retained.');

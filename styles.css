@@ -52,3 +52,52 @@ body[data-theme=garden]{--message-bg:#fff2ec}
 #forest .forest-friend{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;cursor:grab}
 #forest .forest-friend:active{cursor:grabbing}
 #forest .forest-friend img{-webkit-user-drag:none;user-select:none}
+
+/* Per-level colors are set on body without replacing any board cell or sprite. */
+.app:before{background-image:linear-gradient(var(--bg),transparent 14%,transparent 94%,var(--bg)),var(--level-scene,var(--scene));background-position:var(--level-position,center);background-size:cover}
+.level-mission{background:var(--panel);border-radius:12px;padding:8px 10px}
+#bonus{max-width:460px;width:calc(100% - 24px);padding:20px;overflow-x:hidden}
+#bonusInstructions{font-size:13px;line-height:1.65;min-height:42px;margin-bottom:8px}
+#bonusReward{font-size:12px;padding:9px 12px;border-radius:13px;background:var(--button)}
+.mini-world{margin:12px 0;min-height:190px}
+.mini-world img{user-select:none;-webkit-user-drag:none;pointer-events:none}
+.bridge-scene,.leaf-scene,.supper-scene,.mini-victory{position:relative;isolation:isolate;overflow:hidden;border:1px solid #eddeb47a;border-radius:24px;box-shadow:inset 0 0 25px #153c3d33,0 9px 20px #0002}
+.bridge-scene{aspect-ratio:1.15;background:url('assets/bonus-river.webp') center/cover}
+.bridge-grid{position:absolute;inset:8% 14%;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:0}
+.bridge-tile{position:relative;min-width:44px;min-height:44px;background:none;border:0;padding:0;overflow:visible;filter:drop-shadow(0 6px 2px #09282b70)}
+.bridge-tile:disabled{opacity:1;cursor:default}
+.bridge-water{pointer-events:none}
+.bridge-arm{position:absolute;left:calc(50% - 12px);bottom:50%;width:24px;height:53%;transform-origin:50% 100%;background:repeating-linear-gradient(0deg,#b98946 0 5px,#dab66f 6px 11px,#78562d 12px 14px);border-left:2px solid #e8c78b;border-right:2px solid #704c28;box-shadow:inset 0 0 3px #fff5,3px 0 0 #704b26}
+.bridge-joint{position:absolute;left:calc(50% - 13px);top:calc(50% - 13px);width:26px;height:26px;border-radius:5px;background:linear-gradient(135deg,#e6c285,#a46f34);box-shadow:inset 0 1px 2px #fff8}
+.bridge-turn{position:absolute;z-index:2;left:calc(50% - 12px);top:calc(50% - 12px);width:24px;height:24px;display:grid;place-items:center;border-radius:50%;font-size:20px;font-weight:800;color:#48391f;background:#fff2bdde;text-shadow:0 1px white;box-shadow:0 1px 3px #0004}
+.bridge-tile.turnable:active{filter:brightness(1.15) drop-shadow(0 3px 1px #09282b70)}
+.bridge-waiting{position:absolute;left:3%;top:43%;width:48px;height:48px;object-fit:contain;filter:drop-shadow(0 3px 2px #0006);z-index:3}
+.bridge-goal{position:absolute;right:0;top:48%;font-size:8px;letter-spacing:1px;background:#f8e5ac;color:#3c5937;border-radius:6px;padding:5px 3px;box-shadow:0 3px 0 #9d7a40}
+.mini-caption{font-size:12px;margin:13px 0 3px;color:var(--sub)}
+.leaf-scene{height:220px;background:linear-gradient(#154a3533,#11434155),url('assets/bonus-river.webp') center/cover}
+.shell-leaf{position:absolute;top:72px;width:33.333%;height:112px;min-width:44px;padding:0;background:none;border:0;transition:left .85s cubic-bezier(.4,0,.2,1),transform .6s;z-index:2;opacity:1!important}
+.shell-leaf img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 9px 4px #072e2c88)}
+.shell-leaf.lifted{transform:translateY(-65px) rotate(-8deg)}
+.shell-frog{position:absolute;top:117px;width:60px;height:60px;object-fit:contain;transform:translateX(-50%);filter:drop-shadow(0 3px 3px #0006);z-index:1}
+.leaf-labels{position:absolute;bottom:12px;left:0;right:0;display:grid;grid-template-columns:repeat(3,1fr);font-size:12px;font-weight:800;color:#fff1ce;text-shadow:0 2px 2px #12382b}
+.leaf-labels span{justify-self:center;display:grid;place-items:center;width:27px;height:27px;border:1px solid #f8e3ae77;border-radius:50%;background:#153e3ecc}
+.mini-watch{min-height:46px;margin-top:12px;width:100%;font-size:13px}
+.supper-scene{height:295px;background:linear-gradient(#254c2440,#123b2466),url('assets/yunque-1-day.webp') center 82%/cover}
+.supper-bugs{position:absolute;inset:14px 14px 100px;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:9px}
+.supper-bug{position:relative;min-width:44px;min-height:56px;padding:4px;border:1px solid #e5f4b773;border-radius:50% 50% 45% 45%;background:radial-gradient(ellipse at 40% 20%,#8cba6de0,#3d724ce8);box-shadow:0 6px 0 #214b39cc,0 9px 8px #0004,inset 0 2px 1px #cce5a8aa;touch-action:manipulation}
+.supper-bug img{width:100%;height:100%;max-height:75px;object-fit:contain;filter:drop-shadow(0 3px 2px #0007)}
+.supper-bug:disabled{opacity:1;cursor:default}
+.supper-bug.eaten img{opacity:0;animation:mini-munch .45s ease-in both}
+.supper-bug.eaten:after{content:'✓';position:absolute;inset:0;display:grid;place-items:center;color:#dff4b0;font-size:25px}
+.supper-frog{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:100px;height:100px;object-fit:contain;filter:drop-shadow(0 4px 3px #0007)}
+.mini-victory{min-height:210px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at top,#9ebf6b55,transparent 70%),var(--button)}
+.mini-win-frog{width:130px;height:130px;object-fit:contain;animation:mini-happy .7s ease-out}
+.mini-victory p{font-size:13px;margin:8px 12px 16px}
+.bridge-waiting.crossing{animation:mini-cross 3s ease-in-out forwards;left:3%;top:43%}
+@keyframes mini-cross{0%{left:3%;top:43%}15%{left:19%;top:43%}30%{left:19%;top:14%}50%{left:43%;top:14%}68%{left:67%;top:14%}84%{left:67%;top:43%}100%{left:85%;top:43%}}
+@keyframes mini-happy{0%{transform:translateY(14px) scale(.9)}55%{transform:translateY(-12px) scale(1.04)}100%{transform:none}}
+@keyframes mini-munch{0%{opacity:1;transform:none}100%{opacity:0;transform:translateY(55px) scale(.15)}}
+.reduced-motion .shell-leaf{transition:none}
+.reduced-motion .mini-win-frog,.reduced-motion .supper-bug.eaten img{animation:none}
+.reduced-motion .bridge-waiting.crossing{animation:none;left:85%;top:43%}
+@media(max-width:350px){#bonus{padding:15px}.leaf-scene{height:200px}.supper-scene{height:270px}.bridge-arm{width:20px;left:calc(50% - 10px)}}
