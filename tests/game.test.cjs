@@ -385,15 +385,16 @@ function solveBonus(run){
  now+=180000;r('tickResidentCare(Date.now(),true)');assert.equal(e.get('forestResidents').children[0].sleepBadge.hidden,false);assert.equal(e.get('residentSleepBtn').disabled,false);
  r('globalThis.petRandom=Math.random;Math.random=()=>.5');const sprite=e.get('forestResidents').children[0].firstElementChild;
  assert.equal(r("putResidentToSleep('sol')"),true);const until=r('data.care.sol.sleepUntil'),duration=until-now;
- assert.ok(duration>=45000&&duration<=120000);assert.equal(r("putResidentToSleep('sol')"),false);assert.equal(r("putResidentToSleep('menta')"),false);
+ assert.ok(duration>=15*60000&&duration<=25*60000);assert.equal(r("putResidentToSleep('sol')"),false);assert.equal(r("putResidentToSleep('menta')"),false);
  assert.equal(e.get('forestResidents').children[0].firstElementChild,sprite);assert.ok(sprite.src.endsWith('coqui-sol-sleep.webp'));
  const hops=r('ecosystem[0].hops');r('updateEcosystem(1000);updateEcosystem(5000)');assert.equal(r('ecosystem[0].hops'),hops);
  assert.equal(r("feedResident('sol','worm')"),null);
  r("insects=[];feedAt(67,65,5000)");assert.ok(r("insects.every(b=>b.owner!=='sol')"));
- const saved=JSON.parse(pet.storage['coquidoku-v1']),restored=boot(saved,{Date:PetDate});await settle();restored.run('openForest()');
- assert.equal(restored.run('data.care.sol.sleepUntil'),until);assert.ok(restored.els.get('forestResidents').children[0].firstElementChild.src.endsWith('-sleep.webp'));
+ now+=15*60000;const saved=JSON.parse(pet.storage['coquidoku-v1']),restored=boot(saved,{Date:PetDate});await settle();restored.run('openForest()');
+ assert.equal(duration,20*60000);assert.equal(restored.run('data.care.sol.sleepUntil'),until);assert.equal(restored.run("residentIsSleeping('sol')"),true);assert.ok(restored.els.get('forestResidents').children[0].firstElementChild.src.endsWith('-sleep.webp'));
  now=until-1;restored.run('tickResidentCare(Date.now(),true)');assert.equal(restored.run("residentIsSleeping('sol')"),true);
  now++;restored.run('tickResidentCare(Date.now(),true)');assert.equal(restored.run("residentIsSleeping('sol')"),false);assert.ok(restored.els.get('forestResidents').children[0].firstElementChild.src.endsWith('coqui.webp'));assert.ok(restored.run('data.care.sol.nextSleepAt')>now);
+ const wokeWhileClosed=boot(saved,{Date:PetDate});await settle();wokeWhileClosed.run('openForest()');assert.equal(wokeWhileClosed.run("residentIsSleeping('sol')"),false);assert.equal(wokeWhileClosed.run('data.care.sol.sleepUntil'),0);
  r("careFor('sol');$('resident').close();data.behaviors={};insects=[];Math.random=()=>.99");
  const points=r('data.points'),seeds=r('victories()');
  for(const type of ['fly','butterfly','worm','ant']){
@@ -418,7 +419,7 @@ function solveBonus(run){
  for(const fn of pet.ctx.document.listeners.click)fn({target:{closest:()=>null}});await settle();assert.equal(map.paused,false);
  r('closeMap();openForest()');e.get('forestHelpBtn').onclick();assert.equal(e.get('forestAmbience').paused,true);r("$('help').close()");e.get('help').emit('close');await settle();assert.equal(e.get('forestAmbience').paused,false);
  now+=24*60*60*1000;r('tickResidentCare(Date.now(),true)');assert.equal(r('data.care.sol.satiety'),0);assert.equal(r('progression().unlocked.length'),3);
- console.log('PASS: slow real-time hunger; four variable foods and random one-bite fullness without points; consumption only at contact; sleep icon, closed eyes and no hops/eating; 45–120s naps persist over reload and wake automatically; hold/release/drag/cancel/exit sound lifecycle; guide close and trusted-click music retry; no loss of characters after a day away.');
+ console.log('PASS: slow real-time hunger; four variable foods and random one-bite fullness without points; consumption only at contact; sleep icon, closed eyes and no hops/eating; 15–25 minute real-time naps stay asleep after 15 minutes away and wake at the saved deadline; hold/release/drag/cancel/exit sound lifecycle; guide close and trusted-click music retry; no loss of characters after a day away.');
  }
  // Decoded effects start before rendering, and the master switch stops every board channel.
  {
@@ -500,22 +501,21 @@ function solveBonus(run){
  for(const fn of winEvents.pagehide)fn();assert.equal(track.paused,true);
  ur('closeMap();openMap()');await settle();ue.get('mapMusicBtn').onclick();assert.equal(ur('data.mapMusic'),false);assert.equal(track.paused,true);
  const mutedMusic=boot(JSON.parse(music.storage['coquidoku-v1']));await settle();assert.equal(mutedMusic.run('data.mapMusic'),true);assert.equal(mutedMusic.els.get('mapMusic').playCount,1);
- // Initial blocked autoplay keeps a real gesture entry available, with an escape if audio fails.
+ // A single Comenzar gesture starts music and always enters, even when media fails.
  const firstEntry=boot({intro:true,mapMusic:false}),fe=firstEntry.els,fr=firstEntry.run;
  const entryTrack=fe.get('mapMusic');entryTrack.play=()=>Promise.reject(new Error('gesture required'));
  await settle();assert.equal(fe.get('mapAudioGate').hidden,false);assert.equal(fe.get('levels').dataset.entryLocked,'true');
  assert.equal(fe.get('mapAudioStart').hidden,true);assert.equal(fe.get('mapEnterMusic').focused,true);
- fe.get('mapEnterMusic').onclick();await settle();assert.equal(fe.get('mapAudioGate').hidden,false);assert.ok(fe.get('mapEntryNotice').textContent.includes('reintentar'));
  let entryStartedAt;entryTrack.currentTime=45;entryTrack.paused=true;entryTrack.play=()=>{entryStartedAt=entryTrack.currentTime;entryTrack.paused=false;return Promise.resolve()};
  fe.get('mapEnterMusic').onclick();await settle();assert.equal(entryStartedAt,0);assert.equal(fe.get('mapAudioGate').hidden,true);assert.equal(fe.get('levels').dataset.entryLocked,'false');assert.equal(fr('mapMusicPlaying'),true);
  const silentEntry=boot({intro:true}),se=silentEntry.els,sr=silentEntry.run;
  se.get('mapMusic').play=()=>Promise.reject(new Error('unavailable'));await settle();assert.equal(se.get('mapAudioGate').hidden,false);
- se.get('mapEnterSilent').onclick();assert.equal(se.get('mapAudioGate').hidden,true);assert.equal(sr('data.mapMusic'),false);assert.equal(se.get('mapMusic').paused,true);
+ se.get('mapEnterMusic').onclick();assert.equal(se.get('mapAudioGate').hidden,true);await settle();assert.equal(sr('data.mapMusic'),true);assert.equal(sr('mapMusicBlocked'),true);assert.equal(se.get('mapAudioStart').hidden,false);
  sr('closeMap();openMap()');await settle();assert.equal(se.get('mapAudioGate').hidden,true);assert.equal(se.get('mapAudioStart').hidden,false);
  const helpMarkup=fs.readFileSync('index.html','utf8').split('<dialog id="help"')[1].split('</dialog>')[0];
  assert.ok(helpMarkup.indexOf('<ol>')<helpMarkup.indexOf('id="levelMission"'));
  const mapMarkup=fs.readFileSync('index.html','utf8').split('<dialog id="levels"')[1].split('</dialog>')[0];
- assert.ok(mapMarkup.indexOf('class="map-footer"')<mapMarkup.indexOf('id="mapHelpBtn"'));assert.ok(!mapMarkup.includes('class="quick-help'));
+ assert.ok(mapMarkup.indexOf('class="map-footer"')<mapMarkup.indexOf('id="mapHelpBtn"'));assert.ok(!mapMarkup.includes('class="quick-help'));assert.ok(mapMarkup.includes('class="primary">Comenzar</button>'));assert.ok(!mapMarkup.includes('mapEnterSilent'));
  // A delayed successful play cannot make music leak into the board.
  ur('closeMap();data.mapMusic=true');let resolvePlay;track.play=()=>new Promise(resolve=>{resolvePlay=resolve});
  ur('openMap();closeMap()');resolvePlay();await settle();assert.equal(track.paused,true);assert.equal(ur('mapMusicPlaying'),false);
@@ -527,6 +527,28 @@ function solveBonus(run){
  console.log('PASS: fixed enchanted forest with 60 palettes; hidden empty booster and compact owned icon; instructions only in help; quiet map music stops on level selection, forest, close, background and pagehide; persistent mute, rejected/delayed playback recovery and no board leakage.');
  }
 
+ // All four picker buttons must create the correct food on the ground and feed only on arrival.
+ {
+ let now=1800000000000;class FoodDate extends Date{static now(){return now}}
+ const food=boot({intro:true},{Date:FoodDate}),r=food.run,e=food.els;await settle();r('closeMap();openForest();Math.random=()=>.5');
+ for(const reduced of [false,true])for(const [id,type]of [['foodFly','fly'],['foodButterfly','butterfly'],['foodWorm','worm'],['foodAnt','ant']]){
+  r(`insects=[];data.motion=${reduced};data.care.sol.satiety=10;data.care.sol.nextSleepAt=Date.now()+3600000;renderForest();ecosystem[0].position={x:50,y:70}`);
+  e.get(id).onclick();assert.equal(r('feeding'),true);assert.equal(e.get('forestFoodPicker').hidden,true);
+  for(const click of e.get('forestScene').listeners.click)click({target:{closest:()=>null},clientX:200,clientY:490});
+  assert.equal(r('insects.length'),3);assert.equal(r(`insects.every(b=>b.type==='${type}'&&b.owner==='sol')`),true);
+  const source=r(`FOREST_FOODS.${type}.src`);assert.ok(e.get('forestFood').children.every(img=>img.src===source));
+  assert.equal(r('data.care.sol.satiety'),10);
+  const start=r('forestClock');for(let t=start;t<=start+12000;t+=50)r(`updateEcosystem(${t})`);
+  assert.equal(r('insects.length'),0,type+' food consumed');assert.equal(e.get('forestFood').children.length,0);assert.ok(r('data.care.sol.satiety')>10);
+ }
+ // Mixed types dropped together retain their own food kind and are all consumed.
+ r('insects=[];data.motion=false;data.care.sol.satiety=10;renderForest();ecosystem[0].position={x:50,y:70}');
+ for(const type of ['fly','butterfly','worm','ant'])r(`selectForestFood('${type}');feedAt(50,70)`);
+ assert.equal(r('new Set(insects.map(b=>b.type)).size'),4);assert.equal(r('insects.length'),12);
+ const mixedStart=r('forestClock');for(let t=mixedStart;t<=mixedStart+30000;t+=50)r(`updateEcosystem(${t})`);
+ assert.equal(r('insects.length'),0);assert.equal(r('data.points'),0);
+ console.log('PASS: single Comenzar entry; all four foods from picker to ground to consumption in normal/reduced motion; simultaneous mixed food portions.');
+ }
  console.log('PASS: 300 full short mini-games, all 64 bridge orientations, 60 distinct level palettes, timed leaf shuffles, two food waves; one payout; stale callbacks rejected; close/background timer cleanup.');
  {
  const t=boot({intro:true});await settle();const r=t.run,e=t.els,a=e.get('forestAmbience');

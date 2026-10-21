@@ -93,7 +93,7 @@ function feedResident(id,type,now=Date.now()){
 function putResidentToSleep(id,now=Date.now()){
  if(!COQUIS.some(c=>c.id===id&&unlockedCoqui(c)))return false;
  const c=careFor(id,now);if(c.sleepUntil>now||now<c.nextSleepAt)return false;
- c.sleepUntil=now+careRandom(45000,120000);data.behaviors[id]='explore';
+ c.sleepUntil=now+careRandom(15*60000,25*60000);data.behaviors[id]='explore';
  const state=ecosystem.find(s=>s.id===id);
  if(state){state.started=null;state.targetFood=null;state.next=Infinity;resetResidentPose(state);data.forestCoordinates[id]={...state.position}}
  insects.filter(b=>b.owner===id).forEach(b=>b.owner=null);
@@ -103,7 +103,7 @@ function paintResidentDetail(now=Date.now()){
  if(!$('resident').open)return;
  const c=COQUIS.find(c=>c.id===residentId),care=careFor(residentId,now),sleeping=care.sleepUntil>now,sleepy=now>=care.nextSleepAt;
  $('residentImage').src=sleeping?c.sleepSrc:c.src;
- $('residentCareText').textContent='Alimento: '+Math.round(care.satiety)+'% · '+(sleeping?'Durmiendo · despierta en '+Math.ceil((care.sleepUntil-now)/1000)+' s':sleepy?'Tiene sueño. Puedes ponerlo a dormir.':'Despierto y tranquilo.');
+ $('residentCareText').textContent='Alimento: '+Math.round(care.satiety)+'% · '+(sleeping?'Durmiendo · despierta a las '+new Intl.DateTimeFormat('es-PR',{hour:'numeric',minute:'2-digit'}).format(care.sleepUntil)+' · '+Math.ceil((care.sleepUntil-now)/60000)+' min':sleepy?'Tiene sueño. Puedes ponerlo a dormir.':'Despierto y tranquilo.');
  $('residentSleepBtn').disabled=sleeping||!sleepy;$('residentSleepBtn').textContent=sleeping?'Durmiendo…':'Dormir un ratito ☾';
 }
 let lastCarePaint=0,lastCareSave=0;
@@ -329,19 +329,16 @@ $('mapMusicBtn').onclick=()=>{
 };
 $('mapAudioStart').onclick=()=>syncMapMusic();
 $('mapEnterMusic').onclick=()=>{
- $('mapEntryNotice').textContent='Iniciando la música…';
- // play() runs directly inside the real click, before any asynchronous work.
- syncMapMusic().then(ok=>{if(!ok)$('mapEntryNotice').textContent='No se pudo iniciar el audio. Puedes reintentar o entrar sin sonido.'});
-};
-$('mapEnterSilent').onclick=()=>{
- mapEntryPending=false;mapEntryGateOpen=false;data.mapMusic=false;stopMapMusic();save();$('mapBack').focus({preventScroll:true});
+ // Start playback inside the real click; entering never depends on media availability.
+ syncMapMusic();
+ mapEntryPending=false;mapEntryGateOpen=false;paintMapMusic();$('mapBack').focus({preventScroll:true});
 };
 $('levels').addEventListener('close',stopMapMusic);
 $('levels').addEventListener('cancel',stopMapMusic);
 $('mapMusic').addEventListener('playing',()=>{if(!mapMusicAllowed())stopMapMusic()});
 $('mapMusic').addEventListener('error',()=>{mapMusicBlocked=true;mapMusicPlaying=false;paintMapMusic()});
 function retryMapAudio(event){
- if(data.mapMusic&&mapMusicAllowed()&&(mapMusicBlocked||!mapMusicPlaying)&&!event.target?.closest('#mapMusicBtn,#mapAudioStart,#mapEnterMusic,#mapEnterSilent'))syncMapMusic();
+ if(data.mapMusic&&mapMusicAllowed()&&(mapMusicBlocked||!mapMusicPlaying)&&!event.target?.closest('#mapMusicBtn,#mapAudioStart,#mapEnterMusic'))syncMapMusic();
 }
 for(const type of ['pointerdown','touchend','click','keydown'])document.addEventListener(type,retryMapAudio,{capture:true,passive:true});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')stopMapMusic();else if($('levels').open)syncMapMusic()});
