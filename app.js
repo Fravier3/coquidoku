@@ -35,9 +35,9 @@ const COQUIS=[
  {id:'aurora',name:'Rita',at:50,detail:'Los colores de un nuevo día',src:'assets/coqui-aurora.webp'},
  {id:'colombiana',name:'Colombiana',at:55,detail:'Una compañera con los colores de Colombia',src:'assets/coqui-colombiana.webp'},
  {id:'boricua',name:'Boricua',at:60,detail:'El orgullo de nuestra isla',src:'assets/coqui-boricua.webp'},
- {id:'borinbiano',name:'Borinbiano',at:null,secret:true,detail:'El pequeño de Colombiana y Boricua',src:'assets/coqui-borinbiano-pearl.webp'}
+ {id:'borinbiano',name:'Borinbiano',at:null,secret:true,detail:'El pequeño de Colombiana y Boricua',src:'assets/coqui-borinbiano-flag.webp'}
 ];
-for(const c of COQUIS)c.sleepSrc=c.id==='borinbiano'?'assets/coqui-borinbiano-pearl-sleep.webp':`assets/coqui-${c.id}-sleep.webp`;
+for(const c of COQUIS)c.sleepSrc=c.id==='borinbiano'?'assets/coqui-borinbiano-flag-sleep.webp':`assets/coqui-${c.id}-sleep.webp`;
 const FOREST_STAGES=[
  {at:0,name:'Un nuevo comienzo',src:'assets/forest-0.webp',description:'Un claro tranquilo espera tus primeras semillas.'},
  {at:10,name:'Primeros brotes',src:'assets/forest-1.webp',description:'Las primeras plantas ya encuentran su lugar.'},
@@ -101,8 +101,8 @@ function paintCareer(){const p=progression(),active=activeCoqui();$('careerCount
 function chooseCoqui(id){const c=COQUIS.find(c=>c.id===id);if(!c||!unlockedCoqui(c))return false;data.character=id;render();renderCollection();feedback(`${c.name} te acompaña en el tablero.`);return true}
 function renderCollection(){
  const p=progression(),roster=visibleCoquis();
- $('collectionCount').textContent=p.unlocked.length+' de '+roster.length+' amigos';
- $('nextCoqui').textContent=p.next?'Próximo: '+p.next.name+' · completa '+p.next.at+' niveles.':babyUnlocked()?'¡Tu familia de coquíes está completa!':'¡Desbloqueaste a todos los compañeros de la aventura!';
+ $('collectionCount').textContent=p.unlocked.length+' de '+COQUIS.length+' amigos';
+ $('nextCoqui').textContent=p.next?'Próximo: '+p.next.name+' · completa '+p.next.at+' niveles.':babyUnlocked()?'¡Tu familia de coquíes está completa!':'Tu personaje bonus sigue por revelar.';
  const cards=document.createDocumentFragment();
  for(const c of roster){
   const unlocked=unlockedCoqui(c),selected=c.id===data.character,card=document.createElement('article');
@@ -114,6 +114,15 @@ function renderCollection(){
   const button=document.createElement('button');button.className=selected?'selected-coqui':'pick-coqui';button.textContent=selected?'✓ Elegido':unlocked?'Elegir':'Completa '+c.at+' niveles';button.disabled=selected||!unlocked;
   button.setAttribute('aria-label',c.name+': '+button.textContent);button.onclick=()=>chooseCoqui(c.id);
   card.append(image,title,desc,target,button);cards.append(card);
+ }
+ if(!babyUnlocked()){
+  const card=document.createElement('article');card.className='coqui-card mystery-card';card.setAttribute('aria-label','Personaje bonus sin revelar');
+  const portrait=document.createElement('div');portrait.className='mystery-portrait';
+  const silhouette=document.createElement('img');silhouette.src='assets/coqui.webp';silhouette.alt='Silueta negra de un personaje bonus';silhouette.width=112;silhouette.height=112;
+  const mark=document.createElement('span');mark.className='mystery-mark';mark.textContent='?';mark.setAttribute('aria-hidden','true');portrait.append(silhouette,mark);
+  const title=document.createElement('h3');title.textContent='Personaje bonus';
+  const description=document.createElement('p');description.textContent='Ten por más de 24 horas a Boricua y Colombiana juntos en El Yunque para revelar el personaje bonus.';
+  card.append(portrait,title,description);cards.append(card);
  }
  $('coquiCards').replaceChildren(cards);save();
 }
