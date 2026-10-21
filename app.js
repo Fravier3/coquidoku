@@ -133,16 +133,34 @@ const FOREST_FOODS={
  ant:{name:'Hormigas',src:'assets/food-ant.webp',min:4,max:11}
 };
 function careRandom(min,max){return min+Math.random()*(max-min)}
+const MIN_SLEEP_INTERVAL=3*60*60*1000;
+function nextSleepTime(now){return now+careRandom(MIN_SLEEP_INTERVAL,4*60*60*1000)}
 function residentIsSleeping(id,now=Date.now()){return (data.care[id]?.sleepUntil||0)>now}
+function residentIsSleepy(id,now=Date.now()){return !residentIsSleeping(id,now)&&(data.care[id]?.nextSleepAt??Infinity)<=now}
+function ensureAwakeResident(now=Date.now(),excludeId=null){
+ const residents=COQUIS.filter(unlockedCoqui).map(c=>({id:c.id,care:careFor(c.id,now)}));
+ if(residents.some(s=>s.care.sleepUntil<=now&&s.care.nextSleepAt>now&&data.behaviors[s.id]!=='rest'))return false;
+ let candidates=residents.filter(s=>s.id!==excludeId);if(!candidates.length)candidates=residents;
+ const awake=candidates.filter(s=>s.care.sleepUntil<=now&&data.behaviors[s.id]!=='rest');if(awake.length)candidates=awake;
+ const chosen=candidates[Math.floor(Math.random()*candidates.length)];if(!chosen)return false;
+ chosen.care.sleepUntil=0;chosen.care.sleepStartedAt=0;chosen.care.nextSleepAt=nextSleepTime(now);data.behaviors[chosen.id]='explore';
+ const state=ecosystem.find(s=>s.id===chosen.id);if(state){state.started=null;state.targetFood=null;state.next=forestClock+careRandom(400,1000);resetResidentPose(state)}
+ return true;
+}
 function careFor(id,now=Date.now()){
  let c=data.care[id];
  if(!c||typeof c!=='object'||!Number.isFinite(c.satiety)||!Number.isFinite(c.lastUpdate)||!Number.isFinite(c.nextSleepAt)||!Number.isFinite(c.sleepUntil)||!Number.isFinite(c.hungerRate)){
-  c=data.care[id]={satiety:careRandom(80,95),lastUpdate:now,nextSleepAt:now+careRandom(120000,300000),sleepUntil:0,hungerRate:careRandom(.45,.75)};
+  c=data.care[id]={satiety:careRandom(80,95),lastUpdate:now,nextSleepAt:nextSleepTime(now),sleepUntil:0,sleepStartedAt:0,sleepCycleV2:true,hungerRate:careRandom(.45,.75)};
  }
+ if(!c.sleepCycleV2){
+  c.sleepStartedAt=c.sleepUntil>now?Math.max(0,Math.min(now,c.sleepUntil-25*60000)):0;
+  c.nextSleepAt=Math.max(c.nextSleepAt,nextSleepTime(now));c.sleepCycleV2=true;
+ }
+ if(!Number.isFinite(c.sleepStartedAt)||c.sleepStartedAt<0)c.sleepStartedAt=c.sleepUntil>now?Math.max(0,Math.min(now,c.sleepUntil-25*60000)):0;
  c.satiety=Math.max(0,Math.min(100,c.satiety));c.hungerRate=Math.max(.45,Math.min(.75,c.hungerRate));
  const elapsed=Math.max(0,now-c.lastUpdate),asleep=Math.max(0,Math.min(now,c.sleepUntil)-c.lastUpdate);
  c.satiety=Math.max(0,c.satiety-((elapsed-asleep)+asleep*.2)/60000*c.hungerRate);c.lastUpdate=now;
- if(c.sleepUntil>0&&now>=c.sleepUntil){c.sleepUntil=0;c.nextSleepAt=now+careRandom(180000,420000)}
+ if(c.sleepUntil>0&&now>=c.sleepUntil){const wokeAt=c.sleepUntil;c.sleepUntil=0;c.sleepStartedAt=0;c.nextSleepAt=nextSleepTime(wokeAt)}
  return c;
 }
 function feedResident(id,type,now=Date.now()){
@@ -154,7 +172,9 @@ function feedResident(id,type,now=Date.now()){
 function putResidentToSleep(id,now=Date.now()){
  if(!COQUIS.some(c=>c.id===id&&unlockedCoqui(c)))return false;
  const c=careFor(id,now);if(c.sleepUntil>now||now<c.nextSleepAt)return false;
- c.sleepUntil=now+careRandom(15*60000,25*60000);data.behaviors[id]='explore';
+ if(COQUIS.filter(unlockedCoqui).length<2){$('residentCareText').textContent='Necesita otro compañero despierto para poder descansar.';return false}
+ c.sleepStartedAt=now;c.sleepUntil=now+careRandom(15*60000,25*60000);data.behaviors[id]='explore';
+ ensureAwakeResident(now,id);
  const state=ecosystem.find(s=>s.id===id);
  if(state){state.started=null;state.targetFood=null;state.next=Infinity;resetResidentPose(state);data.forestCoordinates[id]={...state.position}}
  insects.filter(b=>b.owner===id).forEach(b=>b.owner=null);
@@ -165,7 +185,7 @@ function paintResidentDetail(now=Date.now()){
  const c=COQUIS.find(c=>c.id===residentId),care=careFor(residentId,now),sleeping=care.sleepUntil>now,sleepy=now>=care.nextSleepAt;
  $('residentImage').src=sleeping?c.sleepSrc:c.src;
  $('residentCareText').textContent='Alimento: '+Math.round(care.satiety)+'% · '+(sleeping?'Durmiendo · despierta a las '+new Intl.DateTimeFormat('es-PR',{hour:'numeric',minute:'2-digit'}).format(care.sleepUntil)+' · '+Math.ceil((care.sleepUntil-now)/60000)+' min':sleepy?'Tiene sueño. Puedes ponerlo a dormir.':'Despierto y tranquilo.');
- $('residentSleepBtn').disabled=sleeping||!sleepy;$('residentSleepBtn').textContent=sleeping?'Durmiendo…':'Dormir un ratito ☾';
+ $('residentSleepBtn').disabled=sleeping||!sleepy||COQUIS.filter(unlockedCoqui).length<2;$('residentSleepBtn').textContent=sleeping?'Durmiendo…':'Dormir un ratito ☾';$('residentRest').checked=data.behaviors[residentId]==='rest';
 }
 let lastCarePaint=0,lastCareSave=0;
 function tickResidentCare(now=Date.now(),force=false){
@@ -173,15 +193,22 @@ function tickResidentCare(now=Date.now(),force=false){
  updateFamily(now);
  if($('forest').open&&babyUnlocked(now)&&!ecosystem.some(s=>s.id==='borinbiano')){renderForest();announceFamilyFinale();return}
  if($('forest').open){paintFamily();announceFamilyFinale()}
+ ensureAwakeResident(now);
  for(const state of ecosystem){
   const c=COQUIS.find(c=>c.id===state.id),care=careFor(state.id,now),sleeping=care.sleepUntil>now,sleepy=now>=care.nextSleepAt;
   const src=sleeping?c.sleepSrc:c.src;if(state.image.dataset.careSprite!==src){state.image.src=src;state.image.dataset.careSprite=src}
-  state.button.dataset.sleeping=String(sleeping);state.button.careFill.style.width=care.satiety+'%';
-  state.button.careBar.setAttribute('aria-valuenow',String(Math.round(care.satiety)));
-  state.button.careBar.style.setProperty('--care-color',care.satiety>55?'#9ac875':care.satiety>25?'#efc65f':'#e78770');
+  const wasSleeping=state.button.dataset.sleeping==='true';
+  const value=sleeping?Math.max(0,Math.min(100,(now-care.sleepStartedAt)/Math.max(1,care.sleepUntil-care.sleepStartedAt)*100)):care.satiety;
+  state.button.dataset.sleeping=String(sleeping);state.button.careFill.style.width=value+'%';
+  state.button.careBar.dataset.mode=sleeping?'sleep':'hunger';
+  state.button.careBar.setAttribute('aria-label',(sleeping?'Progreso del sueño de ':'Alimento de ')+c.name);
+  state.button.careBar.setAttribute('aria-valuenow',String(Math.round(value)));
+  state.button.careBar.setAttribute('aria-valuetext',Math.round(value)+'% '+(sleeping?'del descanso':'de alimento'));
+  state.button.careBar.style.setProperty('--care-color',sleeping?'#69b4ff':'#9ac875');
+  if(wasSleeping&&!sleeping){state.started=null;state.targetFood=null;state.next=forestClock+careRandom(400,1000)}
   state.button.sleepBadge.hidden=!(sleeping||sleepy);state.button.sleepBadge.textContent=sleeping?'Zz':'☾';
   state.button.setAttribute('aria-label',c.name+', alimento '+Math.round(care.satiety)+'%'+(sleeping?', durmiendo':sleepy?', tiene sueño':'')+'. Mantén pulsado para escuchar su canto.');
-  if(sleeping){state.started=null;state.targetFood=null;state.next=Infinity;resetResidentPose(state)}
+  if(sleeping||sleepy||data.behaviors[state.id]==='rest'){state.started=null;state.targetFood=null;state.next=Infinity;resetResidentPose(state)}
   else if(state.next===Infinity)state.next=forestClock+careRandom(500,1500);
  }
  paintResidentDetail(now);
@@ -275,7 +302,7 @@ const FOOD_REACH=32;
 function foodDistance(s,bug){return Math.hypot(bug.x-s.position.x,(bug.y-s.position.y)*1.8)}
 function closestResident(bug){
  let nearest=null,distance=FOOD_REACH;
- for(const s of ecosystem){if(s.dragging||data.behaviors[s.id]==='rest'||residentIsSleeping(s.id))continue;const d=foodDistance(s,bug);if(d<distance){nearest=s;distance=d}}
+ for(const s of ecosystem){if(s.dragging||data.behaviors[s.id]==='rest'||residentIsSleeping(s.id)||residentIsSleepy(s.id))continue;const d=foodDistance(s,bug);if(d<distance){nearest=s;distance=d}}
  return nearest;
 }
 function claimInsect(s,t){
@@ -287,12 +314,12 @@ function claimInsect(s,t){
 }
 function eatInsect(s,t){const bug=insects.find(b=>b.id===s.targetFood);if(bug&&Math.hypot(s.position.x-bug.x,s.position.y-bug.y)<.3){const meal=feedResident(s.id,bug.type||'fly');if(!meal)return;insects=insects.filter(b=>b!==bug);s.targetFood=null;renderInsects();tickResidentCare(Date.now(),true);$('forestHint').textContent=meal.after===100?'¡Ya está satisfecho!':'¡Qué rico! Su barra de alimento subió.';claimInsect(s,t)}else if(bug)s.next=t+280}
 function resetResidentPose(state){state.button.style.setProperty('--hop-y','0px');state.image.style.transform='translate3d(0,0,0)'}
-function updateEcosystem(t){forestClock=t;tickResidentCare();if(insects.length)distributeInsects(t);for(let i=0;i<ecosystem.length;i++){const s=ecosystem[i];if(s.dragging)continue;if(data.behaviors[s.id]==='rest'||residentIsSleeping(s.id)){insects.filter(b=>b.owner===s.id).forEach(b=>b.owner=null);s.targetFood=null;resetResidentPose(s);s.started=null;s.next=t+15000;continue}if(insects.length)claimInsect(s,t);if(s.next===null)s.next=t+800+i*1300;if(s.started===null&&t>=s.next){s.started=t;s.next=t+10000+((i*1297+s.hops*1931)%5001);s.from={...s.position};const bug=insects.find(b=>b.id===s.targetFood),goal=bug||{x:Math.max(8,Math.min(88,s.position.x+(s.direction?5:-5))),y:s.position.y},distance=Math.hypot(goal.x-s.position.x,goal.y-s.position.y),scale=distance>12?12/distance:1;s.target={x:s.position.x+(goal.x-s.position.x)*scale,y:s.position.y+(goal.y-s.position.y)*scale};s.direction=!s.direction;s.hops++}if(s.started!==null){const p=data.motion?1:Math.max(0,Math.min(1,(t-s.started)/900)),ease=p*p*(3-2*p),height=data.motion?0:36;s.position={x:s.from.x+(s.target.x-s.from.x)*ease,y:s.from.y+(s.target.y-s.from.y)*ease};s.button.style.left=s.position.x+'%';s.button.style.top=s.position.y+'%';s.button.style.setProperty('--hop-y',`${-4*height*p*(1-p)}px`);s.image.style.transform=`scale(${1+.06*Math.sin(p*Math.PI*2)},${1-.06*Math.sin(p*Math.PI*2)})`;if(p===1){s.started=null;resetResidentPose(s);eatInsect(s,t)}}}}
+function updateEcosystem(t){forestClock=t;tickResidentCare();if(insects.length)distributeInsects(t);for(let i=0;i<ecosystem.length;i++){const s=ecosystem[i];if(s.dragging)continue;if(data.behaviors[s.id]==='rest'||residentIsSleeping(s.id)||residentIsSleepy(s.id)){insects.filter(b=>b.owner===s.id).forEach(b=>b.owner=null);s.targetFood=null;resetResidentPose(s);s.started=null;s.next=Infinity;continue}if(insects.length)claimInsect(s,t);if(s.next===null)s.next=t+800+i*1300;if(s.started===null&&t>=s.next){s.started=t;s.next=t+10000+((i*1297+s.hops*1931)%5001);s.from={...s.position};const bug=insects.find(b=>b.id===s.targetFood),goal=bug||{x:Math.max(8,Math.min(88,s.position.x+(s.direction?5:-5))),y:s.position.y},distance=Math.hypot(goal.x-s.position.x,goal.y-s.position.y),scale=distance>12?12/distance:1;s.target={x:s.position.x+(goal.x-s.position.x)*scale,y:s.position.y+(goal.y-s.position.y)*scale};s.direction=!s.direction;s.hops++}if(s.started!==null){const p=data.motion?1:Math.max(0,Math.min(1,(t-s.started)/900)),ease=p*p*(3-2*p),height=data.motion?0:36;s.position={x:s.from.x+(s.target.x-s.from.x)*ease,y:s.from.y+(s.target.y-s.from.y)*ease};s.button.style.left=s.position.x+'%';s.button.style.top=s.position.y+'%';s.button.style.setProperty('--hop-y',`${-4*height*p*(1-p)}px`);s.image.style.transform=`scale(${1+.06*Math.sin(p*Math.PI*2)},${1-.06*Math.sin(p*Math.PI*2)})`;if(p===1){s.started=null;resetResidentPose(s);eatInsect(s,t)}}}}
 function distributeInsects(t){
  for(const bug of insects)bug.owner=closestResident(bug)?.id??null;
  for(const s of ecosystem){
   if(!insects.some(b=>b.id===s.targetFood&&b.owner===s.id))s.targetFood=null;
-  if(!s.dragging&&data.behaviors[s.id]!=='rest'&&!residentIsSleeping(s.id))claimInsect(s,t);
+  if(!s.dragging&&data.behaviors[s.id]!=='rest'&&!residentIsSleeping(s.id)&&!residentIsSleepy(s.id))claimInsect(s,t);
  }
 }
 function feedAt(x,y,t=forestClock){if(insects.length>27){$('forestHint').textContent='Todavía quedan insectos por comer.';return false}x=Math.max(10,Math.min(86,x));y=Math.max(58,Math.min(85,y));for(let i=0;i<3;i++)insects.push({id:++insectSerial,x:Math.max(8,Math.min(88,x+(i-1)*3)),y:Math.min(86,y+(i%2)*2),owner:null,type:data.forestFood});renderInsects();distributeInsects(t);data.feedings++;save();$('forestHint').textContent='Toca otros lugares para repartir insectos. Solo el coquí activo más cercano se acerca a cada insecto.';$('forestMeals').textContent=data.feedings;return true}
@@ -305,7 +332,7 @@ $('forestStatusBtn').onclick=()=>{showDialog('forestCustomize')};
 $('forestFriendsBtn').onclick=()=>openCollection('forest');
 $('forestFeedBtn').onclick=()=>{$('forestFoodPicker').hidden=!$('forestFoodPicker').hidden};
 $('forestScene').addEventListener('click',event=>{if(!feeding||event.target.closest('button'))return;const rect=$('forestResidents').getBoundingClientRect();feedAt((event.clientX-rect.left)/rect.width*100,(event.clientY-rect.top)/rect.height*100)});
-$('residentRest').onchange=()=>{data.behaviors[residentId]=$('residentRest').checked?'rest':'explore';save();renderForest()};
+$('residentRest').onchange=()=>{data.behaviors[residentId]=$('residentRest').checked?'rest':'explore';ensureAwakeResident(Date.now(),residentId);save();renderForest();paintResidentDetail()};
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')stopEcosystem();else if($('forest').open)startEcosystem()});
 let collectionReturn='game';
 function openCollection(returnTo='game'){stopForestAmbience();collectionReturn=returnTo;$('collectionReturnBtn').textContent=returnTo==='map'?'Volver al mapa':returnTo==='forest'?'Volver a El Yunque':'Volver a jugar';renderCollection();showDialog('collection')}
@@ -535,8 +562,8 @@ function puzzle(){const key=game.puzzle+':'+(game.variant||0);if(cachedLayout?.k
 function randomInt(n){return Math.floor(Math.random()*n)}
 function snapshot(){undo.push({cells:[...game.cells]});if(undo.length>100)undo.shift()}
 function isBlocked(i){const r=i>>3,c=i%8,g=puzzle().regions;return game.cells.some((v,j)=>v===2&&j!==i&&((j>>3)===r||j%8===c||g[j]===g[i]||(Math.abs((j>>3)-r)<=1&&Math.abs(j%8-c)<=1)))}
-function render(){paintBoardAppearance();const p=puzzle();$('levelTitle').replaceChildren(document.createTextNode(game.daily?'Reto del día':`Nivel ${(game.level??game.puzzle)+1}`));const subtitle=document.createElement('span');subtitle.textContent=`· ${difficulties[game.difficulty]||'Tranquilo'}`;$('levelTitle').append(subtitle);const count=game.cells.filter(v=>v===2).length;$('progress').textContent=`${count} / 8`;$('hearts').textContent=Array.from({length:4},(_,i)=>i<game.lives?'♥':'♡').join(' ');$('hearts').setAttribute('aria-label',`${game.lives} vidas`);const board=$('board'),fresh=board.children.length!==64,frag=fresh?document.createDocumentFragment():null;for(let i=0;i<64;i++){const b=fresh?document.createElement('button'):board.children[i],r=i>>3,c=i%8;b.type='button';b.className='cell';b.style.setProperty('--tile',`var(--tile${p.regions[i]})`);b.dataset.index=i;if(c<7&&p.regions[i]!==p.regions[i+1])b.classList.add('edge-r');if(r<7&&p.regions[i]!==p.regions[i+8])b.classList.add('edge-b');if(game.cells[i]!==2&&b.children.length)b.replaceChildren();let state='vacía';if(game.cells[i]===2){if(!b.firstElementChild){const img=document.createElement('img');img.src=activeCoqui().src;img.dataset.character=activeCoqui().id;img.alt='';b.append(img)}if(b.firstElementChild.dataset.character!==activeCoqui().id){b.firstElementChild.src=activeCoqui().src;b.firstElementChild.dataset.character=activeCoqui().id}state='coquí';if(game.fixed.includes(i)){b.classList.add('fixed');state='coquí inicial'}}else if(game.cells[i]===1){b.classList.add('mark');state='marcada con X'}else if(data.auto&&isBlocked(i)){b.classList.add('mark','auto');state='bloqueada automáticamente'}b.setAttribute('aria-label',`Fila ${r+1}, columna ${c+1}, región ${p.regions[i]+1}: ${state}`);b.setAttribute('aria-pressed',String(game.cells[i]===2));if(game.hinted===i)b.classList.add('hinted');if(fresh)frag.append(b)}if(fresh)board.replaceChildren(frag);$('undoBtn').disabled=!undo.length||game.won;$('modeLabel').textContent=mode==='coqui'?'Colocar coquí':'Marcar X';$('modeIcon').textContent=mode==='coqui'?'✦':'×';$('modeBtn').setAttribute('aria-label',mode==='coqui'?'Colocar coquí activado. Cambiar a marcar X':'Marcar X activado. Cambiar a colocar coquí');$('modeBtn').setAttribute('aria-pressed',String(mode==='coqui'));const remaining=Math.max(0,3-(game.hints||0));$('hintLabel').textContent=`Pista (${remaining}/3)`;$('hintBtn').setAttribute('aria-label',`${remaining} de 3 pistas disponibles`);$('hintBtn').disabled=game.won||remaining===0||game.lives===0;paintCareer();paintMission();save()}
-function start(index,daily=false,seed=0){const previous=game?puzzle().solution.join(','):null;let base,variant;if(daily){base=seed%puzzles.length;variant=(seed>>>6)%8}else{let candidates=[];for(let b=0;b<puzzles.length;b++)for(let v=0;v<8;v++){if(game&&b===game.puzzle)continue;if(transformPuzzle(puzzles[b],v).solution.join(',')!==previous)candidates.push([b,v])}[base,variant]=candidates[randomInt(candidates.length)]}game={level:index,puzzle:base,variant,seed,cells:Array(64).fill(0),fixed:[],lives:4,won:false,daily,difficulty:'calm',hints:0,hinted:null,mistakes:0};undo=[];mode='coqui';render();feedback('Tablero vacío. Encuentra los ocho coquíes a tu ritmo.');save();syncBoardMusic()}
+function render(){paintBoardAppearance();const p=puzzle();$('levelTitle').replaceChildren(document.createTextNode(game.daily?'Reto del día':`Nivel ${(game.level??game.puzzle)+1}`));const subtitle=document.createElement('span');subtitle.textContent=`· ${difficulties[game.difficulty]||'Tranquilo'}`;$('levelTitle').append(subtitle);const count=game.cells.filter(v=>v===2).length;$('progress').textContent=`${count}/8 coquíes`;$('hearts').textContent=Array.from({length:4},(_,i)=>i<game.lives?'♥':'♡').join(' ');$('hearts').setAttribute('aria-label',`${game.lives} vidas`);const board=$('board'),fresh=board.children.length!==64,frag=fresh?document.createDocumentFragment():null;for(let i=0;i<64;i++){const b=fresh?document.createElement('button'):board.children[i],r=i>>3,c=i%8;b.type='button';b.className='cell';b.style.setProperty('--tile',`var(--tile${p.regions[i]})`);b.dataset.index=i;if(c<7&&p.regions[i]!==p.regions[i+1])b.classList.add('edge-r');if(r<7&&p.regions[i]!==p.regions[i+8])b.classList.add('edge-b');if(game.cells[i]!==2&&b.children.length)b.replaceChildren();let state='vacía';if(game.cells[i]===2){if(!b.firstElementChild){const img=document.createElement('img');img.src=activeCoqui().src;img.dataset.character=activeCoqui().id;img.alt='';b.append(img)}if(b.firstElementChild.dataset.character!==activeCoqui().id){b.firstElementChild.src=activeCoqui().src;b.firstElementChild.dataset.character=activeCoqui().id}state='coquí';if(game.fixed.includes(i)){b.classList.add('fixed');state='coquí inicial'}}else if(game.cells[i]===1){b.classList.add('mark');state='marcada con X'}else if(data.auto&&isBlocked(i)){b.classList.add('mark','auto');state='bloqueada automáticamente'}b.setAttribute('aria-label',`Fila ${r+1}, columna ${c+1}, región ${p.regions[i]+1}: ${state}`);b.setAttribute('aria-pressed',String(game.cells[i]===2));if(game.hinted===i)b.classList.add('hinted');if(fresh)frag.append(b)}if(fresh)board.replaceChildren(frag);$('undoBtn').disabled=!undo.length||game.won;$('modeLabel').textContent=mode==='coqui'?'Colocar coquí':'Marcar X';$('modeIcon').textContent=mode==='coqui'?'✦':'×';$('modeBtn').setAttribute('aria-label',mode==='coqui'?'Colocar coquí activado. Cambiar a marcar X':'Marcar X activado. Cambiar a colocar coquí');$('modeBtn').setAttribute('aria-pressed',String(mode==='coqui'));const remaining=Math.max(0,3-(game.hints||0));$('hintLabel').textContent=`Pista (${remaining}/3)`;$('hintBtn').setAttribute('aria-label',`${remaining} de 3 pistas disponibles`);$('hintBtn').disabled=game.won||remaining===0||game.lives===0;paintCareer();paintMission();save()}
+function start(index,daily=false,seed=0){setExtraOptions(false);const previous=game?puzzle().solution.join(','):null;let base,variant;if(daily){base=seed%puzzles.length;variant=(seed>>>6)%8}else{let candidates=[];for(let b=0;b<puzzles.length;b++)for(let v=0;v<8;v++){if(game&&b===game.puzzle)continue;if(transformPuzzle(puzzles[b],v).solution.join(',')!==previous)candidates.push([b,v])}[base,variant]=candidates[randomInt(candidates.length)]}game={level:index,puzzle:base,variant,seed,cells:Array(64).fill(0),fixed:[],lives:4,won:false,daily,difficulty:'calm',hints:0,hinted:null,mistakes:0};undo=[];mode='coqui';render();feedback('Tablero vacío. Encuentra los ocho coquíes a tu ritmo.');save();syncBoardMusic()}
 function finish(){
  if(game.won)return;const before=victories(),friendsBefore=COQUIS.filter(unlockedCoqui).map(c=>c.id),oldStage=forestStage();game.won=true;
  if(game.daily){if(!data.dailyWins.includes(game.seed||0))data.dailyWins.push(game.seed||0)}else if(!data.completed.includes(game.level??game.puzzle))data.completed.push(game.level??game.puzzle);
@@ -557,10 +584,11 @@ function lost(){
  pending=null;
  if(!$('defeat').open)showDialog('defeat');return true;
 }
-function restartLostLevel(){
- if(!game||game.won||game.lives!==0)return false;
+function restartLostLevel(){if(!game||game.won||game.lives!==0)return false;return resetCurrentBoard()}
+function resetCurrentBoard(){
+ if(!game)return false;
  game={...game,cells:Array(64).fill(0),fixed:[],lives:4,won:false,hints:0,hinted:null,mistakes:0};
- undo=[];mode='coqui';$('defeat').close();render();feedback('Mismo tablero, desde cero. Tienes cuatro corazones.');return true;
+ undo=[];mode='coqui';$('defeat').close();setExtraOptions(false);render();feedback('Mismo tablero, desde cero. Tienes cuatro corazones.');syncBoardMusic();return true;
 }
 $('retryLevelBtn').onclick=restartLostLevel;
 $('defeat').addEventListener('cancel',event=>event.preventDefault());
@@ -595,7 +623,7 @@ function play(i){
  if(game.cells.filter(v=>v===2).length===8)finish();
 }
 
-function chooseNew(action){$('winRewards').hidden=true;if(game.cells.some((v,i)=>v!==0&&!game.fixed.includes(i))&&!game.won){$('resultTag').textContent='ANTES DE CAMBIAR';$('resultTitle').textContent='¿Empezar otra partida?';$('resultText').textContent='La partida actual se sustituirá. Tus niveles completados y preferencias se conservan.';$('nextBtn').textContent='Empezar partida';pending=action;showDialog('result')}else action()}
+function chooseNew(action,restart=false){$('winRewards').hidden=true;if((game.cells.some((v,i)=>v!==0&&!game.fixed.includes(i))||game.lives<4||game.hints>0)&&!game.won){$('resultTag').textContent='ANTES DE CAMBIAR';$('resultTitle').textContent=restart?'¿Reiniciar este tablero?':'¿Empezar otra partida?';$('resultText').textContent=restart?'Se borrarán las marcas de este tablero y recuperarás sus cuatro vidas y tres pistas. Tus niveles completados y coquíes se conservan.':'La partida actual se sustituirá. Tus niveles completados y preferencias se conservan.';$('nextBtn').textContent=restart?'Reiniciar tablero':'Empezar partida';pending=action;showDialog('result')}else action()}
 let pending=null;
 $('board').addEventListener('click',e=>{const b=e.target.closest('.cell');if(b)play(Number(b.dataset.index))});
 $('board').addEventListener('keydown',e=>{const i=Number(e.target.dataset.index);if(!Number.isInteger(i))return;const delta={ArrowRight:1,ArrowLeft:-1,ArrowDown:8,ArrowUp:-8}[e.key];if(delta){e.preventDefault();const next=i+delta;if(next>=0&&next<64)$('board').children[next].focus()}});
@@ -607,7 +635,12 @@ function openGuide(){cancelResidentPress?.();stopResidentHold();stopForestAmbien
 for(const id of ['helpBtn','mapHelpBtn','forestHelpBtn'])$(id).onclick=openGuide;
 $('help').addEventListener('close',()=>{if($('levels').open)syncMapMusic();else if($('forest').open)startForestAmbience()});
 $('levelsBtn').onclick=openMap;
-$('restartBtn').onclick=()=>chooseNew(()=>start(game.level??game.puzzle,game.daily,game.seed||0));
+function setExtraOptions(open){
+ $('extraOptions').hidden=!open;$('moreOptionsBtn').setAttribute('aria-expanded',String(open));$('moreOptionsBtn').textContent=open?'Ver menos':'Ver más';
+}
+$('moreOptionsBtn').onclick=()=>setExtraOptions($('extraOptions').hidden);
+setExtraOptions(false);
+$('restartBtn').onclick=()=>chooseNew(resetCurrentBoard,true);
 $('dailyBtn').onclick=()=>{const date=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Puerto_Rico',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());let hash=0;for(const c of date)hash=(hash*31+c.charCodeAt(0))>>>0;chooseNew(()=>start(0,true,hash))};
 $('nextBtn').onclick=()=>{$('result').close();if(pending){const action=pending;pending=null;action();return}if(game.won)openMap()};
 $('resultClose').onclick=()=>{pending=null;$('result').close();if(game.won)openMap()};

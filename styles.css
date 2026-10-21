@@ -208,3 +208,15 @@ body[data-theme=garden]{--text-surface:#fff1f1}
 .coqui-card.mystery-card h3{grid-column:2;margin:0;align-self:end;font-size:16px}
 .coqui-card.mystery-card p{grid-column:2;align-self:start;margin:5px 0 0;min-height:0;font-size:12px;line-height:1.6;color:var(--sub)}
 @media(max-width:350px){.coqui-card.mystery-card{grid-template-columns:84px minmax(0,1fr);gap:4px 10px;padding:13px}.coqui-card.mystery-card .mystery-portrait,.coqui-card.mystery-card .mystery-portrait img{width:84px}.coqui-card.mystery-card h3{font-size:14px}.coqui-card.mystery-card p{font-size:11px}}
+
+/* Separate found residents from lives and keep secondary actions collapsed. */
+.board-stats{display:flex;flex-direction:column;align-items:flex-start;gap:1px;flex-shrink:0}
+.board-stats #progress{font-size:12px;font-weight:700;padding:0 5px;white-space:nowrap;color:#fff0d2}
+.board-stats .badges{padding:0 4px;gap:8px}
+body #hearts,body[data-theme=night] #hearts{color:#ff3b44}
+.app .more-options-toggle{display:block;min-height:44px;width:min(100%,210px);margin:18px auto 6px;padding:9px 18px;border:1px solid #e7dbb675;border-radius:15px;background:#10353d66;color:#fff0d2;font-size:12px;text-shadow:0 1px 4px #001e25}
+.app .more-options-toggle[aria-expanded=true]{border-color:#efd39bba}
+.extra-options[hidden]{display:none!important}
+.app .extra-options .subnav{margin:12px 15px 15px}
+.resident-hunger[data-mode=sleep]{background:#153b68e6;border-color:#9ac7ffb3}
+@media(max-width:350px){.board-stats #progress{font-size:11px}.board-stats .badges{gap:5px}.app .extra-options .subnav{margin-left:9px;margin-right:9px}}

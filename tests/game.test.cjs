@@ -22,6 +22,7 @@ const settle=()=>new Promise(r=>setImmediate(r));
  const app=boot({rulesV3:true,intro:true});await settle();const r=app.run,e=app.els;
  assert.equal(e.get('levels').open,true);assert.equal(r('game.cells.length'),64);assert.equal(r('game.cells.every(x=>x===0)'),true);
  assert.equal(r('game.lives'),4);assert.equal(r('data.theme'),'night');assert.equal(r('data.character'),null);
+ assert.equal(e.get('progress').textContent,'0/8 coquíes');assert.equal(e.get('extraOptions').hidden,true);assert.equal(e.get('moreOptionsBtn').attrs['aria-expanded'],'false');e.get('moreOptionsBtn').onclick();assert.equal(e.get('extraOptions').hidden,false);assert.equal(e.get('moreOptionsBtn').textContent,'Ver menos');e.get('moreOptionsBtn').onclick();assert.equal(e.get('extraOptions').hidden,true);
  assert.equal(r('COQUIS.length'),9);assert.equal(r('visibleCoquis().length'),8);assert.equal(r('babyUnlocked()'),false);
  for(const name of ['openBonus','buyCoqui','buyHearts','activateProtection','recordFlowerGuess'])assert.equal(r('typeof '+name),'undefined');
  for(const key of ['points','shields','purchased','bonusClaims','bonusPending','bonusCounter'])assert.equal(r(`Object.hasOwn(data,'${key}')`),false);
@@ -37,6 +38,7 @@ const settle=()=>new Promise(r=>setImmediate(r));
  r('lost()');assert.equal(e.get('defeat').open,true);const puzzleBefore=r('JSON.stringify(puzzle())');
  e.get('retryLevelBtn').onclick();assert.equal(r('game.lives'),4);assert.equal(r('game.hints'),0);assert.equal(r('JSON.stringify(puzzle())'),puzzleBefore);assert.equal(r('game.cells.every(x=>x===0)'),true);
  for(let n=1;n<=3;n++){e.get('hintBtn').onclick();assert.equal(r('game.hints'),n)}const hinted=r('game.cells.filter(x=>x===2).length');e.get('hintBtn').onclick();assert.equal(r('game.cells.filter(x=>x===2).length'),hinted);e.get('undoBtn').onclick();assert.equal(r('game.hints'),3);
+ const restartPuzzle=r('JSON.stringify(puzzle())'),restartLevel=r('game.level');e.get('moreOptionsBtn').onclick();e.get('restartBtn').onclick();assert.equal(e.get('resultTitle').textContent,'¿Reiniciar este tablero?');e.get('nextBtn').onclick();assert.equal(r('JSON.stringify(puzzle())'),restartPuzzle);assert.equal(r('game.level'),restartLevel);assert.equal(r('game.lives'),4);assert.equal(r('game.hints'),0);assert.equal(r('game.cells.every(v=>v===0)'),true);assert.equal(e.get('extraOptions').hidden,true);
  let prev='';for(let n=0;n<100;n++){r('start(0)');const next=r("puzzle().solution.join(',')");assert.notEqual(next,prev);prev=next}
  r('start(0,true,12345)');const daily=r('JSON.stringify(puzzle())');r('start(0,true,12345)');assert.equal(r('JSON.stringify(puzzle())'),daily);
  for(let n=0;n<=60;n++){
@@ -106,10 +108,10 @@ const settle=()=>new Promise(r=>setImmediate(r));
   pr(`data.care['${id}'].nextSleepAt=Date.now()-1`);assert.equal(pr(`putResidentToSleep('${id}')`),true);
   assert.equal(pr(`data.care['${id}'].sleepUntil`),now+20*60000);assert.equal(pr(`feedResident('${id}','worm')`),null);
  }
- assert.ok(pe.get('forestResidents').children.every(b=>b.firstElementChild.src.endsWith('-sleep.webp')));
+ assert.equal(pe.get('forestResidents').children.filter(b=>b.firstElementChild.src.endsWith('-sleep.webp')).length,8);assert.equal(pr("ecosystem.filter(s=>!residentIsSleeping(s.id)&&data.care[s.id].nextSleepAt>Date.now()&&data.behaviors[s.id]!=='rest').length"),1);
  const sleepSave=JSON.parse(pets.storage['coquidoku-v1']);now+=15*60000;
- const sleeping=boot(sleepSave,{Date:RealDate});await settle();sleeping.run('closeMap();openForest()');assert.equal(sleeping.run('ecosystem.every(s=>residentIsSleeping(s.id))'),true);
- now+=5*60000;sleeping.run('tickResidentCare(Date.now(),true)');assert.equal(sleeping.run('ecosystem.some(s=>residentIsSleeping(s.id))'),false);
+ const sleeping=boot(sleepSave,{Date:RealDate});await settle();sleeping.run('closeMap();openForest()');assert.equal(sleeping.run('ecosystem.filter(s=>residentIsSleeping(s.id)).length'),8);assert.equal(sleeping.els.get('forestResidents').children[0].careBar.dataset.mode,'sleep');assert.equal(sleeping.els.get('forestResidents').children[0].careBar.style.props['--care-color'],'#69b4ff');assert.equal(sleeping.els.get('forestResidents').children[0].careFill.style.width,'75%');
+ now+=5*60000;sleeping.run('tickResidentCare(Date.now(),true)');assert.equal(sleeping.run('ecosystem.some(s=>residentIsSleeping(s.id))'),false);assert.equal(sleeping.els.get('forestResidents').children[0].careBar.dataset.mode,'hunger');assert.equal(sleeping.els.get('forestResidents').children[0].careBar.style.props['--care-color'],'#9ac875');assert.ok(sleeping.run('data.care.sol.nextSleepAt-Date.now()')>=3*60*60*1000);sleeping.run('updateEcosystem(0);updateEcosystem(1200)');assert.ok(sleeping.run('ecosystem[0].hops')>0);
  const food=boot({intro:true},{Date:RealDate});await settle();const qr=food.run,qe=food.els;qr('closeMap();openForest();Math.random=()=>.5');
  for(const reduced of [false,true])for(const [id,type]of [['foodFly','fly'],['foodButterfly','butterfly'],['foodWorm','worm'],['foodAnt','ant']]){
   qr(`insects=[];data.motion=${reduced};data.care.sol.satiety=10;data.care.sol.nextSleepAt=Date.now()+3600000;renderForest();ecosystem[0].position={x:50,y:70}`);
@@ -125,6 +127,37 @@ const settle=()=>new Promise(r=>setImmediate(r));
  qr("data.behaviors.sol='rest';updateEcosystem(201300)");assert.equal(qe.get('forestResidents').children[0].style.props['--hop-y'],'0px');
  qr("data.behaviors.sol='explore';data.care.sol.satiety=20;Math.random=()=>.01");assert.equal(qr("feedResident('sol','ant').after"),100);
  console.log('PASS: all nine residents with persistent 20-minute sleep across reload, automatic waking, sleepy sprites, four food pickers and consumption in normal/reduced motion; care bars travel with hops.');
+
+
+ // Sleep cadence, pausing while sleepy, blue progress, guardian rotation and old-data migration.
+ {
+ const active=boot({intro:true,completed:Array.from({length:10},(_,i)=>i)},{Date:RealDate});await settle();const tr=active.run,te=active.els;
+ tr('closeMap();openForest();Math.random=()=>.5');
+ assert.ok(tr('data.care.sol.nextSleepAt-Date.now()')>=3*60*60*1000);assert.ok(tr('data.care.sol.nextSleepAt-Date.now()')<=4*60*60*1000);
+ assert.equal(tr("putResidentToSleep('sol')"),false);
+ tr("data.care.sol.nextSleepAt=Date.now()-1;tickResidentCare(Date.now(),true);updateEcosystem(0);updateEcosystem(800);updateEcosystem(1250)");
+ assert.equal(te.get('forestResidents').children[0].sleepBadge.textContent,'☾');assert.equal(tr('ecosystem[0].hops'),0);assert.ok(tr("ecosystem.slice(1).some(s=>!residentIsSleepy(s.id))"));
+ const appetite=tr('data.care.sol.satiety');assert.equal(tr("putResidentToSleep('sol')"),true);const sleepStart=now,sleepEnd=tr('data.care.sol.sleepUntil');
+ assert.equal(sleepEnd-sleepStart,20*60000);assert.equal(te.get('forestResidents').children[0].careFill.style.width,'0%');assert.equal(te.get('forestResidents').children[0].style.props['--hop-y'],'0px');
+ now+=10*60000;tr('tickResidentCare(Date.now(),true)');assert.equal(te.get('forestResidents').children[0].careFill.style.width,'50%');assert.ok(tr('data.care.sol.satiety')<appetite);
+ const middleSave=JSON.parse(active.storage['coquidoku-v1']),resumed=boot(middleSave,{Date:RealDate});await settle();resumed.run('closeMap();openForest()');assert.equal(resumed.run('data.care.sol.sleepStartedAt'),sleepStart);assert.equal(resumed.run('data.care.sol.sleepUntil'),sleepEnd);assert.equal(resumed.els.get('forestResidents').children[0].careFill.style.width,'50%');
+ now=sleepEnd;tr('tickResidentCare(Date.now(),true);updateEcosystem(2000);updateEcosystem(3200)');assert.ok(tr('ecosystem[0].hops')>=1);assert.equal(te.get('forestResidents').children[0].careBar.dataset.mode,'hunger');
+ const next=tr('data.care.sol.nextSleepAt');assert.ok(next-now>=3*60*60*1000);now=next-1;assert.equal(tr("putResidentToSleep('sol')"),false);
+ // Even when all become sleepy together, at least one random resident stays healthy and active.
+ tr("for(const s of ecosystem)data.care[s.id].nextSleepAt=Date.now()-1;tickResidentCare(Date.now(),true)");
+ assert.ok(tr("ecosystem.some(s=>!residentIsSleeping(s.id)&&data.care[s.id].nextSleepAt>Date.now()&&data.behaviors[s.id]!=='rest')"));
+ // Sleeping the current last awake resident rotates the role to another, without erasing food.
+ tr("for(const s of ecosystem){data.care[s.id].nextSleepAt=Date.now()-1;putResidentToSleep(s.id)}");
+ assert.ok(tr("ecosystem.some(s=>!residentIsSleeping(s.id)&&data.care[s.id].nextSleepAt>Date.now()&&data.behaviors[s.id]!=='rest')"));
+ tr("for(const s of ecosystem)data.behaviors[s.id]='rest';tickResidentCare(Date.now(),true)");
+ assert.ok(tr("ecosystem.some(s=>!residentIsSleeping(s.id)&&data.behaviors[s.id]==='explore')"));
+ const guardian=tr("ecosystem.find(s=>!residentIsSleeping(s.id)&&!residentIsSleepy(s.id)&&data.behaviors[s.id]==='explore').id"),guardHops=tr(`ecosystem.find(s=>s.id==='${guardian}').hops`);tr('updateEcosystem(4000);updateEcosystem(4450)');assert.ok(tr(`ecosystem.find(s=>s.id==='${guardian}').hops`)>guardHops);
+ const alone=boot({intro:true},{Date:RealDate});await settle();alone.run("closeMap();openForest();data.care.sol.nextSleepAt=Date.now()-1");assert.equal(alone.run("putResidentToSleep('sol')"),false);alone.run("data.behaviors.sol='rest';tickResidentCare(Date.now(),true)");assert.equal(alone.run('data.behaviors.sol'),'explore');assert.equal(alone.run("residentIsSleeping('sol')"),false);
+ const oldCare={sol:{satiety:80,lastUpdate:now,nextSleepAt:now+60000,sleepUntil:now+600000,hungerRate:.5},menta:{satiety:75,lastUpdate:now,nextSleepAt:now+60000,sleepUntil:0,hungerRate:.5}};
+ const migrated=boot({intro:true,yunqueV1:true,completed:[0,1,2,3,4],care:oldCare},{Date:RealDate});await settle();migrated.run('closeMap();openForest()');
+ assert.equal(migrated.run('data.care.sol.sleepUntil'),oldCare.sol.sleepUntil);assert.equal(migrated.run('data.care.menta.satiety'),75);assert.ok(migrated.run('data.care.menta.nextSleepAt-Date.now()')>=3*60*60*1000);assert.equal(migrated.run('data.care.sol.sleepCycleV2'),true);
+ console.log('PASS: Ver más defaults collapsed and toggles; n/8 coquíes; confirmed same-board reset; no sleep before 3h; sleepy residents pause until their nap; blue real-time sleep progress survives reload; wake resumes hops; a random healthy resident always stays active, including legacy/rest states.');
+ }
 
  // Map and scene audio remain isolated, and Comenzar never traps the user on a media failure.
  const audio=boot({intro:true});await settle();const ar=audio.run,ae=audio.els;
