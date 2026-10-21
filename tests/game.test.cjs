@@ -20,9 +20,9 @@ const settle=()=>new Promise(r=>setImmediate(r));
 
 (async()=>{
  const app=boot({rulesV3:true,intro:true});await settle();const r=app.run,e=app.els;
- assert.equal(e.get('levels').open,true);assert.equal(r('game.cells.length'),64);assert.equal(r('game.cells.every(x=>x===0)'),true);
+ assert.equal(e.get('levels').open,true);assert.equal(r('game.cells.length'),64);assert.equal(r('game.fixed.length===1&&game.cells.filter(x=>x===2).length===1&&game.cells[game.fixed[0]]===2'),true);
  assert.equal(r('game.lives'),4);assert.equal(r('data.theme'),'night');assert.equal(r('data.character'),null);
- assert.equal(e.get('progress').textContent,'0/8 coquíes');assert.equal(e.get('extraOptions').hidden,true);assert.equal(e.get('moreOptionsBtn').attrs['aria-expanded'],'false');e.get('moreOptionsBtn').onclick();assert.equal(e.get('extraOptions').hidden,false);assert.equal(e.get('moreOptionsBtn').textContent,'Ver menos');e.get('moreOptionsBtn').onclick();assert.equal(e.get('extraOptions').hidden,true);
+ assert.equal(e.get('progress').textContent,'0/7 coquíes');assert.equal(e.get('extraOptions').hidden,true);assert.equal(e.get('moreOptionsBtn').attrs['aria-expanded'],'false');e.get('moreOptionsBtn').onclick();assert.equal(e.get('extraOptions').hidden,false);assert.equal(e.get('moreOptionsBtn').textContent,'Ver menos');e.get('moreOptionsBtn').onclick();assert.equal(e.get('extraOptions').hidden,true);
  assert.equal(r('COQUIS.length'),9);assert.equal(r('visibleCoquis().length'),8);assert.equal(r('babyUnlocked()'),false);
  for(const name of ['openBonus','buyCoqui','buyHearts','activateProtection','recordFlowerGuess'])assert.equal(r('typeof '+name),'undefined');
  for(const key of ['points','shields','purchased','bonusClaims','bonusPending','bonusCounter'])assert.equal(r(`Object.hasOwn(data,'${key}')`),false);
@@ -36,9 +36,9 @@ const settle=()=>new Promise(r=>setImmediate(r));
  for(let i=3;i>=0;i--){r(`play(${wrong})`);assert.equal(r('game.lives'),i)}
  const exhausted=r('JSON.stringify(game.cells)');r('play(puzzle().solution[0])');assert.equal(r('JSON.stringify(game.cells)'),exhausted);
  r('lost()');assert.equal(e.get('defeat').open,true);const puzzleBefore=r('JSON.stringify(puzzle())');
- e.get('retryLevelBtn').onclick();assert.equal(r('game.lives'),4);assert.equal(r('game.hints'),0);assert.equal(r('JSON.stringify(puzzle())'),puzzleBefore);assert.equal(r('game.cells.every(x=>x===0)'),true);
+ e.get('retryLevelBtn').onclick();assert.equal(r('game.lives'),4);assert.equal(r('game.hints'),0);assert.equal(r('JSON.stringify(puzzle())'),puzzleBefore);assert.equal(r('game.fixed.length===1&&game.cells.filter(x=>x===2).length===1&&game.cells[game.fixed[0]]===2'),true);
  for(let n=1;n<=3;n++){e.get('hintBtn').onclick();assert.equal(r('game.hints'),n)}const hinted=r('game.cells.filter(x=>x===2).length');e.get('hintBtn').onclick();assert.equal(r('game.cells.filter(x=>x===2).length'),hinted);e.get('undoBtn').onclick();assert.equal(r('game.hints'),3);
- const restartPuzzle=r('JSON.stringify(puzzle())'),restartLevel=r('game.level');e.get('moreOptionsBtn').onclick();e.get('restartBtn').onclick();assert.equal(e.get('resultTitle').textContent,'¿Reiniciar este tablero?');e.get('nextBtn').onclick();assert.equal(r('JSON.stringify(puzzle())'),restartPuzzle);assert.equal(r('game.level'),restartLevel);assert.equal(r('game.lives'),4);assert.equal(r('game.hints'),0);assert.equal(r('game.cells.every(v=>v===0)'),true);assert.equal(e.get('extraOptions').hidden,true);
+ const restartPuzzle=r('JSON.stringify(puzzle())'),restartLevel=r('game.level');e.get('moreOptionsBtn').onclick();e.get('restartBtn').onclick();assert.equal(e.get('resultTitle').textContent,'¿Reiniciar este tablero?');e.get('nextBtn').onclick();assert.equal(r('JSON.stringify(puzzle())'),restartPuzzle);assert.equal(r('game.level'),restartLevel);assert.equal(r('game.lives'),4);assert.equal(r('game.hints'),0);assert.equal(r('game.fixed.length===1&&game.cells.filter(x=>x===2).length===1'),true);assert.equal(e.get('extraOptions').hidden,true);
  let prev='';for(let n=0;n<100;n++){r('start(0)');const next=r("puzzle().solution.join(',')");assert.notEqual(next,prev);prev=next}
  r('start(0,true,12345)');const daily=r('JSON.stringify(puzzle())');r('start(0,true,12345)');assert.equal(r('JSON.stringify(puzzle())'),daily);
  for(let n=0;n<=60;n++){
@@ -80,7 +80,7 @@ const settle=()=>new Promise(r=>setImmediate(r));
  const parentX=br("ecosystem.find(s=>s.id==='colombiana').position.x");assert.equal(parentX,53);
  now=deadline;br('tickResidentCare(Date.now(),true)');
  assert.equal(br('babyUnlocked()'),true);assert.equal(br('data.family.bornAt'),deadline);assert.equal(be.get('forestResidents').children.length,9);
- assert.equal(be.get('familyFinale').open,true);assert.equal(br('data.family.announced'),true);assert.equal(be.get('forestAmbience').paused,true);
+ assert.equal(be.get('familyFinale').open,true);assert.equal(br('data.family.announced'),true);assert.equal(br('data.character'),'borinbiano');assert.equal(be.get('forestAmbience').paused,true);
  const baby=br("ecosystem.find(s=>s.id==='borinbiano').id");assert.equal(baby,'borinbiano');
  assert.ok(be.get('forestResidents').children[8].className.includes('baby-resident'));
  br("renderCollection()");assert.equal(be.get('coquiCards').children.length,9);assert.ok(!be.get('coquiCards').children.at(-1).className.includes('mystery-card'));assert.equal(be.get('coquiCards').children.at(-1).children[1].textContent,'Borinbiano');assert.equal(br("chooseCoqui('borinbiano')"),true);
@@ -98,7 +98,7 @@ const settle=()=>new Promise(r=>setImmediate(r));
  be.get('restartAdventure').close();assert.equal(br('data.completed.length'),retained);
  br('data.sound=false;data.motion=true');be.get('restartAdventureBtn').onclick();be.get('confirmRestartAdventure').onclick();
  assert.equal(br('data.completed.length'),0);assert.equal(br('data.family.pairedAt'),0);assert.equal(br('data.family.bornAt'),0);assert.equal(br('data.family.announced'),false);
- assert.equal(br('progression().unlocked.length'),1);assert.equal(br('game.level'),0);assert.equal(br('game.cells.every(v=>v===0)'),true);assert.equal(br('data.sound'),false);assert.equal(br('data.motion'),true);
+ assert.equal(br('progression().unlocked.length'),1);assert.equal(br('game.level'),0);assert.equal(br('game.fixed.length===1&&game.cells.filter(x=>x===2).length===1'),true);assert.equal(br('data.sound'),false);assert.equal(br('data.motion'),true);
  assert.equal(be.get('levels').open,true);assert.equal(be.get('familyFinale').open,false);assert.equal(br('Object.keys(data.care).length'),0);assert.equal(br('restartAdventure()'),false);
  console.log('PASS: Colombiana at 55 and Boricua at 60; secret baby absent before 24h; exact deadline in-session and across reload/offline; one persistent baby and one finale; continued care and confirmed optional restart.');
 
@@ -156,8 +156,26 @@ const settle=()=>new Promise(r=>setImmediate(r));
  const oldCare={sol:{satiety:80,lastUpdate:now,nextSleepAt:now+60000,sleepUntil:now+600000,hungerRate:.5},menta:{satiety:75,lastUpdate:now,nextSleepAt:now+60000,sleepUntil:0,hungerRate:.5}};
  const migrated=boot({intro:true,yunqueV1:true,completed:[0,1,2,3,4],care:oldCare},{Date:RealDate});await settle();migrated.run('closeMap();openForest()');
  assert.equal(migrated.run('data.care.sol.sleepUntil'),oldCare.sol.sleepUntil);assert.equal(migrated.run('data.care.menta.satiety'),75);assert.ok(migrated.run('data.care.menta.nextSleepAt-Date.now()')>=3*60*60*1000);assert.equal(migrated.run('data.care.sol.sleepCycleV2'),true);
- console.log('PASS: Ver más defaults collapsed and toggles; n/8 coquíes; confirmed same-board reset; no sleep before 3h; sleepy residents pause until their nap; blue real-time sleep progress survives reload; wake resumes hops; a random healthy resident always stays active, including legacy/rest states.');
+ console.log('PASS: Ver más defaults collapsed and toggles; n/7 coquíes; confirmed same-board reset; no sleep before 3h; sleepy residents pause until their nap; blue real-time sleep progress survives reload; wake resumes hops; a random healthy resident always stays active, including legacy/rest states.');
  }
+
+
+ // Seven searches plus one immutable clue, including updates, retries and daily boards.
+ const clue=r('game.fixed[0]');r('play(game.fixed[0])');assert.equal(r('game.cells[game.fixed[0]]'),2);
+ r("mode='mark';play(game.fixed[0]);mode='coqui'");assert.equal(r('game.cells[game.fixed[0]]'),2);assert.equal(r('game.hints'),0);
+ const migrating=JSON.parse(app.storage['coquidoku-v1']);migrating.game.fixed=[];migrating.game.cells.fill(0);migrating.game.cells[(migrating.game.cells.indexOf(0))]=1;migrating.game.lives=2;migrating.game.hints=1;
+ const migratedBoard=boot(migrating);await settle();assert.equal(migratedBoard.run('game.fixed.length'),1);assert.equal(migratedBoard.run('game.lives'),2);assert.equal(migratedBoard.run('game.hints'),1);assert.equal(migratedBoard.run('game.cells[0]'),1);
+ for(const at of [5,10,20,35,50,55,60]){
+  const unlocked=boot({intro:true,completed:Array.from({length:at-1},(_,i)=>i)});await settle();const ur=unlocked.run,ue=unlocked.els;
+  ur(`closeMap();start(${at-1});for(let row=0;row<8;row++)play(row*8+puzzle().solution[row])`);
+  const id=ur('COQUIS.find(c=>c.at===data.completed.length).id');assert.equal(ue.get('characterUnlock').open,true);assert.equal(ur('data.character'),id);assert.equal(ue.get('progress').textContent,'7/7 coquíes');assert.ok(ue.get('unlockTitle').textContent.includes(ur('activeCoqui().name')));
+  ue.get('unlockContinue').onclick();assert.equal(ue.get('characterUnlock').open,false);
+  ur(`start(${Math.min(at,59)})`);assert.equal(ue.get('board').children[ur('game.fixed[0]')].firstElementChild.dataset.character,id);
+  ur("chooseCoqui('sol');for(let row=0;row<8;row++)play(row*8+puzzle().solution[row])");
+  // A manual choice persists when this next win does not unlock another friend.
+  assert.equal(ur('data.character'),'sol');assert.equal(ue.get('characterUnlock').open,false);
+ }
+ console.log('PASS: immutable initial clue, seven-search progress, saved-board migration, all seven level unlock popups, automatic next-board selection and manual override.');
 
  // Map and scene audio remain isolated, and Comenzar never traps the user on a media failure.
  const audio=boot({intro:true});await settle();const ar=audio.run,ae=audio.els;

@@ -1,6 +1,10 @@
 # Coquídoku
 
-## v1.22.0 · Tablero compacto y descanso equilibrado
+## v1.23.0 · Un compañero nuevo y una pista para comenzar
+
+Cada tablero conserva ocho coquíes: uno aparece revelado y fijo desde el inicio; el contador muestra los siete restantes, de 0/7 a 7/7. La pista inicial se conserva al reiniciar el mismo tablero y al recargar. Las partidas anteriores reciben una pista sin borrar marcas, vidas, pistas usadas ni progreso.
+
+Al desbloquear un personaje por niveles aparece un popup con su imagen y nombre y queda seleccionado para el siguiente tablero. Las repeticiones y los retos diarios no repiten el aviso. El bebé también queda seleccionado al presentarse en su final. La selección manual posterior se conserva hasta el siguiente desbloqueo.
 
 Juego estático PWA de 60 niveles 8×8 en GitHub Pages. Sin minijuegos, monedas, compras de personajes o corazones, ni protecciones obtenidas como premios. Cuatro vidas y tres pistas por tablero; al perder se reinicia ese mismo tablero. Los niveles y los retos diarios nuevos plantan semillas para el bosque.
 
