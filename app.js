@@ -35,9 +35,9 @@ const COQUIS=[
  {id:'aurora',name:'Rita',at:50,detail:'Los colores de un nuevo día',src:'assets/coqui-aurora.webp'},
  {id:'colombiana',name:'Colombiana',at:55,detail:'Una compañera con los colores de Colombia',src:'assets/coqui-colombiana.webp'},
  {id:'boricua',name:'Boricua',at:60,detail:'El orgullo de nuestra isla',src:'assets/coqui-boricua.webp'},
- {id:'borinbiano',name:'Borinbiano',at:null,secret:true,detail:'El pequeño de Colombiana y Boricua',src:'assets/coqui-borinbiano.webp'}
+ {id:'borinbiano',name:'Borinbiano',at:null,secret:true,detail:'El pequeño de Colombiana y Boricua',src:'assets/coqui-borinbiano-pearl.webp'}
 ];
-for(const c of COQUIS)c.sleepSrc=`assets/coqui-${c.id}-sleep.webp`;
+for(const c of COQUIS)c.sleepSrc=c.id==='borinbiano'?'assets/coqui-borinbiano-pearl-sleep.webp':`assets/coqui-${c.id}-sleep.webp`;
 const FOREST_STAGES=[
  {at:0,name:'Un nuevo comienzo',src:'assets/forest-0.webp',description:'Un claro tranquilo espera tus primeras semillas.'},
  {at:10,name:'Primeros brotes',src:'assets/forest-1.webp',description:'Las primeras plantas ya encuentran su lugar.'},
