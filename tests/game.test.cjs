@@ -21,7 +21,7 @@ const settle=()=>new Promise(r=>setImmediate(r));
 (async()=>{
  const app=boot({rulesV3:true,intro:true});await settle();const r=app.run,e=app.els;
  assert.equal(e.get('levels').open,true);assert.equal(r('game.cells.length'),64);assert.equal(r('game.fixed.length===1&&game.cells.filter(x=>x===2).length===1&&game.cells[game.fixed[0]]===2'),true);
- assert.equal(r('game.lives'),4);assert.equal(r('data.theme'),'night');assert.equal(r('data.character'),null);
+ assert.equal(r('game.lives'),3);assert.equal(r('data.theme'),'night');assert.equal(r('data.character'),null);
  assert.equal(e.get('progress').textContent,'0/7 coquíes');assert.equal(e.get('extraOptions').hidden,true);assert.equal(e.get('moreOptionsBtn').attrs['aria-expanded'],'false');e.get('moreOptionsBtn').onclick();assert.equal(e.get('extraOptions').hidden,false);assert.equal(e.get('moreOptionsBtn').textContent,'Ver menos');e.get('moreOptionsBtn').onclick();assert.equal(e.get('extraOptions').hidden,true);
  assert.equal(r('COQUIS.length'),9);assert.equal(r('visibleCoquis().length'),8);assert.equal(r('babyUnlocked()'),false);
  for(const name of ['openBonus','buyCoqui','buyHearts','activateProtection','recordFlowerGuess'])assert.equal(r('typeof '+name),'undefined');
@@ -33,12 +33,12 @@ const settle=()=>new Promise(r=>setImmediate(r));
  const cell=e.get('board').children[correct],sprite=cell.firstElementChild;
  r("mode='mark';play((puzzle().solution[0]+1)%8);render()");assert.equal(e.get('board').children[correct],cell);assert.equal(cell.firstElementChild,sprite);
  r("start(0);mode='coqui'");const wrong=r('(puzzle().solution[0]+1)%8');
- for(let i=3;i>=0;i--){r(`play(${wrong})`);assert.equal(r('game.lives'),i)}
+ for(let i=2;i>=0;i--){r(`play(${wrong})`);assert.equal(r('game.lives'),i)}
  const exhausted=r('JSON.stringify(game.cells)');r('play(puzzle().solution[0])');assert.equal(r('JSON.stringify(game.cells)'),exhausted);
  r('lost()');assert.equal(e.get('defeat').open,true);const puzzleBefore=r('JSON.stringify(puzzle())');
- e.get('retryLevelBtn').onclick();assert.equal(r('game.lives'),4);assert.equal(r('game.hints'),0);assert.equal(r('JSON.stringify(puzzle())'),puzzleBefore);assert.equal(r('game.fixed.length===1&&game.cells.filter(x=>x===2).length===1&&game.cells[game.fixed[0]]===2'),true);
- for(let n=1;n<=3;n++){e.get('hintBtn').onclick();assert.equal(r('game.hints'),n)}const hinted=r('game.cells.filter(x=>x===2).length');e.get('hintBtn').onclick();assert.equal(r('game.cells.filter(x=>x===2).length'),hinted);e.get('undoBtn').onclick();assert.equal(r('game.hints'),3);
- const restartPuzzle=r('JSON.stringify(puzzle())'),restartLevel=r('game.level');e.get('moreOptionsBtn').onclick();e.get('restartBtn').onclick();assert.equal(e.get('resultTitle').textContent,'¿Reiniciar este tablero?');e.get('nextBtn').onclick();assert.equal(r('JSON.stringify(puzzle())'),restartPuzzle);assert.equal(r('game.level'),restartLevel);assert.equal(r('game.lives'),4);assert.equal(r('game.hints'),0);assert.equal(r('game.fixed.length===1&&game.cells.filter(x=>x===2).length===1'),true);assert.equal(e.get('extraOptions').hidden,true);
+ e.get('retryLevelBtn').onclick();assert.equal(r('game.lives'),3);assert.equal(r('game.hints'),0);assert.equal(r('JSON.stringify(puzzle())'),puzzleBefore);assert.equal(r('game.fixed.length===1&&game.cells.filter(x=>x===2).length===1&&game.cells[game.fixed[0]]===2'),true);
+ for(let n=1;n<=1;n++){e.get('hintBtn').onclick();assert.equal(r('game.hints'),n)}const hinted=r('game.cells.filter(x=>x===2).length');e.get('hintBtn').onclick();assert.equal(r('game.cells.filter(x=>x===2).length'),hinted);e.get('undoBtn').onclick();assert.equal(r('game.hints'),1);
+ const restartPuzzle=r('JSON.stringify(puzzle())'),restartLevel=r('game.level');e.get('moreOptionsBtn').onclick();e.get('restartBtn').onclick();assert.equal(e.get('resultTitle').textContent,'¿Reiniciar este tablero?');e.get('nextBtn').onclick();assert.equal(r('JSON.stringify(puzzle())'),restartPuzzle);assert.equal(r('game.level'),restartLevel);assert.equal(r('game.lives'),3);assert.equal(r('game.hints'),0);assert.equal(r('game.fixed.length===1&&game.cells.filter(x=>x===2).length===1'),true);assert.equal(e.get('extraOptions').hidden,true);
  let prev='';for(let n=0;n<100;n++){r('start(0)');const next=r("puzzle().solution.join(',')");assert.notEqual(next,prev);prev=next}
  r('start(0,true,12345)');const daily=r('JSON.stringify(puzzle())');r('start(0,true,12345)');assert.equal(r('JSON.stringify(puzzle())'),daily);
  for(let n=0;n<=60;n++){
@@ -62,7 +62,7 @@ const settle=()=>new Promise(r=>setImmediate(r));
  assert.equal(legacy.run("unlockedCoqui(COQUIS.find(c=>c.id==='colombiana'))"),false);assert.equal(legacy.run('babyUnlocked()'),false);
  assert.equal(legacy.run('data.forestCoordinates.aurora.x'),42);assert.equal(legacy.run('JSON.stringify(game.cells)'),JSON.stringify(boardSaved.game.cells));
  for(const key of ['points','shields','purchased','bonusPending'])assert.equal(Object.hasOwn(JSON.parse(legacy.storage['coquidoku-v1']),key),false);
- console.log('PASS: stable board sprites, randomized/daily boards, 4-life lockout and same-board restart, 3 hints; all 61 map states; eight level unlocks; no economy or minigames; legacy purchased friends and progress preserved.');
+ console.log('PASS: stable board sprites, randomized/daily boards, 3-life lockout and same-board restart, 1 hint; all 61 map states; eight level unlocks; no economy or minigames; legacy purchased friends and progress preserved.');
 
  // The family deadline uses the wall clock, never session duration or daily challenges.
  let now=1800000000000;class RealDate extends Date{static now(){return now}}
@@ -177,6 +177,28 @@ const settle=()=>new Promise(r=>setImmediate(r));
  }
  console.log('PASS: immutable initial clue, seven-search progress, saved-board migration, all seven level unlock popups, automatic next-board selection and manual override.');
 
+ // Legacy frontier repair is persistent and replaying earlier levels cannot move it backwards.
+ const oldMapGame=JSON.parse(app.storage['coquidoku-v1']).game;oldMapGame.level=17;oldMapGame.won=false;oldMapGame.lives=4;oldMapGame.hints=3;
+ const gap=boot({intro:true,rulesV3:true,completed:Array.from({length:17},(_,i)=>i).filter(i=>i!==6),game:oldMapGame});await settle();
+ assert.equal(gap.run('data.completed.length'),17);assert.equal(gap.run('currentAdventureLevel()'),17);
+ assert.equal(gap.els.get('mapProgress').textContent,'Nivel actual: 18 · 17/60 completados');
+ assert.equal(gap.run('game.lives'),3);assert.equal(gap.run('game.hints'),1);assert.equal(gap.els.get('hintLabel').textContent,'Pista (0/1)');
+ assert.equal(gap.els.get('hearts').textContent,'♥ ♥ ♥');
+ const gapReload=boot(JSON.parse(gap.storage['coquidoku-v1']));await settle();assert.equal(gapReload.run('data.completed.length'),17);
+ gap.run("closeMap();start(0);for(let row=0;row<8;row++)play(row*8+puzzle().solution[row]);openMap()");assert.equal(gap.run('currentAdventureLevel()'),17);assert.equal(gap.run('data.completed.length'),17);
+ const dailyGap=boot({intro:true,completed:[0,1],game:{...oldMapGame,daily:true}});await settle();assert.equal(dailyGap.run('data.completed.length'),2);
+ // Both audio paths play a single pass per hold. Ending a source does not retrigger it.
+ const single=boot({intro:true});await settle();single.run("closeMap();openForest()");single.els.get('forestHoldAudio').loop=true;single.run("startResidentHold('sol')");
+ assert.equal(single.els.get('forestHoldAudio').loop,false);assert.equal(single.els.get('forestHoldAudio').playCount,1);single.run('stopResidentHold()');
+ const sources=[];class FXContext{
+  constructor(){this.state='running';this.destination={}}
+  decodeAudioData(){return Promise.resolve({})}
+  createBufferSource(){const s={connect(){},disconnect(){},start(){sources.push(this)},stop(){}};return s}
+  createGain(){return {gain:{value:1},connect(){},disconnect(){}}}
+ }
+ const web=boot({intro:true},{window:{AudioContext:FXContext}});await settle();web.run("closeMap();openForest();startResidentHold('sol')");await settle();
+ assert.equal(sources.length,1);assert.equal(sources[0].loop,false);sources[0].onended();assert.equal(web.run('fxSources.size'),0);assert.equal(sources.length,1);web.run('stopResidentHold()');
+ console.log('PASS: old level-18 save repairs to 17 completed across reload and replay; daily board cannot advance adventure; three-heart/one-hint migration; single-pass resident calls in Web Audio and fallback.');
  // Map and scene audio remain isolated, and Comenzar never traps the user on a media failure.
  const audio=boot({intro:true});await settle();const ar=audio.run,ae=audio.els;
  assert.equal(ae.get('mapMusic').paused,false);ar('selectMapLevel(0)');assert.equal(ae.get('mapMusic').paused,true);

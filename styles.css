@@ -220,3 +220,6 @@ body #hearts,body[data-theme=night] #hearts{color:#ff3b44}
 .app .extra-options .subnav{margin:12px 15px 15px}
 .resident-hunger[data-mode=sleep]{background:#153b68e6;border-color:#9ac7ffb3}
 @media(max-width:350px){.board-stats #progress{font-size:11px}.board-stats .badges{gap:5px}.app .extra-options .subnav{margin-left:9px;margin-right:9px}}
+
+/* Secondary actions share the main controls' filled glass surface. */
+.app .extra-options .subnav>button,.app .extra-options .career-nav>button,.app .more-options-toggle{background:linear-gradient(145deg,#315a60e6,#163e46e6)!important;box-shadow:inset 0 1px 0 #ffffff21,0 4px 12px #001d2945!important;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}

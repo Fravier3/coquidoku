@@ -1,12 +1,14 @@
 # Coquídoku
 
-## v1.23.0 · Un compañero nuevo y una pista para comenzar
+## v1.24.0 · Progreso coherente, tres vidas y una pista
+
+El mapa y el contador comparten el progreso real. Al actualizar, los guardados antiguos que ya mostraban escalones previos superados se reconcilian sin retroceder al jugador: al comenzar el nivel 18 se muestran 17/60 completados. Repetir niveles no cambia la frontera. Cada tablero comienza con tres corazones y una pista adicional; el coquí inicial revelado se conserva. Las partidas guardadas limitan las vidas restantes a tres y las pistas utilizadas a una, sin recuperar consumibles gastados. El canto al mantener pulsado se reproduce una vez por pulsación, sin bucle, tanto con Web Audio como con el reproductor de respaldo. Los botones secundarios tienen el mismo fondo de cristal que los controles principales.
 
 Cada tablero conserva ocho coquíes: uno aparece revelado y fijo desde el inicio; el contador muestra los siete restantes, de 0/7 a 7/7. La pista inicial se conserva al reiniciar el mismo tablero y al recargar. Las partidas anteriores reciben una pista sin borrar marcas, vidas, pistas usadas ni progreso.
 
 Al desbloquear un personaje por niveles aparece un popup con su imagen y nombre y queda seleccionado para el siguiente tablero. Las repeticiones y los retos diarios no repiten el aviso. El bebé también queda seleccionado al presentarse en su final. La selección manual posterior se conserva hasta el siguiente desbloqueo.
 
-Juego estático PWA de 60 niveles 8×8 en GitHub Pages. Sin minijuegos, monedas, compras de personajes o corazones, ni protecciones obtenidas como premios. Cuatro vidas y tres pistas por tablero; al perder se reinicia ese mismo tablero. Los niveles y los retos diarios nuevos plantan semillas para el bosque.
+Juego estático PWA de 60 niveles 8×8 en GitHub Pages. Sin minijuegos, monedas, compras de personajes o corazones, ni protecciones obtenidas como premios. Tres vidas y una pista por tablero; al perder se reinicia ese mismo tablero. Los niveles y los retos diarios nuevos plantan semillas para el bosque.
 
 Los personajes se desbloquean al completar niveles distintos: Coquí Dorado (inicio), Pistoco (5), Amapola (10), Sila (20), Betances (35), Rita (50), Colombiana (55) y Boricua (60). Los personajes desbloqueados en versiones anteriores se conservan, incluidos los que se habían adquirido con la economía anterior. Esa economía se retira del estado activo al migrar.
 
@@ -18,7 +20,7 @@ El cuidado conserva hambre lenta, cuatro alimentos con recogida por el vecino ac
 
 Estado local: coquidoku-v1. No se eliminan niveles, partidas, coquíes o posiciones al actualizar. El service worker versiona recursos y conserva el almacenamiento local. Sin backend ni dependencias de ejecución.
 
-El contador n/8 coquíes aparece encima de los corazones rojos. Ver más / Ver menos agrupa Cómo jugar, Reto del día, Reiniciar tablero, Mis coquíes, El Yunque y el resumen de progreso. El reinicio conserva exactamente el mismo puzzle y variante y devuelve 4 vidas y 3 pistas, con confirmación si hay una partida activa. Los accesos conservan bordes suaves. Los tres controles principales conservan su relieve y acento dorado.
+El contador n/7 coquíes aparece encima de los corazones rojos. Ver más / Ver menos agrupa Cómo jugar, Reto del día, Reiniciar tablero, Mis coquíes, El Yunque y el resumen de progreso. El reinicio conserva exactamente el mismo puzzle y variante y devuelve 3 vidas y 1 pista, con confirmación si hay una partida activa. Los accesos conservan bordes suaves. Los tres controles principales conservan su relieve y acento dorado.
 
 Siempre se conserva al menos un habitante despierto, sin sueño y en exploración. Si todos quedarían dormidos, con sueño o en receso, se elige aleatoriamente otro para mantener activo El Yunque; no se pierde alimento ni progreso. Con un único habitante no puede ponerse a dormir, porque es quien mantiene vivo el refugio. Reducir animaciones sigue siendo respetado.
 
