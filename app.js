@@ -1,24 +1,23 @@
 const $=id=>document.getElementById(id);
 const KEY='coquidoku-v1';
-const defaults={theme:'night',sound:true,mapMusic:true,boardMusic:true,auto:false,relax:false,motion:false,difficulty:'calm',completed:[],dailyWins:[],character:null,points:0,shields:0,flowerClaims:[],earned:[],purchased:[],bonusClaims:[],bonusPending:null,bonusCounter:0,decorGifts:[],decor:[null,null,null],positions:{},forestCoordinates:{},care:{},forestFood:'fly',feedings:0,behaviors:{},game:null};
-let data;try{data={...defaults,...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch{data={...defaults}}
+const defaults={theme:'night',sound:true,mapMusic:true,boardMusic:true,auto:false,relax:false,motion:false,difficulty:'calm',completed:[],dailyWins:[],character:null,earned:[],family:{pairedAt:0,bornAt:0,announced:false},decorGifts:[],decor:[null,null,null],positions:{},forestCoordinates:{},care:{},forestFood:'fly',feedings:0,behaviors:{},game:null};
+let data;try{data={...JSON.parse(JSON.stringify(defaults)),...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch{data=JSON.parse(JSON.stringify(defaults))}
 data.theme='night';
 data.mapMusic=true;
 data.boardMusic=data.boardMusic!==false;
 data.completed=[...new Set((Array.isArray(data.completed)?data.completed:[]).filter(n=>Number.isInteger(n)&&n>=0&&n<60))];data.dailyWins=[...new Set((Array.isArray(data.dailyWins)?data.dailyWins:[]).filter(n=>Number.isInteger(n)&&n>=0))];
-data.points=Number.isSafeInteger(data.points)&&data.points>=0?data.points:0;
-data.shields=Number.isSafeInteger(data.shields)&&data.shields>=0?data.shields:0;
-data.flowerClaims=[...new Set((Array.isArray(data.flowerClaims)?data.flowerClaims:[]).filter(key=>typeof key==='string'&&/^(level|daily):\d+$/.test(key)))];
 data.relax=false;
-for(const k of ['earned','purchased'])data[k]=[...new Set((Array.isArray(data[k])?data[k]:[]).filter(x=>['sol','menta','brisa','flor','luna','aurora'].includes(x)))];
-data.bonusClaims=[...new Set((Array.isArray(data.bonusClaims)?data.bonusClaims:[]).filter(x=>typeof x==='string'&&/^(level|daily|round):\d+$/.test(x)))];
-if(typeof data.bonusPending!=='string'||!/^(level|daily|round):\d+$/.test(data.bonusPending)||data.bonusClaims.includes(data.bonusPending))data.bonusPending=null;
+// Preserve previously unlocked friends while retiring the old economy.
+data.earned=[...new Set([...(Array.isArray(data.earned)?data.earned:[]),...(Array.isArray(data.purchased)?data.purchased:[])].filter(id=>['sol','menta','brisa','flor','luna','aurora'].includes(id)))];
+for(const key of ['points','shields','flowerClaims','purchased','bonusClaims','bonusPending','bonusCounter'])delete data[key];
+if(data.game)for(const key of ['shieldUntil','flowerAttempted','flowerCollected'])delete data.game[key];
+data.family=data.family&&typeof data.family==='object'?data.family:{};
+data.family={pairedAt:Number.isFinite(data.family.pairedAt)&&data.family.pairedAt>0?data.family.pairedAt:0,bornAt:Number.isFinite(data.family.bornAt)&&data.family.bornAt>0?data.family.bornAt:0,announced:data.family.announced===true};
 data.decor=Array.isArray(data.decor)?[0,1,2].map(i=>['fern','flowers','log','stones','fireflies','sapling'].includes(data.decor[i])?data.decor[i]:null):[null,null,null];
-data.positions=data.positions&&typeof data.positions==='object'&&!Array.isArray(data.positions)?Object.fromEntries(Object.entries(data.positions).filter(([id,z])=>['sol','menta','brisa','flor','luna','aurora','boricua'].includes(id)&&Number.isInteger(z)&&z>=0&&z<3)):{};
-data.forestCoordinates=data.forestCoordinates&&typeof data.forestCoordinates==='object'?Object.fromEntries(Object.entries(data.forestCoordinates).filter(([id,p])=>['sol','menta','brisa','flor','luna','aurora','boricua'].includes(id)&&p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&p.x>=8&&p.x<=88&&p.y>=45&&p.y<=88)):{};
-data.bonusCounter=Number.isSafeInteger(data.bonusCounter)&&data.bonusCounter>=0?data.bonusCounter:0;
+data.positions=data.positions&&typeof data.positions==='object'&&!Array.isArray(data.positions)?Object.fromEntries(Object.entries(data.positions).filter(([id,z])=>['sol','menta','brisa','flor','luna','aurora','colombiana','boricua','borinbiano'].includes(id)&&Number.isInteger(z)&&z>=0&&z<3)):{};
+data.forestCoordinates=data.forestCoordinates&&typeof data.forestCoordinates==='object'?Object.fromEntries(Object.entries(data.forestCoordinates).filter(([id,p])=>['sol','menta','brisa','flor','luna','aurora','colombiana','boricua','borinbiano'].includes(id)&&p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&p.x>=8&&p.x<=88&&p.y>=45&&p.y<=88)):{};
 data.decorGifts=(Array.isArray(data.decorGifts)?data.decorGifts:[]).filter(x=>['flowers','log','fireflies'].includes(x));
-data.behaviors=data.behaviors&&typeof data.behaviors==='object'&&!Array.isArray(data.behaviors)?Object.fromEntries(Object.entries(data.behaviors).filter(([id,v])=>['sol','menta','brisa','flor','luna','aurora','boricua'].includes(id)&&['rest','explore'].includes(v))):{};
+data.behaviors=data.behaviors&&typeof data.behaviors==='object'&&!Array.isArray(data.behaviors)?Object.fromEntries(Object.entries(data.behaviors).filter(([id,v])=>['sol','menta','brisa','flor','luna','aurora','colombiana','boricua','borinbiano'].includes(id)&&['rest','explore'].includes(v))):{};
 if(!data.rulesV3){data.theme='night';if(data.game&&Number.isInteger(data.game.lives)&&data.game.lives>=0&&data.game.lives<=3)data.game.lives+=1;if(data.game)data.game.hints=Math.min(3,Math.max(0,Number(data.game.hints)||0));data.rulesV3=true}
 // Enable the requested call once on upgrade; later manual mute choices persist.
 if(!data.soundFixV141){data.sound=true;data.soundFixV141=true}
@@ -28,13 +27,15 @@ data.feedings=Number.isSafeInteger(data.feedings)&&data.feedings>=0?data.feeding
 let puzzles=[],game,mode='coqui',undo=[],errorsTimer,errorCell=null;
 
 const COQUIS=[
- {id:'sol',name:'Coquí Dorado',at:0,price:0,detail:'Un rayito de calidez',src:'assets/coqui.webp'},
- {id:'menta',name:'Pistoco',at:5,price:80,detail:'Fresco como una hoja nueva',src:'assets/coqui-menta.webp'},
- {id:'brisa',name:'Amapola',at:10,price:160,detail:'La calma junto al río',src:'assets/coqui-brisa.webp'},
- {id:'flor',name:'Sila',at:20,price:320,detail:'Un toque de alegría tropical',src:'assets/coqui-flor.webp'},
- {id:'luna',name:'Betances',at:35,price:560,detail:'Un amigo de las luciérnagas',src:'assets/coqui-luna.webp'},
- {id:'aurora',name:'Rita',at:50,price:800,detail:'Los colores de un nuevo día',src:'assets/coqui-aurora.webp'},
- {id:'boricua',name:'Boricua',at:60,price:null,detail:'El orgullo de nuestra isla',src:'assets/coqui-boricua.webp'}
+ {id:'sol',name:'Coquí Dorado',at:0,detail:'Un rayito de calidez',src:'assets/coqui.webp'},
+ {id:'menta',name:'Pistoco',at:5,detail:'Fresco como una hoja nueva',src:'assets/coqui-menta.webp'},
+ {id:'brisa',name:'Amapola',at:10,detail:'La calma junto al río',src:'assets/coqui-brisa.webp'},
+ {id:'flor',name:'Sila',at:20,detail:'Un toque de alegría tropical',src:'assets/coqui-flor.webp'},
+ {id:'luna',name:'Betances',at:35,detail:'Un amigo de las luciérnagas',src:'assets/coqui-luna.webp'},
+ {id:'aurora',name:'Rita',at:50,detail:'Los colores de un nuevo día',src:'assets/coqui-aurora.webp'},
+ {id:'colombiana',name:'Colombiana',at:55,detail:'Una compañera con los colores de Colombia',src:'assets/coqui-colombiana.webp'},
+ {id:'boricua',name:'Boricua',at:60,detail:'El orgullo de nuestra isla',src:'assets/coqui-boricua.webp'},
+ {id:'borinbiano',name:'Borinbiano',at:null,secret:true,detail:'El pequeño de Colombiana y Boricua',src:'assets/coqui-borinbiano.webp'}
 ];
 for(const c of COQUIS)c.sleepSrc=`assets/coqui-${c.id}-sleep.webp`;
 const FOREST_STAGES=[
@@ -50,21 +51,72 @@ const DECORATIONS=[
 ];
 const ZONES=['Junto al río','Bajo el árbol','En el claro'];
 function victories(){return data.completed.length+data.dailyWins.length}
-function unlockedCoqui(c){return c.id==='boricua'?data.completed.length===60:c.at===0||data.completed.length>=c.at||data.earned.includes(c.id)||data.purchased.includes(c.id)}
+const FAMILY_WAIT=24*60*60*1000;
+function parentsTogether(){return data.completed.length===60}
+function updateFamily(now=Date.now()){
+ if(!parentsTogether())return false;
+ if(!data.family.pairedAt){data.family.pairedAt=now;data.family.bornAt=0;data.family.announced=false}
+ if(now>=data.family.pairedAt+FAMILY_WAIT&&!data.family.bornAt){data.family.bornAt=data.family.pairedAt+FAMILY_WAIT;return true}
+ return false;
+}
+function babyUnlocked(now=Date.now()){return parentsTogether()&&data.family.pairedAt>0&&data.family.bornAt>=data.family.pairedAt+FAMILY_WAIT&&now>=data.family.bornAt}
+function unlockedCoqui(c){return c.secret?babyUnlocked():c.id==='boricua'?parentsTogether():c.id==='colombiana'?data.completed.length>=55:c.at===0||data.completed.length>=c.at||data.earned.includes(c.id)}
+function visibleCoquis(){return COQUIS.filter(c=>!c.secret||unlockedCoqui(c))}
+function familyMessage(){
+ if(babyUnlocked())return 'Borinbiano ya está en casa. ¡Tu familia está completa! Puedes seguir cuidando El Yunque.';
+ if(!parentsTogether())return '';
+ return 'Colombiana y Boricua son pareja. Una sorpresa llegará el '+new Intl.DateTimeFormat('es-PR',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}).format(data.family.pairedAt+FAMILY_WAIT)+'.';
+}
+function paintFamily(){
+ $('forest').dataset.familyComplete=String(babyUnlocked());
+ $('forestFamilyStatus').hidden=!parentsTogether();$('forestFamilyStatus').textContent=familyMessage();
+ for(const id of ['restartAdventureBtn','mapRestartAdventure'])$(id).hidden=!babyUnlocked();
+}
+function announceFamilyFinale(){
+ if(!$('forest').open||!babyUnlocked()||data.family.announced)return;
+ data.family.announced=true;save();cancelResidentPress?.();stopResidentHold();stopForestAmbience();stopEcosystem();
+ $('familySprite').src=COQUIS.find(c=>c.id==='borinbiano').src;showDialog('familyFinale');
+}
+$('familyFinale').addEventListener('close',()=>{if($('forest').open){startForestAmbience();startEcosystem()}});
+for(const id of ['restartAdventureBtn','mapRestartAdventure','finaleRestartBtn'])$(id).onclick=()=>{if(!babyUnlocked())return;stopForestAmbience();showDialog('restartAdventure')};
+$('restartAdventure').addEventListener('close',()=>{if($('levels').open)syncMapMusic();else if(forestAudioAllowed())startForestAmbience()});
+$('confirmRestartAdventure').onclick=restartAdventure;
+function restartAdventure(){
+ if(!babyUnlocked())return false;
+ const prefs=Object.fromEntries(['sound','mapMusic','boardMusic','auto','motion'].map(k=>[k,data[k]]));
+ stopResidentHold();stopEcosystem();stopMapMusic();stopBoardMusic();stopForestAmbience();
+ forestReturn='game';collectionReturn='game';
+ for(const id of SCENE_DIALOGS)if($(id).open)$(id).close();
+ data={...JSON.parse(JSON.stringify(defaults)),...prefs,intro:true,rulesV3:true,soundFixV141:true,emptyStartV2:true,yunqueV1:true,selectionV16:true};
+ insects=[];ecosystem=[];game=null;pending=null;undo=[];mapChapter=0;start(0);save();openMap();return true;
+}
 function forestStage(){return FOREST_STAGES.filter(s=>victories()>=s.at).at(-1)}
 function activeCoqui(){return COQUIS.find(c=>c.id===data.character&&unlockedCoqui(c))||COQUIS[0]}
-// One-time grant honors existing friends without awarding points for levels.
-if(!data.yunqueV1){data.earned=COQUIS.filter(c=>c.id!=='boricua'&&victories()>=c.at).map(c=>c.id);data.points=0;data.yunqueV1=true}
+// Keep historical level-based unlocks when migrating an older adventure.
+if(!data.yunqueV1){data.earned=[...new Set([...data.earned,...COQUIS.filter(c=>!c.secret&&c.id!=='boricua'&&c.id!=='colombiana'&&victories()>=c.at).map(c=>c.id)])];data.yunqueV1=true}
 if(!data.selectionV16){if(data.character==='sol')data.character=null;data.selectionV16=true}
 if(data.character&&!COQUIS.some(c=>c.id===data.character&&unlockedCoqui(c)))data.character=null;
-function progression(){const n=victories(),next=COQUIS.find(c=>!unlockedCoqui(c));return {n,next,stage:forestStage(),unlocked:COQUIS.filter(unlockedCoqui)}}
-function paintCareer(){const p=progression(),active=activeCoqui();$('careerCount').textContent=`${data.points} puntos · ${data.completed.length}/60 niveles · ${p.n} semillas`;$('characterName').textContent=data.character?active.name:'Elige tu coquí';$('careerFrog').src=active.src;$('forestBrief').textContent=`${p.unlocked.length} coquíes en tu refugio`;for(const id of ['resultSprite','helpSprite'])$(id).src=active.src;$('bonusBtn').hidden=!data.bonusPending;$('bonusBtn').disabled=!data.bonusPending;$('resultBonusBtn').disabled=!data.bonusPending;$('bonusBtn').textContent=data.bonusPending?'Minijuego pendiente · +20 puntos':'Retos extra al completar niveles'}
+function progression(){updateFamily();const n=victories(),next=COQUIS.find(c=>!c.secret&&!unlockedCoqui(c));return {n,next,stage:forestStage(),unlocked:COQUIS.filter(unlockedCoqui)}}
+function paintCareer(){const p=progression(),active=activeCoqui();$('careerCount').textContent=`${data.completed.length}/60 niveles · ${p.n} semillas`;$('characterName').textContent=data.character?active.name:'Elige tu coquí';$('careerFrog').src=active.src;$('forestBrief').textContent=`${p.unlocked.length} coquíes en tu refugio`;for(const id of ['resultSprite','helpSprite'])$(id).src=active.src;paintFamily()}
 function chooseCoqui(id){const c=COQUIS.find(c=>c.id===id);if(!c||!unlockedCoqui(c))return false;data.character=id;render();renderCollection();feedback(`${c.name} te acompaña en el tablero.`);return true}
-let purchaseTarget=null;
-function requestPurchase(id){const c=COQUIS.find(c=>c.id===id);if(!c||!c.price||unlockedCoqui(c)||data.points<c.price)return false;purchaseTarget=id;$('purchaseText').textContent=`¿Desbloquear a ${c.name} por ${c.price} puntos? Tienes ${data.points} puntos. Estará disponible en el tablero y en El Yunque.`;showDialog('purchase');return true}
-function buyCoqui(id){const c=COQUIS.find(c=>c.id===id);if(!c||!c.price||unlockedCoqui(c)||data.points<c.price)return false;data.points-=c.price;data.purchased.push(id);save();paintCareer();renderCollection();$('collectionNotice').textContent=`¡${c.name} ya vive en El Yunque!`;return true}
-$('purchaseConfirm').onclick=()=>{buyCoqui(purchaseTarget);purchaseTarget=null;$('purchase').close()};
-function renderCollection(){const p=progression();$('collectionCount').textContent=`${p.unlocked.length} de 7 amigos · ${data.points} puntos`;$('nextCoqui').textContent=p.next?`Próximo por niveles: ${p.next.name} · ${data.completed.length}/${p.next.at} niveles completados`:'¡Tu familia de coquíes está completa!';const cards=document.createDocumentFragment();for(const c of COQUIS){const unlocked=unlockedCoqui(c),selected=c.id===data.character;const card=document.createElement('article');card.className='coqui-card'+(unlocked?'':' locked')+(selected?' chosen':'');const image=document.createElement('img');image.src=c.src;image.alt=c.name;image.width=150;image.height=150;const title=document.createElement('h3');title.textContent=c.name;const desc=document.createElement('p');desc.textContent=c.detail;const target=document.createElement('small');target.textContent=c.id==='boricua'?`Exclusivo: completa los 60 niveles · ${data.completed.length}/60. No se compra con puntos.`:c.at===0?'Tu primer compañero':`Completa ${c.at} niveles o compra por ${c.price} puntos.`;const button=document.createElement('button');button.className=selected?'selected-coqui':'pick-coqui';button.textContent=selected?'✓ Elegido':unlocked?'Elegir':c.price?`Comprar · ${c.price} puntos`:'Completa la aventura';button.disabled=selected||(!unlocked&&(!c.price||data.points<c.price));button.setAttribute('aria-label',`${c.name}: ${button.textContent}`);button.onclick=()=>unlocked?chooseCoqui(c.id):requestPurchase(c.id);card.append(image,title,desc,target,button);cards.append(card)}$('coquiCards').replaceChildren(cards);save()}
+function renderCollection(){
+ const p=progression(),roster=visibleCoquis();
+ $('collectionCount').textContent=p.unlocked.length+' de '+roster.length+' amigos';
+ $('nextCoqui').textContent=p.next?'Próximo: '+p.next.name+' · completa '+p.next.at+' niveles.':babyUnlocked()?'¡Tu familia de coquíes está completa!':'¡Desbloqueaste a todos los compañeros de la aventura!';
+ const cards=document.createDocumentFragment();
+ for(const c of roster){
+  const unlocked=unlockedCoqui(c),selected=c.id===data.character,card=document.createElement('article');
+  card.className='coqui-card'+(unlocked?'':' locked')+(selected?' chosen':'');
+  const image=document.createElement('img');image.src=c.src;image.alt=c.name;image.width=150;image.height=150;
+  const title=document.createElement('h3');title.textContent=c.name;
+  const desc=document.createElement('p');desc.textContent=c.detail;
+  const target=document.createElement('small');target.textContent=c.secret?'Tu familia está completa':c.at===0?'Tu primer compañero':'Se desbloquea al completar '+c.at+' niveles.';
+  const button=document.createElement('button');button.className=selected?'selected-coqui':'pick-coqui';button.textContent=selected?'✓ Elegido':unlocked?'Elegir':'Completa '+c.at+' niveles';button.disabled=selected||!unlocked;
+  button.setAttribute('aria-label',c.name+': '+button.textContent);button.onclick=()=>chooseCoqui(c.id);
+  card.append(image,title,desc,target,button);cards.append(card);
+ }
+ $('coquiCards').replaceChildren(cards);save();
+}
 const FOREST_FOODS={
  fly:{name:'Insectos',src:'assets/insect-fly.webp',min:6,max:13},
  butterfly:{name:'Mariposas',src:'assets/bonus-butterfly.webp',min:9,max:18},
@@ -109,6 +161,9 @@ function paintResidentDetail(now=Date.now()){
 let lastCarePaint=0,lastCareSave=0;
 function tickResidentCare(now=Date.now(),force=false){
  if(!force&&now>=lastCarePaint&&now-lastCarePaint<1000)return;lastCarePaint=now;
+ updateFamily(now);
+ if($('forest').open&&babyUnlocked(now)&&!ecosystem.some(s=>s.id==='borinbiano')){renderForest();announceFamilyFinale();return}
+ if($('forest').open){paintFamily();announceFamilyFinale()}
  for(const state of ecosystem){
   const c=COQUIS.find(c=>c.id===state.id),care=careFor(state.id,now),sleeping=care.sleepUntil>now,sleepy=now>=care.nextSleepAt;
   const src=sleeping?c.sleepSrc:c.src;if(state.image.dataset.careSprite!==src){state.image.src=src;state.image.dataset.careSprite=src}
@@ -136,7 +191,7 @@ let forestTime='night';
 function forestSceneSource(){return `assets/yunque-${FOREST_STAGES.indexOf(forestStage())}-${forestTime}.webp`}
 function renderForest(){const p=progression(),index=FOREST_STAGES.indexOf(p.stage),next=FOREST_STAGES[index+1];$('forestTitle').textContent=p.stage.name;$('forestDescription').textContent=(forestTime==='day'?'De día · ':'De noche · ')+p.stage.description;$('forestScene').style.setProperty('--forest-scene',`url('${forestSceneSource()}')`);$('forest').style.setProperty('--forest-wallpaper',`url('${forestSceneSource()}')`);$('forestWins').textContent=p.n;$('forestFriends').textContent=p.unlocked.length;$('forestProgress').max=next?next.at-p.stage.at:60;$('forestProgress').value=next?p.n-p.stage.at:Math.min(p.n,60);$('forestNext').textContent=next?`Faltan ${next.at-p.n} semillas para el próximo cambio de El Yunque.`:'El Yunque alcanzó su etapa más frondosa. Disfruta de tu refugio y de todos sus habitantes.';const plants=document.createDocumentFragment();for(let i=0;i<Math.min(60,p.n);i++){const sprout=document.createElement('span');sprout.className='forest-sprout';sprout.style.left=(12+(i*19)%63)+'%';sprout.style.top=(57+(i*11)%32)+'%';sprout.style.setProperty('--plant-scale',String(.65+(i%4)*.12));sprout.setAttribute('aria-hidden','true');plants.append(sprout)}$('forestPlants').replaceChildren(plants);
  const autoDecor=document.createDocumentFragment();DECORATIONS.filter(d=>d.id!=='fireflies'&&(p.n>=d.at||data.decorGifts.includes(d.id))).slice(-3).forEach((d,i)=>{const img=document.createElement('img');img.src=`assets/decor-${d.id}.webp`;img.alt='';img.className='forest-decoration zone-'+i;autoDecor.append(img)});$('forestDecor').replaceChildren(autoDecor);
- const friends=document.createDocumentFragment();p.unlocked.forEach((c,i)=>{const zone=Number.isInteger(data.positions[c.id])?data.positions[c.id]:i%3,peers=p.unlocked.filter((f,j)=>(Number.isInteger(data.positions[f.id])?data.positions[f.id]:j%3)===zone),slot=peers.indexOf(c);const b=document.createElement('button');b.className='forest-friend';b.style.left=([67,18,40][zone]+(slot%3)*7)+'%';b.style.top=([53,60,66][zone]+Math.floor(slot/3)*8)+'%';if(data.forestCoordinates[c.id]){b.style.left=data.forestCoordinates[c.id].x+'%';b.style.top=data.forestCoordinates[c.id].y+'%'}b.style.zIndex=String(10+zone+slot);b.setAttribute('aria-label',`${c.name}, ${ZONES[zone]}. Arrastra para moverlo o toca para conocerlo.`);const img=document.createElement('img');img.src=c.src;img.alt='';b.append(img);const bar=document.createElement('span'),fill=document.createElement('i'),badge=document.createElement('span');bar.className='resident-hunger';bar.setAttribute('role','meter');bar.setAttribute('aria-label','Alimento de '+c.name);bar.setAttribute('aria-valuemin','0');bar.setAttribute('aria-valuemax','100');bar.append(fill);badge.className='resident-sleep';badge.hidden=true;b.careBar=bar;b.careFill=fill;b.sleepBadge=badge;b.append(bar,badge);b.onclick=event=>{if(b.suppressClick){b.suppressClick=false;event.preventDefault();return}openResident(c.id)};bindResidentDrag(b,c.id);friends.append(b)});$('forestResidents').replaceChildren(friends);ecosystem=progression().unlocked.map((c,i)=>{const button=$('forestResidents').children[i];return {id:c.id,button,image:button.firstElementChild,position:{x:parseFloat(button.style.left),y:parseFloat(button.style.top)},next:null,started:null,targetFood:null,direction:i%2===0,hops:0}});$('forestMeals').textContent=data.feedings;const roster=document.createDocumentFragment();for(const c of p.unlocked){const b=document.createElement('button');b.textContent=c.name;b.onclick=()=>openResident(c.id);roster.append(b)}$('forestRoster').replaceChildren(roster);insects.forEach(b=>b.owner=null);renderInsects();$('forestInvite').textContent=p.unlocked.length<7?'Desbloquea más personajes para que vivan en El Yunque.':'¡Toda tu familia de coquíes vive en El Yunque!';tickResidentCare(Date.now(),true);save()}
+ const friends=document.createDocumentFragment();p.unlocked.forEach((c,i)=>{const zone=Number.isInteger(data.positions[c.id])?data.positions[c.id]:i%3,peers=p.unlocked.filter((f,j)=>(Number.isInteger(data.positions[f.id])?data.positions[f.id]:j%3)===zone),slot=peers.indexOf(c);const b=document.createElement('button');b.className='forest-friend'+(c.secret?' baby-resident':'');b.style.left=([67,18,40][zone]+(slot%3)*7)+'%';b.style.top=([53,60,66][zone]+Math.floor(slot/3)*8)+'%';if(parentsTogether()&&['colombiana','boricua','borinbiano'].includes(c.id)){b.style.left=({colombiana:53,boricua:70,borinbiano:61}[c.id])+'%';b.style.top=(c.secret?82:73)+'%'}if(data.forestCoordinates[c.id]){b.style.left=data.forestCoordinates[c.id].x+'%';b.style.top=data.forestCoordinates[c.id].y+'%'}b.style.zIndex=String(10+zone+slot);b.setAttribute('aria-label',`${c.name}, ${ZONES[zone]}. Arrastra para moverlo o toca para conocerlo.`);const img=document.createElement('img');img.src=c.src;img.alt='';b.append(img);const bar=document.createElement('span'),fill=document.createElement('i'),badge=document.createElement('span');bar.className='resident-hunger';bar.setAttribute('role','meter');bar.setAttribute('aria-label','Alimento de '+c.name);bar.setAttribute('aria-valuemin','0');bar.setAttribute('aria-valuemax','100');bar.append(fill);badge.className='resident-sleep';badge.hidden=true;b.careBar=bar;b.careFill=fill;b.sleepBadge=badge;b.append(bar,badge);b.onclick=event=>{if(b.suppressClick){b.suppressClick=false;event.preventDefault();return}openResident(c.id)};bindResidentDrag(b,c.id);friends.append(b)});$('forestResidents').replaceChildren(friends);ecosystem=progression().unlocked.map((c,i)=>{const button=$('forestResidents').children[i];return {id:c.id,button,image:button.firstElementChild,position:{x:parseFloat(button.style.left),y:parseFloat(button.style.top)},next:null,started:null,targetFood:null,direction:i%2===0,hops:0}});$('forestMeals').textContent=data.feedings;const roster=document.createDocumentFragment();for(const c of p.unlocked){const b=document.createElement('button');b.textContent=c.name;b.onclick=()=>openResident(c.id);roster.append(b)}$('forestRoster').replaceChildren(roster);insects.forEach(b=>b.owner=null);renderInsects();$('forestInvite').textContent=p.unlocked.length<8?'Desbloquea más personajes para que vivan en El Yunque.':'¡Toda tu familia de coquíes vive en El Yunque!';tickResidentCare(Date.now(),true);save()}
 let residentId='sol';
 function openResident(id){const c=COQUIS.find(c=>c.id===id);if(!c||!unlockedCoqui(c))return;residentId=id;$('residentName').textContent=c.name;$('residentImage').src=c.src;$('residentText').textContent=c.detail+'. Ya tiene un hogar en El Yunque.';$('residentZone').value=String(data.positions[id]??progression().unlocked.indexOf(c)%3);$('residentRest').checked=data.behaviors[id]==='rest';showDialog('resident');paintResidentDetail()}
 $('residentZone').onchange=()=>{const z=Number($('residentZone').value);if(z>=0&&z<3){data.positions[residentId]=z;delete data.forestCoordinates[residentId];save();renderForest()}};
@@ -185,7 +240,7 @@ function bindResidentDrag(button,id){
 }
 
 let forestAudioGeneration=0,forestAudioBlocked=false;
-function forestAudioAllowed(){return $('forest').open&&document.visibilityState!=='hidden'&&!['levels','collection','settings','help','bonus'].some(id=>$(id).open)}
+function forestAudioAllowed(){return $('forest').open&&document.visibilityState!=='hidden'&&!['levels','collection','settings','help','familyFinale','restartAdventure'].some(id=>$(id).open)}
 function stopForestAmbience(){forestAudioGeneration++;const audio=$('forestAmbience');audio.pause();audio.currentTime=0}
 function startForestAmbience(){
  if(!forestAudioAllowed()){stopForestAmbience();return Promise.resolve(false)}
@@ -202,7 +257,7 @@ $('forestAmbience').addEventListener('playing',()=>{if(!forestAudioAllowed())sto
 document.addEventListener('pointerdown',()=>{if(forestAudioBlocked&&forestAudioAllowed())startForestAmbience()});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')stopForestAmbience();else if(forestAudioAllowed())startForestAmbience()});
 window.addEventListener('pagehide',stopForestAmbience);
-function openForest(returnTo='game'){stopBoardMusic();forestReturn=returnTo;feeding=false;$('forestFoodPicker').hidden=true;$('forestFeedBtn').setAttribute('aria-pressed','false');$('forestHint').textContent='Arrastra un coquí para moverlo. Toca Alimentar para repartir insectos.';forestTime=Math.random()<.5?'day':'night';renderForest();showDialog('forest');startForestAmbience();$('forestBack').focus({preventScroll:true});startEcosystem()}
+function openForest(returnTo='game'){stopBoardMusic();forestReturn=returnTo;feeding=false;$('forestFoodPicker').hidden=true;$('forestFeedBtn').setAttribute('aria-pressed','false');$('forestHint').textContent='Arrastra un coquí para moverlo. Toca Alimentar para repartir insectos.';forestTime=Math.random()<.5?'day':'night';renderForest();showDialog('forest');startForestAmbience();$('forestBack').focus({preventScroll:true});startEcosystem();announceFamilyFinale()}
 function stopEcosystem(){cancelResidentPress?.();stopResidentHold();if(forestRaf!==null&&window.cancelAnimationFrame)window.cancelAnimationFrame(forestRaf);forestRaf=null}
 function startEcosystem(){stopEcosystem();if(!window.requestAnimationFrame||!$('forest').open||document.visibilityState==='hidden')return;const frame=t=>{forestRaf=null;if(!$('forest').open||document.visibilityState==='hidden')return;updateEcosystem(t);forestRaf=window.requestAnimationFrame(frame)};forestRaf=window.requestAnimationFrame(frame)}
 let insects=[],insectSerial=0;
@@ -269,7 +324,7 @@ function selectMapLevel(index){if(!Number.isInteger(index)||index<0||index>unloc
 function renderMap(){
  const current=currentAdventureLevel(),available=unlockedThrough(),lastChapter=Math.floor(available/10);
  const c=Math.max(0,Math.min(lastChapter,mapChapter??Math.floor((current??59)/10)));mapChapter=c;
- $('mapProgress').textContent=current===null?'¡Completaste Puerto Rico!':`Nivel actual: ${current+1} · ${data.completed.length}/60 completados`;
+ updateFamily();paintFamily();$('mapProgress').textContent=current===null?(babyUnlocked()?'¡Tu familia está completa!':'¡Completaste los 60 niveles!'):`Nivel actual: ${current+1} · ${data.completed.length}/60 completados`;
  $('mapPrevious').disabled=c===0;$('mapNext').disabled=c===lastChapter;
  $('mapRegion').textContent=`${CHAPTERS[c]} · ${c*10+1}–${c*10+10}`;
  const section=document.createElement('section');section.className='map-chapter';section.setAttribute('aria-label',`Mapa de ${CHAPTERS[c]}, niveles ${c*10+1} a ${c*10+10}`);
@@ -292,7 +347,7 @@ $('mapPrevious').onclick=()=>changeMapChapter(-1);
 $('mapNext').onclick=()=>changeMapChapter(1);
 let mapMusicBlocked=false,mapMusicPlaying=false,mapMusicGeneration=0,mapEntryPending=true,mapEntryGateOpen=false;
 function mapMusicAllowed(){
- return data.mapMusic&&$('levels').open&&document.visibilityState!=='hidden'&&!['settings','help','result','defeat','collection','forest','forestCustomize','resident','purchase','bonus'].some(id=>$(id).open);
+ return data.mapMusic&&$('levels').open&&document.visibilityState!=='hidden'&&!['settings','help','result','defeat','collection','forest','forestCustomize','resident','familyFinale','restartAdventure'].some(id=>$(id).open);
 }
 function paintMapMusic(){
  $('mapMusicToggle').checked=data.mapMusic;
@@ -349,7 +404,7 @@ $('mapForestBtn').onclick=()=>{closeMap();openForest('map')};
 $('resultMapBtn').onclick=()=>{$('result').close();openMap()};
 
 // Each screen owns its music; late play promises never leak across screens.
-const SCENE_DIALOGS=['levels','forest','collection','settings','help','result','defeat','bonus','purchase','resident','forestCustomize'];
+const SCENE_DIALOGS=['levels','forest','collection','settings','help','result','defeat','familyFinale','restartAdventure','resident','forestCustomize'];
 let boardMusicGeneration=0,boardMusicBlocked=false;
 function boardMusicAllowed(){return data.sound&&data.boardMusic&&!!game&&!game.won&&$('loading').hidden&&document.visibilityState!=='hidden'&&!SCENE_DIALOGS.some(id=>$(id).open)}
 function paintBoardMusic(){
@@ -430,197 +485,6 @@ let heldResident=null;
 function startResidentHold(id){if(!$('forest').open||!COQUIS.some(c=>c.id===id&&unlockedCoqui(c)))return;stopResidentHold();heldResident=id;playEffect('forestHoldAudio',true)}
 function stopResidentHold(){heldResident=null;for(const source of fxSources)if(source.residentHold)try{source.stop()}catch{}$('forestHoldAudio').pause();$('forestHoldAudio').currentTime=0}
 
-// Short mini-games: deterministic challenges, explicit goals and one payout.
-const BONUS_TYPES=['bridge','leaves','supper'];
-let bonusRound=null,bonusTimers=new Set(),leafButtons=[];
-function missionKey(){return 'round:'+data.bonusCounter}
-function roundFor(key){let seed=0;for(const c of key)seed=(seed*31+c.charCodeAt(0))>>>0;return {type:BONUS_TYPES[(Number(key.split(':')[1])||1)%3],seed}}
-function rotateMask(mask,turns){for(let i=0;i<turns;i++)mask=((mask<<1)&15)|(mask>>3);return mask}
-function bridgeMask(r,index){const tile=r.tiles.find(t=>t.index===index);return tile?rotateMask(tile.base,tile.rotation):0}
-function bridgeConnected(r){
- if(!r||r.type!=='bridge'||r.tiles.length!==5)return false;
- let index=3,entry=3;const visited=new Set();
- for(let step=0;step<6;step++){
-  const mask=bridgeMask(r,index);if(!(mask&(1<<entry))||visited.has(index))return false;
-  visited.add(index);const exit=[0,1,2,3].find(d=>d!==entry&&(mask&(1<<d)));
-  if(exit===undefined)return false;
-  if(index===5&&exit===1)return visited.size===5;
-  const row=Math.floor(index/3)+[-1,0,1,0][exit],col=index%3+[0,1,0,-1][exit];
-  if(row<0||row>2||col<0||col>2)return false;
-  index=row*3+col;entry=(exit+2)%4;
- }return false;
-}
-function buildBonus(key){
- const {type,seed}=roundFor(key);let state=seed||1;
- const random=()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state/4294967296};
- const shuffle=items=>{for(let i=items.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[items[i],items[j]]=[items[j],items[i]]}return items};
- const tiles=[{index:3,base:3,rotation:3,fixed:true},{index:0,base:3,rotation:1,fixed:false},{index:1,base:5,rotation:1,fixed:true},{index:2,base:3,rotation:2,fixed:false},{index:5,base:3,rotation:0,fixed:false}];
- for(const tile of tiles)if(!tile.fixed)tile.rotation=(tile.rotation+1+Math.floor(random()*3))%4;
- const targetLeaf=Math.floor(random()*3),slots=[0,1,2],swaps=[];let targetSlot=targetLeaf;
- for(let i=0;i<3;i++){const other=(targetSlot+1+Math.floor(random()*2))%3;swaps.push([targetSlot,other]);targetSlot=other}
- const waves=Array.from({length:2},()=>shuffle(['fly','fly','fly','butterfly','butterfly','bee']));
- return {key,type,seed,tiles,moves:0,targetLeaf,slots,swaps,shuffleStep:0,choice:null,waves,wave:0,caught:[],phase:type==='leaves'?'peek':'play',notice:''};
-}
-function stopBonusTimers(){bonusTimers.forEach(id=>clearTimeout(id));bonusTimers.clear()}
-function bonusLater(r,callback,delay){
- const id=setTimeout(()=>{bonusTimers.delete(id);if(bonusRound===r&&$('bonus').open&&document.visibilityState!=='hidden')callback()},delay);bonusTimers.add(id);
-}
-function openBonus(){if(!data.bonusPending||data.bonusClaims.includes(data.bonusPending))return false;cancelBonusReturn();stopBonusTimers();bonusRound=buildBonus(data.bonusPending);renderBonus();showDialog('bonus');return true}
-function bonusSolved(r){
- if(!r)return false;
- if(r.type==='bridge')return r.moves>0&&bridgeConnected(r);
- if(r.type==='leaves')return r.phase==='answer'&&r.shuffleStep===r.swaps.length&&Number.isInteger(r.choice)&&r.slots[r.targetLeaf]===r.choice;
- if(r.type==='supper')return r.wave===1&&r.caught.length===6&&new Set(r.caught).size===6&&r.caught.every(key=>{const [w,i]=key.split(':').map(Number);return (w===0||w===1)&&Number.isInteger(i)&&i>=0&&i<6&&r.waves[w][i]==='fly'});
- return false;
-}
-let bonusReturnTimer=null;
-function cancelBonusReturn(){if(bonusReturnTimer!==null)clearTimeout(bonusReturnTimer);bonusReturnTimer=null}
-function returnBonusToMap(r){
- if(r!==bonusRound||r.phase!=='done'||r.returned)return false;
- r.returned=true;cancelBonusReturn();stopBonusTimers();
- if($('bonus').open)$('bonus').close();
- if($('result').open)$('result').close();
- openMap();return true;
-}
-function armBonusReturn(r){
- cancelBonusReturn();if(r!==bonusRound||r.phase!=='done'||r.returned)return;
- bonusReturnTimer=setTimeout(()=>{bonusReturnTimer=null;returnBonusToMap(r)},Math.max(0,r.returnAt-Date.now()));
-}
-function completeBonus(){
- const r=bonusRound;if(!r||r.phase==='done'||!bonusSolved(r)||data.bonusPending!==r.key||data.bonusClaims.includes(r.key))return false;
- stopBonusTimers();data.bonusClaims.push(r.key);data.points+=20;
- r.grantedShield=data.bonusClaims.length%3===0;if(r.grantedShield)data.shields++;
- data.bonusPending=null;r.phase='done';r.returnAt=Date.now()+4000;
- save();paintCareer();paintProtection();renderBonus();
- $('bonusTitle').textContent='Lo lograste';
- $('bonusNotice').textContent=(r.grantedShield?'¡Ganaste una protección de 30 segundos! ':'')+'En 4 segundos vuelves al mapa.';
- armBonusReturn(r);return true;
-}
-function bonusImage(src,className='',alt=''){const img=document.createElement('img');img.src=src;img.alt=alt;img.className=className;img.draggable=false;return img}
-function renderBonus(){
- const r=bonusRound;if(!r)return;const area=$('bonusArea');area.replaceChildren();area.className='bonus-area mini-world '+r.type;
- $('bonusReward').textContent=r.phase==='done'?`¡+20 puntos!${r.grantedShield?' +1 protección.':''} Saldo: ${data.points}`:'+20 puntos · sin reloj ni pérdida de vidas';
- $('bonusTitle').textContent={bridge:'El puente del río',leaves:'¿Dónde se escondió?',supper:'Cena de coquíes'}[r.type];
- $('bonusInstructions').textContent=r.phase==='done'?'¡Lo lograste! Tus puntos quedaron guardados.':{bridge:'Gira las tres piezas con flecha hasta conectar el coquí con la otra orilla.',leaves:'Mira bajo qué hoja se esconde. Sigue los tres cambios y toca su lugar.',supper:'Toca solo las mosquitas. Deja tranquilas a las mariposas y a la abeja.'}[r.type];
- $('bonusNotice').textContent=r.notice||'';
- if(r.phase==='done'){
-  if(r.type==='bridge'){renderBridge(r,area);$('bonusNotice').textContent='¡Ya puede cruzar! Recompensa guardada.';return}
-  if(r.type==='leaves'){renderLeaves(r,area);$('bonusNotice').textContent='¡Encontraste a tu coquí! Recompensa guardada.';return}
-  const win=document.createElement('div');win.className='mini-victory '+r.type;
-  const frog=bonusImage(activeCoqui().src,'mini-win-frog');win.append(frog);
-  const caption=document.createElement('p');caption.textContent={bridge:'¡Ya puede cruzar el arroyo!',leaves:'¡Encontraste a tu coquí!',supper:'¡Seis mosquitas y una pancita feliz!'}[r.type];
-  win.append(caption);area.append(win);return;
- }
- if(r.type==='bridge')renderBridge(r,area);else if(r.type==='leaves')renderLeaves(r,area);else renderSupper(r,area);
-}
-function renderBridge(r,area){
- const scene=document.createElement('div');scene.className='bridge-scene';
- const grid=document.createElement('div');grid.className='bridge-grid';
- for(let i=0;i<9;i++){
-  const tile=r.tiles.find(t=>t.index===i),b=document.createElement(tile?'button':'div');b.className=tile?'bridge-tile'+(tile.fixed?' fixed':' turnable'):'bridge-water';
-  if(tile){
-   const mask=bridgeMask(r,i);b.disabled=tile.fixed||r.phase==='done';b.setAttribute('aria-label',`Pieza ${i+1}${tile.fixed?', fija':', girar un cuarto de vuelta'}`);
-   for(let d=0;d<4;d++)if(mask&(1<<d)){const arm=document.createElement('span');arm.className='bridge-arm';arm.style.transform=`rotate(${d*90}deg)`;b.append(arm)}
-   const center=document.createElement('span');center.className='bridge-joint';b.append(center);
-   if(!tile.fixed&&r.phase!=='done'){const turn=document.createElement('span');turn.className='bridge-turn';turn.textContent='↻';b.append(turn)}
-   b.onclick=()=>bonusPick(i,r);
-  }grid.append(b);
- }
- scene.append(grid,bonusImage(activeCoqui().src,'bridge-waiting'+(r.phase==='done'?' crossing':'')));
- const goal=document.createElement('span');goal.className='bridge-goal';goal.textContent='META';scene.append(goal);
- area.append(scene);const progress=document.createElement('p');progress.className='mini-caption';progress.textContent=r.phase==='done'?`Puente completo en ${r.moves} giros`:`${r.moves} giros · toca las piezas ↻`;area.append(progress);
-}
-function renderLeaves(r,area){
- const scene=document.createElement('div');scene.className='leaf-scene';leafButtons=[];
- if(['peek','miss','done'].includes(r.phase)){const frog=bonusImage(activeCoqui().src,'shell-frog');frog.style.left=(r.slots[r.targetLeaf]*33.333+16.667)+'%';scene.append(frog)}
- for(let id=0;id<3;id++){
-  const b=document.createElement('button');b.className='shell-leaf'+(['peek','miss','done'].includes(r.phase)&&id===r.targetLeaf?' lifted':'');
-  b.style.left=(r.slots[id]*33.333)+'%';b.append(bonusImage('assets/bonus-leaf.webp'));
-  b.disabled=r.phase!=='answer';b.setAttribute('aria-label',`Hoja en lugar ${r.slots[id]+1}`);b.onclick=()=>bonusPick(r.slots[id],r);
-  leafButtons.push(b);scene.append(b);
- }
- const labels=document.createElement('div');labels.className='leaf-labels';for(let i=1;i<=3;i++){const label=document.createElement('span');label.textContent=i;labels.append(label)}scene.append(labels);area.append(scene);
- if(r.phase==='done')return;
- const watch=document.createElement('button');watch.className='primary mini-watch';watch.disabled=r.phase==='shuffle';watch.textContent=r.phase==='shuffle'?'Sigue las hojas…':r.phase==='answer'?'Verlo otra vez':r.phase==='miss'?'Intentar otra vez':'Listo · seguir las hojas';watch.onclick=()=>startLeafShuffle(r);area.append(watch);
-}
-function startLeafShuffle(r=bonusRound){
- if(!r||r!==bonusRound||r.type!=='leaves'||r.phase==='done'||r.phase==='shuffle'||!$('bonus').open)return false;
- stopBonusTimers();r.slots=[0,1,2];r.shuffleStep=0;r.choice=null;r.phase='shuffle';r.notice='El coquí sigue debajo de la misma hoja.';renderBonus();
- bonusLater(r,()=>advanceLeafShuffle(r),700);return true;
-}
-function advanceLeafShuffle(r){
- if(r!==bonusRound||r.phase!=='shuffle'||!$('bonus').open)return false;
- if(r.shuffleStep===r.swaps.length){r.phase='answer';r.notice='¿En cuál de los tres lugares quedó?';renderBonus();return true}
- const [a,b]=r.swaps[r.shuffleStep];r.slots=r.slots.map(slot=>slot===a?b:slot===b?a:slot);r.shuffleStep++;
- leafButtons.forEach((button,id)=>{button.style.left=(r.slots[id]*33.333)+'%';button.setAttribute('aria-label',`Hoja en lugar ${r.slots[id]+1}`)});
- $('bonusNotice').textContent=`Cambio ${r.shuffleStep}/3 · lugares ${a+1} y ${b+1}`;
- bonusLater(r,()=>advanceLeafShuffle(r),data.motion?1400:1100);return true;
-}
-function renderSupper(r,area){
- const scene=document.createElement('div');scene.className='supper-scene';
- const frog=bonusImage(activeCoqui().src,'supper-frog');scene.append(frog);
- const bugs=document.createElement('div');bugs.className='supper-bugs';
- r.waves[r.wave].forEach((kind,i)=>{
-  const b=document.createElement('button'),caught=r.caught.includes(r.wave+':'+i),wave=r.wave;
-  b.className='supper-bug'+(caught?' eaten':'');b.disabled=caught||r.phase!=='play';
-  b.setAttribute('aria-label',caught?'Mosquita comida':{fly:'Mosquita, alimento del coquí',butterfly:'Mariposa, déjala volar',bee:'Abeja, déjala volar'}[kind]);
-  b.append(bonusImage({fly:'assets/insect-fly.webp',butterfly:'assets/bonus-butterfly.webp',bee:'assets/bonus-bee.webp'}[kind]));
-  b.onclick=()=>bonusPick(i,r,wave);bugs.append(b);
- });scene.append(bugs);area.append(scene);
- const caption=document.createElement('p');caption.className='mini-caption';caption.textContent=`${r.caught.length}/6 mosquitas · tanda ${r.wave+1} de 2`;area.append(caption);
-}
-function advanceSupper(r){if(r!==bonusRound||r.type!=='supper'||r.phase!=='between'||!$('bonus').open||r.caught.filter(key=>key.startsWith('0:')).length!==3)return false;r.wave=1;r.phase='play';r.notice='Últimas tres mosquitas.';renderBonus();return true}
-function bonusPick(value,expectedRound=bonusRound,expectedWave=bonusRound?.wave){
- const r=bonusRound;if(!r||r!==expectedRound||r.phase==='done'||data.bonusPending!==r.key||!$('bonus').open||!Number.isInteger(value))return false;
- if(r.type==='bridge'){
-  const tile=r.tiles.find(t=>t.index===value);if(r.phase!=='play'||!tile||tile.fixed)return false;
-  tile.rotation=(tile.rotation+1)%4;r.moves++;r.notice='';if(bridgeConnected(r))return completeBonus();
- }else if(r.type==='leaves'){
-  if(r.phase!=='answer'||value<0||value>2)return false;r.choice=value;
-  if(r.slots[r.targetLeaf]===value)return completeBonus();r.phase='miss';r.notice='Estaba bajo la hoja levantada. Puedes repetir los tres cambios.';
- }else if(r.type==='supper'){
-  if(r.phase!=='play'||expectedWave!==r.wave||value<0||value>5)return false;
-  if(r.waves[r.wave][value]!=='fly'){r.notice='Esa ayuda al bosque. Busca las mosquitas de cuerpo oscuro.';$('bonusNotice').textContent=r.notice;return false}
-  const key=r.wave+':'+value;if(r.caught.includes(key))return false;r.caught.push(key);r.notice='¡Ñam! Una mosquita más.';
-  if(r.caught.length===6)return completeBonus();
-  if(r.wave===0&&r.caught.length===3){r.phase='between';r.notice='¡Primera tanda lista! Vienen otras tres.';renderBonus();bonusLater(r,()=>advanceSupper(r),650);return true}
- }else return false;
- renderBonus();return true;
-}
-$('bonus').addEventListener('close',()=>{stopBonusTimers();leafButtons=[];if(bonusRound?.phase==='done')returnBonusToMap(bonusRound)});
-document.addEventListener('visibilitychange',()=>{
- if(!bonusRound)return;const r=bonusRound;
- if(document.visibilityState!=='hidden'){if(r.phase==='done'&&!r.returned)armBonusReturn(r);return}
- stopBonusTimers();cancelBonusReturn();
- if(r.phase==='shuffle'){r.slots=[0,1,2];r.shuffleStep=0;r.phase='peek';r.notice='Mira otra vez. La pausa no te cuesta vidas.';renderBonus()}
- if(r.phase==='between')advanceSupper(r);
-});
-$('bonusBtn').onclick=openBonus;
-$('resultBonusBtn').onclick=()=>{$('result').close();openBonus()};
-
-let protectionTimer=null;
-function protectionRemaining(now=Date.now()){return game&&!game.won&&game.lives>0?Math.max(0,(game.shieldUntil||0)-now):0}
-function isProtected(now=Date.now()){return protectionRemaining(now)>0}
-function stopProtectionTimer(){if(protectionTimer!==null)clearTimeout(protectionTimer);protectionTimer=null}
-function paintProtection(){
- stopProtectionTimer();const remaining=protectionRemaining(),active=remaining>0;
- $('shieldCount').textContent=data.shields;
- $('shieldStock').textContent=`Protección de 30 segundos. ${data.shields} disponibles`;
- $('shieldBtn').hidden=data.shields===0;$('boosterRow').hidden=data.shields===0&&!active;
- $('shieldBtn').disabled=!game||game.won||game.lives<=0||data.shields===0||active;
- $('shieldBtn').setAttribute('aria-label',active?'Protección de 30 segundos activa':`Usar una protección de 30 segundos. ${data.shields} disponibles`);
- $('shieldTimer').hidden=!active;$('shieldTimer').textContent='00:'+String(Math.ceil(remaining/1000)).padStart(2,'0');
- if(!active&&game?.shieldUntil){game.shieldUntil=0;save()}
- if(active&&document.visibilityState!=='hidden')protectionTimer=setTimeout(()=>{protectionTimer=null;paintProtection()},250);
-}
-function activateProtection(){
- if(!game||game.won||game.lives<=0||data.shields<1||isProtected())return false;
- data.shields--;game.shieldUntil=Date.now()+30000;save();paintProtection();
- feedback('Protección activada: durante 30 segundos los errores no cuestan corazones.');return true;
-}
-$('shieldBtn').onclick=activateProtection;
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')stopProtectionTimer();else paintProtection()});
-
 function save(){data.game=game;try{localStorage.setItem(KEY,JSON.stringify(data))}catch{feedback('El navegador no permite guardar. Puedes seguir jugando en esta sesión.')}}
 function feedback(s){$('feedback').textContent=s}
 const names={leaf:'AVENTURA EN LA HOJA',night:'BOSQUE ENCANTADO',garden:'NIDO TROPICAL'};
@@ -662,7 +526,7 @@ function puzzle(){const key=game.puzzle+':'+(game.variant||0);if(cachedLayout?.k
 function randomInt(n){return Math.floor(Math.random()*n)}
 function snapshot(){undo.push({cells:[...game.cells]});if(undo.length>100)undo.shift()}
 function isBlocked(i){const r=i>>3,c=i%8,g=puzzle().regions;return game.cells.some((v,j)=>v===2&&j!==i&&((j>>3)===r||j%8===c||g[j]===g[i]||(Math.abs((j>>3)-r)<=1&&Math.abs(j%8-c)<=1)))}
-function render(){paintBoardAppearance();const p=puzzle();$('levelTitle').replaceChildren(document.createTextNode(game.daily?'Reto del día':`Nivel ${(game.level??game.puzzle)+1}`));const subtitle=document.createElement('span');subtitle.textContent=`· ${difficulties[game.difficulty]||'Tranquilo'}`;$('levelTitle').append(subtitle);const count=game.cells.filter(v=>v===2).length;$('progress').textContent=`${count} / 8`;$('hearts').textContent=Array.from({length:4},(_,i)=>i<game.lives?'♥':'♡').join(' ');$('hearts').setAttribute('aria-label',`${game.lives} vidas`);const board=$('board'),fresh=board.children.length!==64,frag=fresh?document.createDocumentFragment():null;for(let i=0;i<64;i++){const b=fresh?document.createElement('button'):board.children[i],r=i>>3,c=i%8;b.type='button';b.className='cell';b.style.setProperty('--tile',`var(--tile${p.regions[i]})`);b.dataset.index=i;if(c<7&&p.regions[i]!==p.regions[i+1])b.classList.add('edge-r');if(r<7&&p.regions[i]!==p.regions[i+8])b.classList.add('edge-b');if(game.cells[i]!==2&&b.children.length)b.replaceChildren();let state='vacía';if(game.cells[i]===2){if(!b.firstElementChild){const img=document.createElement('img');img.src=activeCoqui().src;img.dataset.character=activeCoqui().id;img.alt='';b.append(img)}if(b.firstElementChild.dataset.character!==activeCoqui().id){b.firstElementChild.src=activeCoqui().src;b.firstElementChild.dataset.character=activeCoqui().id}state='coquí';if(game.fixed.includes(i)){b.classList.add('fixed');state='coquí inicial'}}else if(game.cells[i]===1){b.classList.add('mark');state='marcada con X'}else if(data.auto&&isBlocked(i)){b.classList.add('mark','auto');state='bloqueada automáticamente'}b.setAttribute('aria-label',`Fila ${r+1}, columna ${c+1}, región ${p.regions[i]+1}: ${state}`);b.setAttribute('aria-pressed',String(game.cells[i]===2));if(game.hinted===i)b.classList.add('hinted');if(fresh)frag.append(b)}if(fresh)board.replaceChildren(frag);$('undoBtn').disabled=!undo.length||game.won;$('modeLabel').textContent=mode==='coqui'?'Colocar coquí':'Marcar X';$('modeIcon').textContent=mode==='coqui'?'✦':'×';$('modeBtn').setAttribute('aria-label',mode==='coqui'?'Colocar coquí activado. Cambiar a marcar X':'Marcar X activado. Cambiar a colocar coquí');$('modeBtn').setAttribute('aria-pressed',String(mode==='coqui'));const remaining=Math.max(0,3-(game.hints||0));$('hintLabel').textContent=`Pista (${remaining}/3)`;$('hintBtn').setAttribute('aria-label',`${remaining} de 3 pistas disponibles`);$('hintBtn').disabled=game.won||remaining===0||game.lives===0;paintCareer();paintMission();paintProtection();save()}
+function render(){paintBoardAppearance();const p=puzzle();$('levelTitle').replaceChildren(document.createTextNode(game.daily?'Reto del día':`Nivel ${(game.level??game.puzzle)+1}`));const subtitle=document.createElement('span');subtitle.textContent=`· ${difficulties[game.difficulty]||'Tranquilo'}`;$('levelTitle').append(subtitle);const count=game.cells.filter(v=>v===2).length;$('progress').textContent=`${count} / 8`;$('hearts').textContent=Array.from({length:4},(_,i)=>i<game.lives?'♥':'♡').join(' ');$('hearts').setAttribute('aria-label',`${game.lives} vidas`);const board=$('board'),fresh=board.children.length!==64,frag=fresh?document.createDocumentFragment():null;for(let i=0;i<64;i++){const b=fresh?document.createElement('button'):board.children[i],r=i>>3,c=i%8;b.type='button';b.className='cell';b.style.setProperty('--tile',`var(--tile${p.regions[i]})`);b.dataset.index=i;if(c<7&&p.regions[i]!==p.regions[i+1])b.classList.add('edge-r');if(r<7&&p.regions[i]!==p.regions[i+8])b.classList.add('edge-b');if(game.cells[i]!==2&&b.children.length)b.replaceChildren();let state='vacía';if(game.cells[i]===2){if(!b.firstElementChild){const img=document.createElement('img');img.src=activeCoqui().src;img.dataset.character=activeCoqui().id;img.alt='';b.append(img)}if(b.firstElementChild.dataset.character!==activeCoqui().id){b.firstElementChild.src=activeCoqui().src;b.firstElementChild.dataset.character=activeCoqui().id}state='coquí';if(game.fixed.includes(i)){b.classList.add('fixed');state='coquí inicial'}}else if(game.cells[i]===1){b.classList.add('mark');state='marcada con X'}else if(data.auto&&isBlocked(i)){b.classList.add('mark','auto');state='bloqueada automáticamente'}b.setAttribute('aria-label',`Fila ${r+1}, columna ${c+1}, región ${p.regions[i]+1}: ${state}`);b.setAttribute('aria-pressed',String(game.cells[i]===2));if(game.hinted===i)b.classList.add('hinted');if(fresh)frag.append(b)}if(fresh)board.replaceChildren(frag);$('undoBtn').disabled=!undo.length||game.won;$('modeLabel').textContent=mode==='coqui'?'Colocar coquí':'Marcar X';$('modeIcon').textContent=mode==='coqui'?'✦':'×';$('modeBtn').setAttribute('aria-label',mode==='coqui'?'Colocar coquí activado. Cambiar a marcar X':'Marcar X activado. Cambiar a colocar coquí');$('modeBtn').setAttribute('aria-pressed',String(mode==='coqui'));const remaining=Math.max(0,3-(game.hints||0));$('hintLabel').textContent=`Pista (${remaining}/3)`;$('hintBtn').setAttribute('aria-label',`${remaining} de 3 pistas disponibles`);$('hintBtn').disabled=game.won||remaining===0||game.lives===0;paintCareer();paintMission();save()}
 function start(index,daily=false,seed=0){const previous=game?puzzle().solution.join(','):null;let base,variant;if(daily){base=seed%puzzles.length;variant=(seed>>>6)%8}else{let candidates=[];for(let b=0;b<puzzles.length;b++)for(let v=0;v<8;v++){if(game&&b===game.puzzle)continue;if(transformPuzzle(puzzles[b],v).solution.join(',')!==previous)candidates.push([b,v])}[base,variant]=candidates[randomInt(candidates.length)]}game={level:index,puzzle:base,variant,seed,cells:Array(64).fill(0),fixed:[],lives:4,won:false,daily,difficulty:'calm',hints:0,hinted:null,mistakes:0};undo=[];mode='coqui';render();feedback('Tablero vacío. Encuentra los ocho coquíes a tu ritmo.');save();syncBoardMusic()}
 function finish(){
  if(game.won)return;const before=victories(),friendsBefore=COQUIS.filter(unlockedCoqui).map(c=>c.id),oldStage=forestStage();game.won=true;
@@ -671,48 +535,26 @@ function finish(){
  const giftsBefore=data.decorGifts.length;
  if(levelFeature()==='fireflies'&&!data.decorGifts.includes('fireflies'))data.decorGifts.push('fireflies');
  if(levelFeature()==='precision'&&(game.mistakes||0)===0&&game.lives===4&&game.hints===0&&!data.decorGifts.includes('log'))data.decorGifts.push('log');
- if(levelFeature()==='flower'&&game.flowerCollected&&!data.decorGifts.includes('flowers'))data.decorGifts.push('flowers');
- data.bonusCounter++;data.bonusPending=missionKey();
+ updateFamily();
  undo=[];render();chirp(true);$('resultTag').textContent='¡COQUÍ, COQUÍ!';$('resultTitle').textContent='Cada coquí en su lugar';$('resultText').textContent=levelFeature()==='encounter'?`${activeCoqui().name}: «Te espero junto al río en El Yunque. ¡Ya encontraste a los ocho!»`:'Encontraste los ocho. Tu refugio tiene un poco más de vida.';
- $('rewardText').textContent=added?`+1 semilla para El Yunque. ${newFriends.length?'¡Desbloqueaste a '+newFriends.map(c=>c.name).join(' y ')+'!':oldStage!==forestStage()?'¡El Yunque llegó a '+forestStage().name+'!':'Cada victoria cuenta.'}`:'Este nivel ya plantó su semilla. Te espera otro minijuego para ganar puntos.';if(data.decorGifts.length>giftsBefore)$('rewardText').textContent+=' ¡El Yunque tiene un poco más de vida!';
- $('winRewards').hidden=false;$('resultBonusBtn').hidden=false;$('nextBtn').textContent='Ver mapa →';showDialog('result');openBonus();
+ $('rewardText').textContent=added?`+1 semilla para El Yunque. ${newFriends.length?'¡Desbloqueaste a '+newFriends.map(c=>c.name).join(' y ')+'!':oldStage!==forestStage()?'¡El Yunque llegó a '+forestStage().name+'!':'Cada victoria cuenta.'}`:'Este nivel ya plantó su semilla. Puedes seguir explorando El Yunque.';if(data.decorGifts.length>giftsBefore)$('rewardText').textContent+=' ¡El Yunque tiene un poco más de vida!';
+ $('winRewards').hidden=false;$('nextBtn').textContent='Ver mapa →';if(babyUnlocked())$('resultText').textContent='Tu aventura está completa. Borinbiano y toda su familia te esperan en El Yunque. Puedes seguir cuidándolos cuanto quieras.';else if(parentsTogether())$('resultText').textContent='¡Completaste los 60 niveles! Colombiana y Boricua ya son pareja en El Yunque. Vuelve mañana: su historia continúa.';showDialog('result');
 }
-function levelFeature(){return ['seed','flower','precision','fireflies','encounter'][(game.daily?game.seed:game.level||0)%5]}
-function flowerCell(){return ((game.level||0)*13+19)%64}
-function paintMission(){const type=levelFeature(),messages={seed:'Semilla nueva · haz crecer El Yunque',flower:'Flor escondida · +10 puntos si a la primera decides si lleva coquí o una X (no hay coquí). Las pistas no dan el premio.',precision:'Precisión · sin errores ni pistas: un tronco para El Yunque',fireflies:'Noche de luciérnagas · una victoria nueva suma luz a El Yunque',encounter:'Encuentro · completa este nivel y visita a tus coquíes en El Yunque'};$('levelMission').textContent=messages[type];if($('board').children.length===64&&type==='flower')$('board').children[flowerCell()].classList.add('flower-cell')}
+function levelFeature(){return ['seed','seed','precision','fireflies','encounter'][(game.daily?game.seed:game.level||0)%5]}
+function paintMission(){const messages={seed:'Cada nivel nuevo planta una semilla en El Yunque.',precision:'Sin errores ni pistas, tu victoria suma un tronco a El Yunque.',fireflies:'Una victoria nueva suma luz a El Yunque.',encounter:'Completa este nivel y visita a tus coquíes en El Yunque.'};$('levelMission').textContent=messages[levelFeature()]}
 
 function lost(){
  if(!game||game.won||game.lives>0)return false;
- pending=null;$('defeatBalance').textContent=`Tienes ${data.points} puntos`;
- $('buyOneHeart').disabled=data.points<20;$('buyTwoHearts').disabled=data.points<40;
+ pending=null;
  if(!$('defeat').open)showDialog('defeat');return true;
-}
-function buyHearts(amount){
- if(![1,2].includes(amount)||!game||game.won||game.lives!==0||data.points<amount*20)return false;
- data.points-=amount*20;game.lives=amount;
- $('defeat').close();render();feedback(`Compraste ${amount===1?'un corazón':'dos corazones'}. Continúa tu tablero.`);return true;
 }
 function restartLostLevel(){
  if(!game||game.won||game.lives!==0)return false;
- game={...game,cells:Array(64).fill(0),fixed:[],lives:4,won:false,hints:0,hinted:null,mistakes:0,flowerAttempted:false,flowerCollected:false,shieldUntil:0};
+ game={...game,cells:Array(64).fill(0),fixed:[],lives:4,won:false,hints:0,hinted:null,mistakes:0};
  undo=[];mode='coqui';$('defeat').close();render();feedback('Mismo tablero, desde cero. Tienes cuatro corazones.');return true;
 }
 $('retryLevelBtn').onclick=restartLostLevel;
-$('buyOneHeart').onclick=()=>buyHearts(1);
-$('buyTwoHearts').onclick=()=>buyHearts(2);
 $('defeat').addEventListener('cancel',event=>event.preventDefault());
-function flowerRewardKey(){return game.daily?'daily:'+(game.seed||0):'level:'+(game.level??game.puzzle)}
-function recordFlowerGuess(i,hasCoqui,fromHint=false){
- if(levelFeature()!=='flower'||i!==flowerCell()||game.flowerAttempted)return '';
- game.flowerAttempted=true;
- if(fromHint)return 'La pista resolvió la flor; el premio requiere tu primera deducción.';
- const correct=(puzzle().solution[i>>3]===i%8)===hasCoqui;
- if(!correct)return 'La primera elección en la flor no acertó. Esta vez no da puntos.';
- game.flowerCollected=true;const key=flowerRewardKey();
- if(data.flowerClaims.includes(key))return 'Ya recogiste el premio de esta flor.';
- data.flowerClaims.push(key);data.points+=10;
- return '¡Flor resuelta a la primera! +10 puntos.';
-}
 function play(i){
  if(game.won)return feedback('¡Tablero completado! Elige el siguiente nivel.');
  if(!Number.isInteger(i)||i<0||i>63)return;
@@ -721,28 +563,26 @@ function play(i){
  game.hinted=null;
  if(mode==='mark'){
   if(game.cells[i]===2)return feedback('Un coquí encontrado ya está en su lugar. Puedes deshacer tu última jugada.');
-  snapshot();const flowerNotice=game.cells[i]===0?recordFlowerGuess(i,false):'';
+  snapshot();
   game.cells[i]=game.cells[i]===1?0:1;
   if(game.cells[i]===1)playEffect('clickAudio');
-  render();feedback('Marca las casillas que puedes descartar.'+(flowerNotice?' '+flowerNotice:''));return;
+  render();feedback('Marca las casillas que puedes descartar.');return;
  }
  if(game.cells[i]===2)return feedback('¡Este coquí ya encontró su rincón!');
  if(game.cells[i]===1){snapshot();game.cells[i]=0;render();return feedback('Marca retirada. Toca otra vez para colocar un coquí.')}
- const flowerNotice=recordFlowerGuess(i,true);
  if(puzzle().solution[i>>3]!==i%8){
   playEffect('failAudio');
-  game.mistakes=(game.mistakes||0)+1;const protectedNow=isProtected();
-  if(!protectedNow)game.lives=Math.max(0,game.lives-1);
+  game.mistakes=(game.mistakes||0)+1;game.lives=Math.max(0,game.lives-1);
   render();const b=$('board').children[i];if(errorCell)errorCell.classList.remove('error');clearTimeout(errorsTimer);
   errorCell=b;b.classList.remove('error');void b.offsetWidth;b.classList.add('error');
-  if(!protectedNow){$('hearts').classList.remove('heart-hit');void $('hearts').offsetWidth;$('hearts').classList.add('heart-hit');}
+  $('hearts').classList.remove('heart-hit');void $('hearts').offsetWidth;$('hearts').classList.add('heart-hit');
   errorsTimer=setTimeout(()=>{b.classList.remove('error');$('hearts').classList.remove('heart-hit');if(errorCell===b)errorCell=null},550);
-  feedback((protectedNow?'Protección activa: no perdiste corazón.':isBlocked(i)?'Aquí compartiría fila, columna, color o tocaría a otro coquí.':'Ese rincón impediría completar el tablero. Prueba con otra deducción.')+(!protectedNow?' Perdiste un corazón.':'')+(flowerNotice?' '+flowerNotice:''));
+  feedback((isBlocked(i)?'Aquí compartiría fila, columna, color o tocaría a otro coquí.':'Ese rincón impediría completar el tablero. Prueba con otra deducción.')+' Perdiste un corazón.');
   if(game.lives===0)setTimeout(lost,350);return;
  }
  snapshot();game.cells[i]=2;
  if(game.cells.filter(v=>v===2).length<8)chirp();
- render();feedback('¡Coquí! Un rinconcito más en calma.'+(flowerNotice?' '+flowerNotice:''));
+ render();feedback('¡Coquí! Un rinconcito más en calma.');
  if(game.cells.filter(v=>v===2).length===8)finish();
 }
 
@@ -752,7 +592,7 @@ $('board').addEventListener('click',e=>{const b=e.target.closest('.cell');if(b)p
 $('board').addEventListener('keydown',e=>{const i=Number(e.target.dataset.index);if(!Number.isInteger(i))return;const delta={ArrowRight:1,ArrowLeft:-1,ArrowDown:8,ArrowUp:-8}[e.key];if(delta){e.preventDefault();const next=i+delta;if(next>=0&&next<64)$('board').children[next].focus()}});
 $('modeBtn').onclick=()=>{mode=mode==='coqui'?'mark':'coqui';render();feedback(mode==='mark'?'Modo X: toca para marcar o quitar una marca.':'Modo coquí: toca el rincón donde debe estar.')};
 $('undoBtn').onclick=()=>{if(!undo.length||game.won)return;game.cells=undo.pop().cells;game.hinted=null;render();feedback('Jugada deshecha. Los errores consumidos no se recuperan.')};
-$('hintBtn').onclick=()=>{if(game.won||game.lives<=0)return;if((game.hints||0)>=3)return feedback('Ya usaste las 3 pistas de este tablero. Sigue con tus deducciones.');const r=puzzle().solution.findIndex((c,r)=>game.cells[r*8+c]!==2);if(r<0)return;const i=r*8+puzzle().solution[r];snapshot();recordFlowerGuess(i,true,true);game.cells[i]=2;game.hints++;game.hinted=i;if(game.cells.filter(v=>v===2).length<8)chirp();render();feedback(`Pista: coquí en fila ${r+1}, columna ${i%8+1}. Desde aquí descarta su fila, columna, región y casillas vecinas.`);if(game.cells.filter(v=>v===2).length===8)finish()};
+$('hintBtn').onclick=()=>{if(game.won||game.lives<=0)return;if((game.hints||0)>=3)return feedback('Ya usaste las 3 pistas de este tablero. Sigue con tus deducciones.');const r=puzzle().solution.findIndex((c,r)=>game.cells[r*8+c]!==2);if(r<0)return;const i=r*8+puzzle().solution[r];snapshot();game.cells[i]=2;game.hints++;game.hinted=i;if(game.cells.filter(v=>v===2).length<8)chirp();render();feedback(`Pista: coquí en fila ${r+1}, columna ${i%8+1}. Desde aquí descarta su fila, columna, región y casillas vecinas.`);if(game.cells.filter(v=>v===2).length===8)finish()};
 $('settingsBtn').onclick=()=>{showDialog('settings')};
 function openGuide(){cancelResidentPress?.();stopResidentHold();stopForestAmbience();showDialog('help')}
 for(const id of ['helpBtn','mapHelpBtn','forestHelpBtn'])$(id).onclick=openGuide;

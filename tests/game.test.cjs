@@ -17,574 +17,123 @@ function boot(saved,options={}){
 }
 const settle=()=>new Promise(r=>setImmediate(r));
 
-function solveBonus(run){
- const type=run('bonusRound.type');
- if(type==='bridge')run("for(const [i,target] of [[0,6],[2,12],[5,3]])for(let n=0;n<4&&bridgeMask(bonusRound,i)!==target;n++)bonusPick(i)");
- else if(type==='leaves')run("startLeafShuffle();for(let n=0;n<4;n++)advanceLeafShuffle(bonusRound);bonusPick(bonusRound.slots[bonusRound.targetLeaf])");
- else run("for(let i=0;i<6;i++)if(bonusRound.waves[0][i]==='fly')bonusPick(i);advanceSupper(bonusRound);for(let i=0;i<6;i++)if(bonusRound.waves[1][i]==='fly')bonusPick(i)");
-}
 
 (async()=>{
- const {ctx,els,storage,run}=boot();await settle();
- assert.equal(run('game.cells.length'),64);assert.equal(els.get('board').children.length,64);
- assert.equal(run('game.cells.every(x=>x===0)'),true);assert.equal(run('game.lives'),4);
- assert.equal(run('data.character'),null);
- assert.equal(els.get('levels').open,true);assert.equal(els.get('help').open,false);
- assert.equal(run('data.theme'),'night');assert.equal(ctx.document.body.dataset.theme,'night');
- assert.equal(els.get('hearts').textContent,'♥ ♥ ♥ ♥');assert.equal(els.get('hintLabel').textContent,'Pista (3/3)');
- const correct=run('puzzle().solution[0]');run(`play(${correct})`);
- const cell=els.get('board').children[correct],sprite=cell.firstElementChild;
- assert.ok(sprite);run("mode='mark';play((puzzle().solution[0]+1)%8)");
- assert.equal(els.get('board').children[correct],cell);assert.equal(cell.firstElementChild,sprite);
- run('render()');assert.equal(cell.firstElementChild,sprite);
- run("start(0);data.relax=false;mode='coqui'");
- const wrong=run('(puzzle().solution[0]+1)%8');
- for(let i=3;i>=0;i--){run(`play(${wrong})`);assert.equal(run('game.lives'),i)}
- const before=run('JSON.stringify(game.cells)');run('play(puzzle().solution[0])');assert.equal(run('JSON.stringify(game.cells)'),before);
- run('start(0)');assert.equal(run('game.lives'),4);
- for(let i=1;i<=3;i++){els.get('hintBtn').onclick();assert.equal(run('game.hints'),i);assert.equal(els.get('hintLabel').textContent,`Pista (${3-i}/3)`)}
- assert.equal(els.get('hintBtn').disabled,true);
- const hinted=run('game.cells.filter(x=>x===2).length');els.get('hintBtn').onclick();assert.equal(run('game.hints'),3);assert.equal(run('game.cells.filter(x=>x===2).length'),hinted);
- els.get('undoBtn').onclick();assert.equal(run('game.hints'),3);assert.equal(els.get('hintBtn').disabled,true);
- run('data.relax=true;render()');els.get('hintBtn').onclick();assert.equal(run('game.hints'),3);
- run("mode='coqui';for(let r=0;r<8;r++)if(game.cells[r*8+puzzle().solution[r]]!==2)play(r*8+puzzle().solution[r])");
- assert.equal(run('game.won'),true);assert.equal(run('data.completed.includes(game.level)'),true);
- run('start(1)');assert.equal(run('game.hints'),0);assert.equal(els.get('hintLabel').textContent,'Pista (3/3)');
- assert.equal(run('valid(game)'),true);assert.equal(run('valid({...game,cells:[0]})'),false);
- run("data.theme='garden';theme();save()");assert.equal(JSON.parse(storage['coquidoku-v1']).theme,'night');
- const restored=boot(JSON.parse(storage['coquidoku-v1']));await settle();assert.equal(restored.run('data.theme'),'night');assert.equal(restored.run('game.lives'),4);
- assert.equal(restored.els.get('levels').open,true);
- const saved=run('JSON.stringify(game)');await run('init()');assert.equal(run('JSON.stringify(game)'),saved);
- for(let v=0;v<8;v++){run(`start(0,true,${v*64})`);const p=run('puzzle()');assert.equal(new Set(p.solution).size,8);assert.equal(new Set(p.solution.map((c,r)=>p.regions[r*8+c])).size,8);for(let r=1;r<8;r++)assert.ok(Math.abs(p.solution[r]-p.solution[r-1])>1)}
- let prev='';for(let i=0;i<100;i++){run('start(0)');const sol=run("puzzle().solution.join(',')");assert.notEqual(sol,prev);assert.equal(run('game.cells.every(x=>x===0)'),true);prev=sol}
- run('start(0,true,12345)');const daily=run('JSON.stringify(puzzle())');run('start(0,true,12345)');assert.equal(run('JSON.stringify(puzzle())'),daily);
- // Cosmetic progression must not alter the current puzzle or grant duplicate rewards.
- run("data.completed=[];data.dailyWins=[];data.character='sol';start(0)");
- assert.equal(run("chooseCoqui('menta')"),false);assert.equal(run('data.character'),'sol');
- for(const [n,unlocked,stage] of [[0,1,0],[5,2,0],[10,3,10],[20,4,10],[25,4,25],[35,5,25],[50,6,50],[60,7,50]]){
-  run(`data.completed=Array.from({length:${n}},(_,i)=>i);renderForest();renderCollection()`);
-  assert.equal(run('progression().unlocked.length'),unlocked);assert.equal(run('forestStage().at'),stage);
-  assert.equal(els.get('forestPlants').children.length,n);assert.equal(els.get('coquiCards').children.length,7);
+ const app=boot({rulesV3:true,intro:true});await settle();const r=app.run,e=app.els;
+ assert.equal(e.get('levels').open,true);assert.equal(r('game.cells.length'),64);assert.equal(r('game.cells.every(x=>x===0)'),true);
+ assert.equal(r('game.lives'),4);assert.equal(r('data.theme'),'night');assert.equal(r('data.character'),null);
+ assert.equal(r('COQUIS.length'),9);assert.equal(r('visibleCoquis().length'),8);assert.equal(r('babyUnlocked()'),false);
+ for(const name of ['openBonus','buyCoqui','buyHearts','activateProtection','recordFlowerGuess'])assert.equal(r('typeof '+name),'undefined');
+ for(const key of ['points','shields','purchased','bonusClaims','bonusPending','bonusCounter'])assert.equal(r(`Object.hasOwn(data,'${key}')`),false);
+ const html=fs.readFileSync('index.html','utf8');assert.ok(!/minijuego|puntos|comprar|protección/i.test(html));
+ for(const id of ['bonus','purchase','boosterRow','buyOneHeart','buyTwoHearts','resultBonusBtn'])assert.ok(!html.includes('id="'+id+'"'));
+ r('closeMap()');
+ const correct=r('puzzle().solution[0]');r(`play(${correct})`);
+ const cell=e.get('board').children[correct],sprite=cell.firstElementChild;
+ r("mode='mark';play((puzzle().solution[0]+1)%8);render()");assert.equal(e.get('board').children[correct],cell);assert.equal(cell.firstElementChild,sprite);
+ r("start(0);mode='coqui'");const wrong=r('(puzzle().solution[0]+1)%8');
+ for(let i=3;i>=0;i--){r(`play(${wrong})`);assert.equal(r('game.lives'),i)}
+ const exhausted=r('JSON.stringify(game.cells)');r('play(puzzle().solution[0])');assert.equal(r('JSON.stringify(game.cells)'),exhausted);
+ r('lost()');assert.equal(e.get('defeat').open,true);const puzzleBefore=r('JSON.stringify(puzzle())');
+ e.get('retryLevelBtn').onclick();assert.equal(r('game.lives'),4);assert.equal(r('game.hints'),0);assert.equal(r('JSON.stringify(puzzle())'),puzzleBefore);assert.equal(r('game.cells.every(x=>x===0)'),true);
+ for(let n=1;n<=3;n++){e.get('hintBtn').onclick();assert.equal(r('game.hints'),n)}const hinted=r('game.cells.filter(x=>x===2).length');e.get('hintBtn').onclick();assert.equal(r('game.cells.filter(x=>x===2).length'),hinted);e.get('undoBtn').onclick();assert.equal(r('game.hints'),3);
+ let prev='';for(let n=0;n<100;n++){r('start(0)');const next=r("puzzle().solution.join(',')");assert.notEqual(next,prev);prev=next}
+ r('start(0,true,12345)');const daily=r('JSON.stringify(puzzle())');r('start(0,true,12345)');assert.equal(r('JSON.stringify(puzzle())'),daily);
+ for(let n=0;n<=60;n++){
+  r(`data.completed=Array.from({length:${n}},(_,i)=>i);mapChapter=Math.floor(Math.min(${n},59)/10);renderCollection();renderMap()`);
+  const count=[0,5,10,20,35,50,55,60].filter(at=>n>=at).length;assert.equal(r('progression().unlocked.length'),count);
+  assert.equal(r('visibleCoquis().some(c=>c.id==="borinbiano")'),false);
+  assert.equal(e.get('coquiCards').children.length,8);assert.ok(!e.get('nextCoqui').textContent.includes('Borinbiano'));
+  const nodes=e.get('adventureMap').children[0].children.filter(c=>c.dataset.level!==undefined);assert.equal(nodes.length,10);
+  assert.equal(nodes.filter(c=>c.dataset.state==='current').length,n===60?0:1);
+  for(const node of nodes){const level=Number(node.dataset.level);assert.equal(node.dataset.state,n===60||level<n?'done':level===n?'current':'locked')}
  }
- run("data.completed=Array.from({length:5},(_,i)=>i);data.dailyWins=[];start(0);play(puzzle().solution[0])");
- const boardSnapshot=run('JSON.stringify(game)'),coquiCell=els.get('board').children[run('puzzle().solution[0]')],oldImage=coquiCell.firstElementChild;
- assert.equal(run("chooseCoqui('menta')"),true);assert.equal(run('JSON.stringify(game)'),boardSnapshot);
- assert.equal(coquiCell.firstElementChild,oldImage);assert.equal(oldImage.src,'assets/coqui-menta.webp');
- assert.equal(run("chooseCoqui('aurora')"),false);assert.equal(run('data.character'),'menta');
- const careerRestored=boot(JSON.parse(storage['coquidoku-v1']));await settle();assert.equal(careerRestored.run('data.character'),'menta');assert.equal(careerRestored.run('victories()'),5);
- run("data.completed=[];data.dailyWins=[];start(0);for(let r=0;r<8;r++)game.cells[r*8+puzzle().solution[r]]=2;finish()");
- assert.equal(run('victories()'),1);run('finish()');assert.equal(run('victories()'),1);
- run("start(0);for(let r=0;r<8;r++)game.cells[r*8+puzzle().solution[r]]=2;finish()");assert.equal(run('victories()'),1);
- for(let t=0;t<2;t++){run("start(0,true,9001);for(let r=0;r<8;r++)game.cells[r*8+puzzle().solution[r]]=2;finish()");assert.equal(run('victories()'),2)}
- run("data.completed=[0,1,2,3];data.dailyWins=[];start(4);for(let r=0;r<8;r++)game.cells[r*8+puzzle().solution[r]]=2;finish()");
- assert.ok(els.get('rewardText').textContent.includes('Pistoco'));assert.equal(run('victories()'),5);
- const legacyProgress=boot({...JSON.parse(storage['coquidoku-v1']),completed:[0,0,1,-1,99,'2'],dailyWins:[42,42,-1],character:'aurora'});await settle();assert.equal(legacyProgress.run('victories()'),3);assert.equal(legacyProgress.run('data.character'),null);
- // Economy: points only from a completed inter-level minigame; never from a level.
- const economy=boot();await settle();const er=economy.run,ee=economy.els;
- assert.equal(er('data.points'),0);
- er("for(let r=0;r<8;r++)game.cells[r*8+puzzle().solution[r]]=2;finish()");
- assert.equal(er('data.points'),0);assert.ok(ee.get('bonus').open);assert.equal(er('victories()'),1);
- // Exercise all short games and one-time payouts; invalid inputs never earn points.
- for(let n=1;n<=3;n++){
-  er("data.bonusCounter++;data.bonusPending=missionKey();openBonus()");
-  const balance=er('data.points');assert.equal(er('completeBonus()'),false);
-  assert.equal(er('bonusPick(-1)'),false);assert.equal(er('bonusPick(99)'),false);
-  solveBonus(er);assert.equal(er('data.points'),balance+20);assert.equal(er('completeBonus()'),false);
- }
+ assert.equal(r("unlockedCoqui(COQUIS.find(c=>c.id==='colombiana'))"),true);assert.equal(r('babyUnlocked()'),false);
+ // No extra screen after winning; normal and daily wins do not create currency.
+ r("data.completed=[];data.dailyWins=[];data.family={pairedAt:0,bornAt:0,announced:false};start(0);for(let row=0;row<8;row++)play(row*8+puzzle().solution[row])");
+ assert.equal(r('game.won'),true);assert.equal(e.get('result').open,true);assert.equal(r('data.completed.length'),1);
+ e.get('nextBtn').onclick();assert.equal(e.get('levels').open,true);
+ const boardSaved=JSON.parse(app.storage['coquidoku-v1']);
+ const legacy=boot({...boardSaved,character:'aurora',earned:[],purchased:['aurora','colombiana','borinbiano'],points:1000,shields:2,bonusPending:'round:5',yunqueV1:true,forestCoordinates:{aurora:{x:42,y:68}}});await settle();
+ assert.equal(legacy.run('data.character'),'aurora');assert.equal(legacy.run("unlockedCoqui(COQUIS.find(c=>c.id==='aurora'))"),true);
+ assert.equal(legacy.run("unlockedCoqui(COQUIS.find(c=>c.id==='colombiana'))"),false);assert.equal(legacy.run('babyUnlocked()'),false);
+ assert.equal(legacy.run('data.forestCoordinates.aurora.x'),42);assert.equal(legacy.run('JSON.stringify(game.cells)'),JSON.stringify(boardSaved.game.cells));
+ for(const key of ['points','shields','purchased','bonusPending'])assert.equal(Object.hasOwn(JSON.parse(legacy.storage['coquidoku-v1']),key),false);
+ console.log('PASS: stable board sprites, randomized/daily boards, 4-life lockout and same-board restart, 3 hints; all 61 map states; eight level unlocks; no economy or minigames; legacy purchased friends and progress preserved.');
 
- er("data.points=80;data.completed=[];data.dailyWins=[];data.earned=['sol'];data.purchased=[]");
- assert.equal(er("buyCoqui('brisa')"),false);assert.equal(er('data.points'),80);
- assert.equal(er("requestPurchase('menta')"),true);assert.equal(er('data.points'),80);ee.get('purchaseConfirm').onclick();
- assert.equal(er('data.points'),0);assert.equal(er("unlockedCoqui(COQUIS[1])"),true);assert.equal(er("buyCoqui('menta')"),false);
- assert.equal(er("chooseCoqui('menta')"),true);er('renderForest()');assert.equal(ee.get('forestResidents').children.length,2);
- er("openResident('menta')");ee.get('residentZone').value='1';ee.get('residentZone').onchange();
- assert.equal(er('data.positions.menta'),1);
- assert.ok(ee.get('forestDecor').children.length>=1);
- er("data.points=99999;data.completed=Array.from({length:59},(_,i)=>i);data.dailyWins=[123,456];data.purchased.push('boricua');renderCollection()");
- assert.equal(er("unlockedCoqui(COQUIS[6])"),false);assert.equal(er("buyCoqui('boricua')"),false);assert.equal(er("chooseCoqui('boricua')"),false);
- er("start(59);for(let r=0;r<8;r++)game.cells[r*8+puzzle().solution[r]]=2;finish()");
- assert.equal(er('data.points'),99999);assert.equal(er("unlockedCoqui(COQUIS[6])"),true);assert.equal(er("chooseCoqui('boricua')"),true);
- er("data.points=12;data.bonusPending='round:123';save()");
- const savedEconomy=boot(JSON.parse(economy.storage['coquidoku-v1']));await settle();
- assert.equal(savedEconomy.run('data.points'),12);assert.equal(savedEconomy.run('data.character'),'boricua');assert.equal(savedEconomy.run('data.positions.menta'),1);assert.equal(savedEconomy.run('openBonus()'),true);
- const oldFriends=boot({rulesV3:true,completed:[],dailyWins:Array.from({length:35},(_,i)=>i+1),character:'luna'});await settle();assert.equal(oldFriends.run('data.points'),0);assert.equal(oldFriends.run('data.character'),'luna');
- assert.ok(!fs.readFileSync('index.html','utf8').includes('forestMilestones'));
- const flow=boot();await settle();const fr=flow.run;
- for(let level=0;level<6;level++){
-  const balance=fr('data.points');fr(`start(${level});for(let r=0;r<8;r++)game.cells[r*8+puzzle().solution[r]]=2;finish()`);
-  assert.equal(fr('data.points'),balance);assert.equal(fr('bonusRound.type'),['leaves','supper','bridge'][level%3]);
-  solveBonus(fr);
-  assert.equal(fr('data.points'),balance+20);
- }
- assert.equal(fr('data.bonusClaims.length'),6);assert.equal(fr('data.completed.length'),6);
- // A real, preloaded media element is invoked synchronously from a tap.
- const audible=boot();await settle();const ar=audible.run,player=ar("$('boardCoquiAudio')");
- ar("navigator.audioSession={type:'ambient'}");
- assert.equal(ar('data.sound'),true);ar('play(puzzle().solution[0])');assert.equal(player.playCount,1);await settle();
- assert.equal(ar('navigator.audioSession.type'),'playback');assert.equal(player.muted,false);assert.equal(player.volume,1);assert.equal(player.currentTime,0);
- ar("mode='mark';play(8)");await settle();assert.equal(player.playCount,1);
- ar("mode='coqui';play((puzzle().solution[1]+1)%8+8)");await settle();assert.equal(player.playCount,1);
- ar('data.sound=false;save()');await ar('chirp()');assert.equal(player.playCount,1);
- const muted=boot(JSON.parse(audible.storage['coquidoku-v1']));await settle();assert.equal(muted.run('data.sound'),false);
- const residentPlayer=audible.els.get('coquiAudio');audible.els.get('residentCall').onclick();assert.equal(residentPlayer.playCount,1);await settle();
- residentPlayer.play=()=>Promise.reject(Object.assign(new Error('blocked'),{name:'NotAllowedError'}));
- assert.equal(await ar('chirp(false,true)'),false);assert.ok(audible.els.get('residentAudioStatus').textContent.includes('bloqueó'));assert.ok(audible.els.get('soundStatus').textContent.includes('bloqueó'));
- residentPlayer.play=()=>Promise.reject(new Error('decode'));
- assert.equal(await ar('chirp(false,true)'),false);assert.ok(audible.els.get('residentAudioStatus').textContent.includes('No se pudo'));
- const wood=boot();await settle();const wr=wood.run;
- wr("globalThis.originalRandom=Math.random;Math.random=()=>.1;openForest()");assert.equal(wr('forestTime'),'day');
- for(const n of [0,10,25,50]){wr(`data.completed=Array.from({length:${n}},(_,i)=>i);renderForest()`);assert.ok(wr('forestSceneSource()').endsWith('-day.webp'))}
- wr('renderForest()');assert.equal(wr('forestTime'),'day');
- wr('Math.random=()=>.9;openForest();Math.random=originalRandom');assert.equal(wr('forestTime'),'night');assert.ok(!wr('forestSceneSource()').endsWith('-day.webp'));
- wr("data.completed=[];data.earned=['sol'];renderForest()");assert.equal(wood.els.get('forestResidents').children[0].className,'forest-friend');
- const css=fs.readFileSync('styles.css','utf8');assert.ok(!css.includes('forest-hop'));assert.ok(!css.includes('forest-stroll'));assert.ok(!fs.readFileSync('index.html','utf8').includes('residentBehavior'));
- // Drive the frame clock explicitly, including the midpoint of a hop.
- let cancelled=0,scheduled=0;
- const habitat=boot(undefined,{window:{requestAnimationFrame:()=>++scheduled,cancelAnimationFrame:()=>cancelled++}});await settle();const hr=habitat.run,he=habitat.els;
- hr('openForest();updateEcosystem(0);updateEcosystem(800)');assert.equal(hr('ecosystem[0].hops'),1);
- hr('updateEcosystem(1250)');assert.equal(he.get('forestResidents').children[0].style.props['--hop-y'],'-36px');assert.equal(he.get('forestResidents').children[0].children[1],he.get('forestResidents').children[0].careBar);
- hr('updateEcosystem(1700);updateEcosystem(10799)');assert.equal(hr('ecosystem[0].hops'),1);assert.equal(he.get('forestResidents').children[0].style.props['--hop-y'],'0px');
- hr('updateEcosystem(10800);updateEcosystem(11250)');assert.equal(hr('ecosystem[0].hops'),2);assert.equal(he.get('forestResidents').children[0].style.props['--hop-y'],'-36px');
- hr("data.behaviors.sol='rest';updateEcosystem(31250);updateEcosystem(70000)");assert.equal(hr('ecosystem[0].hops'),2);assert.equal(he.get('forestResidents').children[0].style.props['--hop-y'],'0px');assert.equal(he.get('forestResidents').children[0].firstElementChild.style.transform,'translate3d(0,0,0)');
- const currency=hr('data.points'),seeds=hr('victories()');hr("data.behaviors.sol='explore';feedAt(60,70,71000);updateEcosystem(71100);updateEcosystem(71550)");assert.equal(hr('data.feedings'),1);assert.equal(hr('data.points'),currency);assert.equal(hr('victories()'),seeds);assert.equal(hr('feedAt(30,80,71001)'),true);
- hr('data.motion=true;updateEcosystem(90000)');assert.equal(he.get('forestResidents').children[0].firstElementChild.style.transform,'translate3d(0,0,0)');
- hr('closeForest()');assert.ok(cancelled>0);assert.equal(hr('forestRaf'),null);assert.equal(he.get('forest').open,false);
- // Map shows all sixty stops, completion status, current game, and protected future stops.
- hr("data.completed=[];data.motion=false;start(0);openMap()");assert.equal(he.get('adventureMap').children.length,1);
- const nodes=he.get('adventureMap').children.flatMap(c=>c.children.filter(e=>e.dataset.level!==undefined));assert.equal(nodes.length,10);assert.equal(nodes[0].disabled,false);assert.equal(nodes[1].disabled,true);assert.equal(hr('selectMapLevel(1)'),false);
- hr('play(puzzle().solution[0])');const retained=hr('JSON.stringify(game)');assert.equal(hr('selectMapLevel(0)'),true);assert.equal(hr('JSON.stringify(game)'),retained);
- hr("data.completed=[0,1,4];start(5);renderMap()");assert.equal(hr('unlockedThrough()'),5);assert.equal(hr('nextAdventureLevel()'),2);assert.equal(hr('selectMapLevel(6)'),false);
- hr("game.won=true;openCollection('map');$('collection').close();handleCollectionClose()");assert.equal(he.get('levels').open,true);assert.equal(he.get('collectionReturnBtn').textContent,'Volver al mapa');
- hr("data.completed=Array.from({length:60},(_,i)=>i);renderMap()");assert.ok(he.get('mapProgress').textContent.includes('Completaste'));assert.equal(hr('nextAdventureLevel()'),59);
- const crypto=require('node:crypto');assert.equal(crypto.createHash('sha256').update(fs.readFileSync('assets/coqui-user.mp3')).digest('hex'),'e3092efeaecbdb2ad01f0de6df52c20959e28ac7a961a4fab4df0dcbc880e18b');assert.ok(!fs.existsSync('assets/coqui-call.mp3'));
- // Food remains until actual arrival, then only the reached insect is consumed.
- hr("data.motion=false;data.behaviors={};insects=[];renderForest();feedAt(65,60,100000)");assert.equal(hr('insects.length'),3);
- hr('updateEcosystem(100050);renderForest()');assert.equal(hr('insects.length'),3);
- for(let t=100120;t<120000;t+=100)hr(`updateEcosystem(${t})`);
- assert.equal(hr('insects.length'),0);assert.equal(he.get('forestFood').children.length,0);
- hr("feeding=true;openForest()");assert.equal(hr('feeding'),false);assert.equal(he.get('forestFeedBtn').attrs['aria-pressed'],'false');
- hr("data.completed=Array.from({length:10},(_,i)=>i);start(10);openMap()");assert.equal(he.get('adventureMap').children.length,1);
- assert.ok(hr('mapPosition(0).y>mapPosition(1).y'));assert.ok(hr('mapPosition(8).y>mapPosition(9).y'));
- assert.equal(he.get('adventureMap').children[0].children.find(e=>e.dataset.level!==undefined).dataset.level,10);
- const mapButtons=he.get('adventureMap').children.flatMap(c=>c.children.filter(e=>e.dataset.level!==undefined));assert.ok(mapButtons.every(b=>!b.children.some(c=>String(c.textContent).includes('★')||c.textContent==='Bloqueado')));
- assert.ok(!fs.readFileSync('index.html','utf8').includes('mapContinue'));assert.ok(!fs.readFileSync('index.html','utf8').includes('forestCustomizeBtn'));
- for(let seed=1;seed<=120;seed++){
-  const round=fr(`buildBonus('round:${seed}')`);assert.equal(round.tiles.length,5);assert.equal(round.tiles.filter(t=>!t.fixed).length,3);
-  assert.equal(round.swaps.length,3);assert.equal(new Set(round.slots).size,3);
-  for(const wave of round.waves){assert.equal(wave.filter(x=>x==='fly').length,3);assert.equal(wave.filter(x=>x==='butterfly').length,2);assert.equal(wave.filter(x=>x==='bee').length,1)}
- }
+ // The family deadline uses the wall clock, never session duration or daily challenges.
+ let now=1800000000000;class RealDate extends Date{static now(){return now}}
+ const partial=boot({intro:true,completed:Array.from({length:59},(_,i)=>i),dailyWins:Array.from({length:50},(_,i)=>i)},{Date:RealDate});await settle();
+ assert.equal(partial.run('data.family.pairedAt'),0);assert.equal(partial.run('babyUnlocked()'),false);
+ const family=boot({intro:true,completed:Array.from({length:59},(_,i)=>i)},{Date:RealDate});await settle();const fr=family.run,fe=family.els;
+ fr("closeMap();start(59);for(let row=0;row<8;row++)play(row*8+puzzle().solution[row])");
+ assert.equal(fr('data.completed.length'),60);assert.equal(fr('data.family.pairedAt'),now);const paired=now,deadline=now+86400000;
+ assert.equal(fr('progression().unlocked.length'),8);assert.equal(fr('babyUnlocked()'),false);
+ fr("openCollection();renderCollection()");assert.equal(fe.get('coquiCards').children.length,8);assert.equal(fe.get('mapRestartAdventure').hidden,true);
+ const parentsSave=JSON.parse(family.storage['coquidoku-v1']);
+ now=deadline-1;
+ const before=boot(parentsSave,{Date:RealDate});await settle();const br=before.run,be=before.els;
+ br('closeMap();openForest()');assert.equal(br('data.family.pairedAt'),paired);assert.equal(br('babyUnlocked()'),false);assert.equal(be.get('forestResidents').children.length,8);
+ const parentX=br("ecosystem.find(s=>s.id==='colombiana').position.x");assert.equal(parentX,53);
+ now=deadline;br('tickResidentCare(Date.now(),true)');
+ assert.equal(br('babyUnlocked()'),true);assert.equal(br('data.family.bornAt'),deadline);assert.equal(be.get('forestResidents').children.length,9);
+ assert.equal(be.get('familyFinale').open,true);assert.equal(br('data.family.announced'),true);assert.equal(be.get('forestAmbience').paused,true);
+ const baby=br("ecosystem.find(s=>s.id==='borinbiano').id");assert.equal(baby,'borinbiano');
+ assert.ok(be.get('forestResidents').children[8].className.includes('baby-resident'));
+ br("renderCollection()");assert.equal(be.get('coquiCards').children.length,9);assert.equal(br("chooseCoqui('borinbiano')"),true);
+ br("start(59);for(let row=0;row<8;row++)play(row*8+puzzle().solution[row])");assert.ok(!be.get('resultText').textContent.includes('Vuelve mañana'));assert.equal(br('data.family.bornAt'),deadline);be.get('result').close();
+ be.get('familyFinale').close();be.get('familyFinale').emit('close');br('closeForest();openForest()');assert.equal(be.get('familyFinale').open,false);
+ assert.equal(br('data.family.bornAt'),deadline);assert.equal(be.get('restartAdventureBtn').hidden,false);
+ const bornSave=JSON.parse(before.storage['coquidoku-v1']);
+ now+=2*86400000;
+ const after=boot(bornSave,{Date:RealDate});await settle();after.run('closeMap();openForest()');assert.equal(after.run('data.family.bornAt'),deadline);assert.equal(after.els.get('forestResidents').children.length,9);assert.equal(after.els.get('familyFinale').open,false);
+ // A whole day away before the first reveal still produces exactly one baby and one announcement.
+ const offline=boot(parentsSave,{Date:RealDate});await settle();offline.run('closeMap();openForest()');assert.equal(offline.run('babyUnlocked()'),true);assert.equal(offline.els.get('familyFinale').open,true);assert.equal(offline.run('data.family.bornAt'),deadline);
+ assert.equal(offline.run("progression().unlocked.filter(c=>c.id==='borinbiano').length"),1);
+ // Cancelling reset leaves everything intact; only the explicit confirm erases this adventure.
+ be.get('restartAdventureBtn').onclick();assert.equal(be.get('restartAdventure').open,true);const retained=br('data.completed.length');
+ be.get('restartAdventure').close();assert.equal(br('data.completed.length'),retained);
+ br('data.sound=false;data.motion=true');be.get('restartAdventureBtn').onclick();be.get('confirmRestartAdventure').onclick();
+ assert.equal(br('data.completed.length'),0);assert.equal(br('data.family.pairedAt'),0);assert.equal(br('data.family.bornAt'),0);assert.equal(br('data.family.announced'),false);
+ assert.equal(br('progression().unlocked.length'),1);assert.equal(br('game.level'),0);assert.equal(br('game.cells.every(v=>v===0)'),true);assert.equal(br('data.sound'),false);assert.equal(br('data.motion'),true);
+ assert.equal(be.get('levels').open,true);assert.equal(be.get('familyFinale').open,false);assert.equal(br('Object.keys(data.care).length'),0);assert.equal(br('restartAdventure()'),false);
+ console.log('PASS: Colombiana at 55 and Boricua at 60; secret baby absent before 24h; exact deadline in-session and across reload/offline; one persistent baby and one finale; continued care and confirmed optional restart.');
 
- // Check every normal progression boundary, including a replay and the finale.
- const audit=boot();await settle();const qr=audit.run,qe=audit.els;
- const mapNodes=()=>qe.get('adventureMap').children.flatMap(c=>c.children.filter(e=>e.dataset.level!==undefined));
- for(let completed=0;completed<=60;completed++){
-  qr(`data.completed=Array.from({length:${completed}},(_,i)=>i);start(${Math.max(0,completed-1)});game.won=false;openMap()`);
-  const all=mapNodes(),current=all.filter(b=>b.dataset.state==='current');assert.equal(current.length,completed===60?0:1);
-  if(completed<60)assert.equal(current[0].dataset.level,completed);
-  for(const node of all){const level=node.dataset.level,state=node.dataset.state;
-   if(level<completed)assert.equal(state,'done');
-   if(level>completed)assert.equal(state,'locked');
-   assert.equal(node.className.split(' ').length,2);assert.equal(node.disabled,state==='locked');
-   assert.equal(node.children.filter(c=>c.className==='step-lock').length,state==='locked'?1:0);
-   assert.equal(node.children.filter(c=>c.textContent==='Estás aquí').length,state==='current'?1:0);
-  }
+ // All nine characters can sleep using real deadlines, including the new sleeping sprites.
+ const pets=boot(bornSave,{Date:RealDate});await settle();const pr=pets.run,pe=pets.els;pr('closeMap();openForest();Math.random=()=>.5');
+ for(const id of pr('COQUIS.map(c=>c.id)')){
+  pr(`data.care['${id}'].nextSleepAt=Date.now()-1`);assert.equal(pr(`putResidentToSleep('${id}')`),true);
+  assert.equal(pr(`data.care['${id}'].sleepUntil`),now+20*60000);assert.equal(pr(`feedResident('${id}','worm')`),null);
  }
- qr('data.completed=[0,1,2,3,4,5];start(2);renderMap()');assert.equal(qr('mapLevelState(5)'),'done');assert.equal(qr('mapLevelState(6)'),'current');assert.equal(qr('mapLevelState(7)'),'locked');
- // Legacy gaps must never make level 1 current when the saved game is level 7.
- qr("data.completed=[1,2,3,4,5];start(6);openMap()");
- assert.equal(qr('currentAdventureLevel()'),6);assert.equal(qr('mapLevelState(0)'),'done');
- assert.equal(mapNodes().find(n=>n.dataset.state==='current').dataset.level,6);
- assert.ok(qe.get('mapProgress').textContent.startsWith('Nivel actual: 7'));
- const winsBefore=qr('data.completed.length');qr("renderMap()");assert.equal(qr('data.completed.length'),winsBefore);
- // All ten steps fit the same portrait frame, with separated hit targets, locks and label.
- for(let chapter=0;chapter<6;chapter++)for(const [width,height] of [[320,390],[375,500],[430,650],[500,700]]){
-  const w=Math.min(width,height*4/7),h=w*7/4,stepW=Math.max(44,Math.min(64,w*.16)),stepH=Math.max(44,Math.min(52,w*.13));
-  const rectangles=Array.from({length:10},(_,i)=>{const p=qr(`mapPosition(${i},${chapter})`);return {left:p.x/400*w-stepW/2,right:p.x/400*w+stepW/2+19,top:p.y/700*h-stepH/2,bottom:p.y/700*h+stepH/2+15}});
-  assert.ok(rectangles.every(r=>r.left>=0&&r.right<=w&&r.top>=0&&r.bottom<=h));
-  for(let i=0;i<10;i++)for(let j=i+1;j<10;j++){const a=rectangles[i],b=rectangles[j];assert.ok(a.right<=b.left||b.right<=a.left||a.bottom<=b.top||b.bottom<=a.top)}
- }
- qr('data.completed=Array.from({length:26},(_,i)=>i);start(26);openMap()');
- assert.equal(qe.get('adventureMap').children.length,1);assert.equal(qr('mapChapter'),2);
- qr('changeMapChapter(-1)');assert.equal(qr('mapChapter'),1);qr('changeMapChapter(100)');assert.equal(qr('mapChapter'),2);assert.equal(qe.get('mapNext').disabled,true);
- qr('changeMapChapter(-100)');assert.equal(qr('mapChapter'),0);assert.equal(qe.get('mapPrevious').disabled,true);
- // Finger drag follows pointer capture, pauses animation and persists without opening a resident.
- qr("data.completed=Array.from({length:10},(_,i)=>i);data.behaviors={};data.forestCoordinates={};insects=[];renderForest();openForest()");
- const frog=qe.get('forestResidents').children[0],event=(x,y,id=1)=>({pointerId:id,clientX:x,clientY:y,button:0,preventDefault(){}});
- frog.onpointerdown(event(100,400));assert.equal(qr('ecosystem[0].dragging'),true);
- const hopsBefore=qr('ecosystem[0].hops');qr('updateEcosystem(300000)');assert.equal(qr('ecosystem[0].hops'),hopsBefore);
- frog.onpointermove(event(150,450));frog.onpointerup(event(150,450));assert.equal(qr('ecosystem[0].dragging'),false);
- assert.ok(qr('data.forestCoordinates.sol.x')>0);const dragged=qr('JSON.stringify(data.forestCoordinates.sol)');
- frog.onclick(event(150,450));assert.equal(qr("$('resident').open"),false);
- qr('renderForest()');assert.equal(qr('JSON.stringify(ecosystem[0].position)'),dragged);
- const dragReload=boot(JSON.parse(audit.storage['coquidoku-v1']));await settle();assert.equal(dragReload.run('JSON.stringify(data.forestCoordinates.sol)'),dragged);
- const tap=qe.get('forestResidents').children[0];tap.onpointerdown(event(100,400));tap.onpointerup(event(100,400));tap.onclick(event(100,400));assert.equal(qe.get('resident').open,true);qe.get('resident').close();
- tap.onpointerdown(event(100,400));tap.onpointermove(event(10000,-10000));tap.onpointercancel(event(10000,-10000));
- assert.equal(qr('data.forestCoordinates.sol.x'),88);assert.equal(qr('data.forestCoordinates.sol.y'),45);
- // Multiple simultaneous food locations are matched by distance, one distinct target per coqui.
- qr("insects=[];data.behaviors={};ecosystem[0].position={x:15,y:70};ecosystem[1].position={x:80,y:70};ecosystem[2].position={x:50,y:82};feedAt(15,70,400000);feedAt(80,70,400000);feedAt(50,82,400000)");
- assert.equal(qr('insects.length'),9);assert.equal(qr('new Set(ecosystem.map(s=>s.targetFood)).size'),3);
- assert.ok(qr('ecosystem.every(s=>Math.hypot(insects.find(b=>b.id===s.targetFood).x-s.position.x,insects.find(b=>b.id===s.targetFood).y-s.position.y)<5)'));
- qr("data.behaviors.sol='rest';distributeInsects(400010)");assert.equal(qr('ecosystem[0].targetFood'),null);
- for(let i=0;i<7;i++)qr('feedAt(60,80,400010)');assert.equal(qr('insects.length'),30);assert.equal(qr('feedAt(40,70,400010)'),false);
-
- qr('openForest()');assert.equal(qe.get('forestBack').focused,true);assert.ok(!fs.readFileSync('index.html','utf8').includes('forest-atmosphere'));assert.ok(fs.readFileSync('index.html','utf8').includes('autofocus id="forestBack"'));
- assert.deepEqual(Array.from(qr('COQUIS.slice(0,6).map(c=>c.name)')),['Coquí Dorado','Pistoco','Amapola','Sila','Betances','Rita']);
-
- // Exhaustive bridge rotations: exactly one arrangement of the three corners connects.
- let working=0;
- qr("data.bonusPending='round:3';openBonus()");
- for(let a=0;a<4;a++)for(let b=0;b<4;b++)for(let c=0;c<4;c++){
-  const valid=qr(`bonusRound.tiles.find(t=>t.index===0).rotation=${a};bonusRound.tiles.find(t=>t.index===2).rotation=${b};bonusRound.tiles.find(t=>t.index===5).rotation=${c};bridgeConnected(bonusRound)`);
-  if(valid)working++;
- }assert.equal(working,1);
- // 300 complete challenges: legal solutions, wrong choices, all stages, duplicate/stale inputs.
- const mini=boot();await settle();const mr=mini.run;
- const uniqueBridges=new Set(),uniqueLeafEnds=new Set(),uniqueDinners=new Set();
- for(let n=1;n<=300;n++){
-  mr(`data.bonusPending='round:${10000+n}';openBonus()`);const balance=mr('data.points'),type=mr('bonusRound.type');
-  assert.equal(mr('completeBonus()'),false);
-  if(type==='bridge'){
-   uniqueBridges.add(mr('JSON.stringify(bonusRound.tiles.map(t=>t.rotation))'));
-   assert.equal(mr('bridgeConnected(bonusRound)'),false);
-   assert.equal(mr('bonusPick(3)'),false);assert.equal(mr('bonusPick(8)'),false);
-  }else if(type==='leaves'){
-   assert.equal(mr('bonusPick(0)'),false);assert.equal(mr('startLeafShuffle()'),true);
-   assert.equal(mr('startLeafShuffle()'),false);
-   for(let step=0;step<3;step++){mr('advanceLeafShuffle(bonusRound)');assert.equal(mr('completeBonus()'),false);assert.equal(mr('bonusPick(0)'),false)}
-   mr('advanceLeafShuffle(bonusRound)');uniqueLeafEnds.add(mr('bonusRound.slots[bonusRound.targetLeaf]'));
-   assert.equal(mr('bonusRound.phase'),'answer');
-   mr('bonusPick((bonusRound.slots[bonusRound.targetLeaf]+1)%3)');assert.equal(mr('bonusRound.phase'),'miss');assert.equal(mr('data.points'),balance);
-  }else{
-   uniqueDinners.add(mr('JSON.stringify(bonusRound.waves)'));
-   assert.equal(mr('advanceSupper(bonusRound)'),false);
-   mr("bonusPick(bonusRound.waves[0].findIndex(k=>k!=='fly'))");assert.equal(mr('bonusRound.caught.length'),0);
-   mr("globalThis.oldSupper=bonusRound;globalThis.firstFly=bonusRound.waves[0].indexOf('fly');bonusPick(firstFly)");
-   assert.equal(mr('bonusPick(firstFly)'),false);assert.equal(mr('completeBonus()'),false);
-  }
-  solveBonus(mr);
-  assert.equal(mr('data.points'),balance+20);assert.equal(mr('completeBonus()'),false);assert.equal(mr('bonusPick(0)'),false);
-  if(type==='bridge')assert.ok(mr('bonusRound.moves')<=9);
-  if(type==='supper')assert.equal(mr('bonusPick(firstFly,oldSupper,0)'),false);
- }
- assert.ok(uniqueBridges.size>12);assert.equal(uniqueLeafEnds.size,3);assert.ok(uniqueDinners.size>50);
- // Real scheduled callbacks: 4 seconds to follow leaves; close and background cancel work.
- let clock=0,serial=0;const tasks=new Map();
- const timed=boot(null,{setTimeout:(fn,delay)=>{const id=++serial;tasks.set(id,{fn,at:clock+delay});return id},clearTimeout:id=>tasks.delete(id)});
- await settle();const tr=timed.run,te=timed.els;
- function tick(ms){const end=clock+ms;for(;;){const next=[...tasks].filter(([,v])=>v.at<=end).sort((a,b)=>a[1].at-b[1].at)[0];if(!next)break;clock=next[1].at;tasks.delete(next[0]);next[1].fn()}clock=end}
- tr("data.bonusPending='round:1';openBonus();startLeafShuffle()");
- tick(699);assert.equal(tr('bonusRound.shuffleStep'),0);tick(1);assert.equal(tr('bonusRound.shuffleStep'),1);
- tick(2200);assert.equal(tr('bonusRound.shuffleStep'),3);assert.equal(tr('bonusRound.phase'),'shuffle');tick(1100);assert.equal(tr('bonusRound.phase'),'answer');assert.equal(tr('bonusTimers.size'),0);
- tr('startLeafShuffle()');tick(200);te.get('bonus').close();te.get('bonus').emit('close');assert.equal(tr('bonusTimers.size'),0);tick(10000);assert.equal(tr('data.points'),0);
- tr('openBonus();startLeafShuffle()');tick(700);
- timed.ctx.document.visibilityState='hidden';for(const fn of timed.ctx.document.listeners.visibilitychange)fn();
- assert.equal(tr('bonusRound.phase'),'peek');assert.equal(tr('bonusTimers.size'),0);tick(10000);assert.equal(tr('data.points'),0);
- timed.ctx.document.visibilityState='visible';tr('data.motion=true;startLeafShuffle()');tick(4900);assert.equal(tr('bonusRound.phase'),'answer');tr('bonusPick(bonusRound.slots[bonusRound.targetLeaf])');assert.equal(tr('data.points'),20);
- tr("data.bonusPending='round:2';openBonus();for(let i=0;i<6;i++)if(bonusRound.waves[0][i]==='fly')bonusPick(i)");
- assert.equal(tr('bonusRound.phase'),'between');tick(649);assert.equal(tr('bonusRound.wave'),0);tick(1);assert.equal(tr('bonusRound.wave'),1);
- // Old DOM callbacks cannot affect a replacement challenge or a new insect wave.
- tr("globalThis.prior=bonusRound;globalThis.stale=bonusRound.waves[0].indexOf('fly')");
- assert.equal(tr('bonusPick(stale,prior,0)'),false);tr("data.bonusPending='round:3';openBonus()");assert.equal(tr('bonusPick(0,prior,1)'),false);
- // Theme preferences and board contents survive cosmetic changes and reload.
- const palettes=new Set(),scenes=new Set();
- for(const theme of ['leaf','night','garden'])for(let level=0;level<60;level++){
-  const look=mr(`boardAppearance(${level},'${theme}')`);
-  assert.equal(look.palette.length,8);assert.equal(new Set(look.palette).size,8);assert.equal(look.chapter,Math.floor(level/10));
-  if(theme==='night'){palettes.add(look.palette.join(','));scenes.add(look.scene)}
- }
- assert.equal(palettes.size,60);assert.equal(scenes.size,1);assert.equal([...scenes][0],'assets/night.webp');
- mr("data.theme='garden';start(8);play(puzzle().solution[0]);globalThis.beforeCosmetic=JSON.stringify(game);theme();paintBoardAppearance()");
- assert.equal(mr('JSON.stringify(game)'),mr('beforeCosmetic'));assert.equal(mr('data.theme'),'night');
- const cosmeticsSaved=boot(JSON.parse(mini.storage['coquidoku-v1']));await settle();assert.equal(cosmeticsSaved.run('data.theme'),'night');assert.equal(cosmeticsSaved.run('JSON.stringify(game)'),mr('beforeCosmetic'));
-
-
- {
- // Exactly four seconds after a mini-game win: "Lo lograste", then close results and show map.
- let realNow=100000,nextId=0;const scheduled=new Map();
- class GameDate extends Date{constructor(...args){super(...(args.length?args:[realNow]))}static now(){return realNow}}
- const extra=boot(null,{Date:GameDate,setTimeout:(fn,delay)=>{const id=++nextId;scheduled.set(id,{fn,at:realNow+delay});return id},clearTimeout:id=>scheduled.delete(id)});
- await settle();const xr=extra.run,xe=extra.els;
- function advance(ms){const end=realNow+ms;for(;;){const next=[...scheduled].filter(([,task])=>task.at<=end).sort((a,b)=>a[1].at-b[1].at)[0];if(!next)break;realNow=next[1].at;scheduled.delete(next[0]);next[1].fn()}realNow=end}
- xr("data.bonusPending='round:3';openBonus();$('result').showModal()");solveBonus(xr);
- assert.equal(xe.get('bonusTitle').textContent,'Lo lograste');assert.equal(xe.get('bonus').open,true);
- advance(3999);assert.equal(xe.get('bonus').open,true);advance(1);
- assert.equal(xe.get('bonus').open,false);assert.equal(xe.get('result').open,false);assert.equal(xe.get('levels').open,true);
- // Switching apps cannot lose the pending return or create a second reward.
- xe.get('levels').close();xr("data.bonusPending='round:6';openBonus()");solveBonus(xr);const paid=xr('data.points');
- extra.ctx.document.visibilityState='hidden';for(const fn of extra.ctx.document.listeners.visibilitychange)fn();advance(6000);
- extra.ctx.document.visibilityState='visible';for(const fn of extra.ctx.document.listeners.visibilitychange)fn();advance(0);
- assert.equal(xe.get('levels').open,true);assert.equal(xr('data.points'),paid);
- // Protection is awarded once every third solved challenge, then consumed only on activation.
- xe.get('levels').close();xr("data.bonusClaims=[];data.shields=0;data.points=0");
- for(let n=1;n<=3;n++){xr(`data.bonusPending='round:${30+n}';openBonus()`);solveBonus(xr);assert.equal(xr('data.shields'),n===3?1:0)}
- assert.equal(xr('data.points'),60);assert.equal(xr('completeBonus()'),false);assert.equal(xr('data.shields'),1);
- xr("cancelBonusReturn();$('bonus').close();start(0)");
- assert.equal(xr('activateProtection()'),true);assert.equal(xr('data.shields'),0);assert.equal(xr('activateProtection()'),false);
- assert.equal(xe.get('shieldTimer').textContent,'00:30');assert.equal(xe.get('shieldTimer').hidden,false);
- const protectedCell=xr('(puzzle().solution[0]+1)%8');xr(`play(${protectedCell})`);assert.equal(xr('game.lives'),4);
- advance(29250);assert.equal(xe.get('shieldTimer').textContent,'00:01');xr(`play(${protectedCell})`);assert.equal(xr('game.lives'),4);
- advance(750);assert.equal(xr('isProtected()'),false);assert.equal(xe.get('shieldTimer').hidden,true);xr(`play(${protectedCell})`);assert.equal(xr('game.lives'),3);
- // Persisted absolute deadline survives reload; switching levels cannot replenish or carry it.
- xr("data.shields=2;activateProtection();save()");const shieldSave=JSON.parse(extra.storage['coquidoku-v1']),expires=shieldSave.game.shieldUntil;
- realNow+=10000;const shieldReload=boot(shieldSave,{Date:GameDate});await settle();
- assert.equal(shieldReload.run('protectionRemaining()'),20000);assert.equal(shieldReload.run('data.shields'),1);
- realNow=expires;assert.equal(shieldReload.run('isProtected()'),false);xr("start(2)");assert.equal(xr('isProtected()'),false);assert.equal(xr('data.shields'),1);
- // Zero lives always block input, including old relaxed preferences and owned protection.
- xr("data.points=19;data.relax=true;game.lives=0;data.shields=1;lost()");const deadCells=xr('JSON.stringify(game.cells)');
- xr('play(puzzle().solution[0])');assert.equal(xr('JSON.stringify(game.cells)'),deadCells);assert.equal(xr('activateProtection()'),false);
- assert.equal(xr('buyHearts(1)'),false);assert.equal(xr('data.points'),19);assert.equal(xr('game.lives'),0);assert.equal(xe.get('buyOneHeart').disabled,true);
- xr("data.points=40;game.cells[puzzle().solution[0]]=2;game.hints=2;save();lost()");
- const deadPuzzle=xr('game.puzzle'),deadVariant=xr('game.variant'),deadLevel=xr('game.level'),deadPosition=xr('JSON.stringify(game.cells)');
- assert.equal(xr('buyHearts(2)'),true);assert.equal(xr('data.points'),0);assert.equal(xr('game.lives'),2);
- assert.equal(xr('JSON.stringify(game.cells)'),deadPosition);assert.equal(xr('game.hints'),2);assert.equal(xr('buyHearts(2)'),false);assert.equal(xr('lost()'),false);
- xr("game.lives=0;data.points=20;lost()");assert.equal(xr('buyHearts(1)'),true);assert.equal(xr('game.lives'),1);assert.equal(xr('data.points'),0);
- xr('game.lives=0;lost()');assert.equal(xr('restartLostLevel()'),true);assert.equal(xr('game.lives'),4);assert.equal(xr('game.hints'),0);
- assert.equal(xr('game.cells.every(c=>c===0)'),true);assert.equal(xr('game.puzzle'),deadPuzzle);assert.equal(xr('game.variant'),deadVariant);assert.equal(xr('game.level'),deadLevel);
- const noRelax=boot({rulesV3:true,relax:true});await settle();assert.equal(noRelax.run('data.relax'),false);assert.ok(!fs.readFileSync('index.html','utf8').includes('relaxToggle'));
- // Flower: first correct coqui/X gets 10 points once; wrong first, undo, replay and hints cannot farm.
- const blossom=boot();await settle();const br=blossom.run;
- br("data.points=0;data.flowerClaims=[];start(1);globalThis.flowerIndex=flowerCell();mode=puzzle().solution[flowerIndex>>3]===flowerIndex%8?'coqui':'mark';play(flowerIndex)");
- assert.equal(br('data.points'),10);assert.equal(br('game.flowerCollected'),true);assert.equal(br('data.flowerClaims.length'),1);
- blossom.els.get('undoBtn').onclick();br('play(flowerIndex)');assert.equal(br('data.points'),10);
- br("start(1);flowerIndex=flowerCell();mode=puzzle().solution[flowerIndex>>3]===flowerIndex%8?'coqui':'mark';play(flowerIndex)");assert.equal(br('data.points'),10);
- br("start(6);flowerIndex=flowerCell();globalThis.flowerHasCoqui=puzzle().solution[flowerIndex>>3]===flowerIndex%8;mode=flowerHasCoqui?'mark':'coqui';play(flowerIndex);mode=flowerHasCoqui?'coqui':'mark';play(flowerIndex);play(flowerIndex)");
- assert.equal(br('data.points'),10);assert.equal(br('game.flowerCollected'),undefined);assert.equal(br('game.flowerAttempted'),true);
- br("start(0,true,12346);flowerIndex=flowerCell();mode=puzzle().solution[flowerIndex>>3]===flowerIndex%8?'coqui':'mark';play(flowerIndex);save()");
- assert.equal(br('data.points'),20);assert.ok(br("data.flowerClaims.includes('daily:12346')"));
- const flowerReload=boot(JSON.parse(blossom.storage['coquidoku-v1']));await settle();assert.equal(flowerReload.run('data.flowerClaims.length'),2);
- br("data.points=0;data.flowerClaims=[];for(let n=0;n<200;n++){start(1);if(puzzle().solution[flowerCell()>>3]===flowerCell()%8)break}for(let row=0;row<(flowerCell()>>3);row++)game.cells[row*8+puzzle().solution[row]]=2");
- assert.equal(br('puzzle().solution[flowerCell()>>3]===flowerCell()%8'),true);
- blossom.els.get('hintBtn').onclick();assert.equal(br('game.flowerAttempted'),true);assert.equal(br('data.points'),0);
- // Text surfaces have at least 4.5:1 contrast for primary and secondary copy in all three themes.
- const luminance=hex=>{const rgb=hex.match(/../g).map(x=>parseInt(x,16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);return .2126*rgb[0]+.7152*rgb[1]+.0722*rgb[2]};
- for(const [surface,ink,sub] of [['fff7e7','284329','5d704e'],['153b43','f4e6c9','c3d2c5'],['fff1f1','654360','82677c']])for(const text of [ink,sub]){const x=luminance(surface),y=luminance(text);assert.ok((Math.max(x,y)+.05)/(Math.min(x,y)+.05)>=4.5)}
- console.log('PASS: 4-second mini-game return; background/resume; shield award, spending, exact 30-second expiry and reload; zero-life blocking; exact heart prices and same-board restart; first-guess flower rewards and no farming; readable text contrast.');
- }
-
-
- {
- // No empty booster UI, no instructions around the board, and exactly one dark design.
- const clean=boot({intro:true,theme:'garden'});await settle();const cr=clean.run,ce=clean.els;
- assert.equal(cr('data.theme'),'night');assert.equal(ce.get('shieldBtn').hidden,true);assert.equal(ce.get('boosterRow').hidden,true);
- cr("data.shields=1;paintProtection()");assert.equal(ce.get('shieldBtn').hidden,false);assert.equal(ce.get('boosterRow').hidden,false);
- cr('activateProtection()');assert.equal(ce.get('shieldBtn').hidden,true);assert.equal(ce.get('boosterRow').hidden,false);assert.equal(ce.get('shieldTimer').hidden,false);
- cr('game.shieldUntil=0;paintProtection()');assert.equal(ce.get('boosterRow').hidden,true);
- const html=fs.readFileSync('index.html','utf8'),main=html.split('</main>')[0],help=html.split('<dialog id="help">')[1].split('</dialog>')[0];
- assert.ok(!main.includes('levelMission'));assert.ok(!main.includes('game-message'));assert.ok(help.includes('levelMission'));assert.ok(!html.includes('data-pick='));
- assert.ok(main.includes('id="feedback" class="sr-only"'));assert.ok(!main.includes('gana una cada'));
- const fixedArt=Array.from({length:60},(_,level)=>cr(`boardAppearance(${level}).scene`));assert.ok(fixedArt.every(scene=>scene==='assets/night.webp'));
- // Persistent pet care, real-time naps, four foods, and a hold that never becomes a tap.
- {
- let now=1800000000000,timerId=0;const timers=new Map();
- class PetDate extends Date{static now(){return now}}
- const pet=boot({intro:true,rulesV3:true,completed:Array.from({length:10},(_,i)=>i)},{Date:PetDate,setTimeout:(fn,ms)=>{timers.set(++timerId,{fn,ms});return timerId},clearTimeout:id=>timers.delete(id)});
- await settle();const r=pet.run,e=pet.els;r('closeMap();openForest()');
- r("data.care.sol.satiety=90;data.care.sol.hungerRate=.6;data.care.sol.nextSleepAt=Date.now()+120000;data.care.menta.nextSleepAt=Date.now()+600000");
- now+=60000;r('tickResidentCare(Date.now(),true)');assert.ok(Math.abs(r('data.care.sol.satiety')-89.4)<.001);
- r("openResident('sol')");assert.equal(e.get('residentSleepBtn').disabled,true);assert.equal(r("putResidentToSleep('sol')"),false);
- now+=180000;r('tickResidentCare(Date.now(),true)');assert.equal(e.get('forestResidents').children[0].sleepBadge.hidden,false);assert.equal(e.get('residentSleepBtn').disabled,false);
- r('globalThis.petRandom=Math.random;Math.random=()=>.5');const sprite=e.get('forestResidents').children[0].firstElementChild;
- assert.equal(r("putResidentToSleep('sol')"),true);const until=r('data.care.sol.sleepUntil'),duration=until-now;
- assert.ok(duration>=15*60000&&duration<=25*60000);assert.equal(r("putResidentToSleep('sol')"),false);assert.equal(r("putResidentToSleep('menta')"),false);
- assert.equal(e.get('forestResidents').children[0].firstElementChild,sprite);assert.ok(sprite.src.endsWith('coqui-sol-sleep.webp'));
- const hops=r('ecosystem[0].hops');r('updateEcosystem(1000);updateEcosystem(5000)');assert.equal(r('ecosystem[0].hops'),hops);
- assert.equal(r("feedResident('sol','worm')"),null);
- r("insects=[];feedAt(67,65,5000)");assert.ok(r("insects.every(b=>b.owner!=='sol')"));
- now+=15*60000;const saved=JSON.parse(pet.storage['coquidoku-v1']),restored=boot(saved,{Date:PetDate});await settle();restored.run('openForest()');
- assert.equal(duration,20*60000);assert.equal(restored.run('data.care.sol.sleepUntil'),until);assert.equal(restored.run("residentIsSleeping('sol')"),true);assert.ok(restored.els.get('forestResidents').children[0].firstElementChild.src.endsWith('-sleep.webp'));
- now=until-1;restored.run('tickResidentCare(Date.now(),true)');assert.equal(restored.run("residentIsSleeping('sol')"),true);
- now++;restored.run('tickResidentCare(Date.now(),true)');assert.equal(restored.run("residentIsSleeping('sol')"),false);assert.ok(restored.els.get('forestResidents').children[0].firstElementChild.src.endsWith('coqui.webp'));assert.ok(restored.run('data.care.sol.nextSleepAt')>now);
- const wokeWhileClosed=boot(saved,{Date:PetDate});await settle();wokeWhileClosed.run('openForest()');assert.equal(wokeWhileClosed.run("residentIsSleeping('sol')"),false);assert.equal(wokeWhileClosed.run('data.care.sol.sleepUntil'),0);
- r("careFor('sol');$('resident').close();data.behaviors={};insects=[];Math.random=()=>.99");
- const points=r('data.points'),seeds=r('victories()');
- for(const type of ['fly','butterfly','worm','ant']){
-  r("data.care.sol.satiety=20");const meal=r("feedResident('sol','"+type+"')");assert.ok(meal.after>20&&meal.after<100);
-  r("data.care.sol.satiety=20;Math.random=()=>.01");assert.equal(r("feedResident('sol','"+type+"').after"),100);r('Math.random=()=>.99');
- }
- assert.equal(r('data.points'),points);assert.equal(r('victories()'),seeds);
- r("selectForestFood('worm');feedAt(67,60,9000)");assert.equal(r('data.forestFood'),'worm');assert.ok(r("insects.every(b=>b.type==='worm')"));assert.ok(e.get('forestFood').children.every(b=>b.src.endsWith('food-worm.webp')));
- r("data.care.sol.satiety=20;ecosystem[0].targetFood=insects[0].id;insects[0].owner='sol';ecosystem[0].position={x:8,y:45};eatInsect(ecosystem[0],9001)");
- assert.equal(r('insects.length'),3);assert.equal(r('data.care.sol.satiety'),20);
- r("ecosystem[0].position={x:insects[0].x,y:insects[0].y};eatInsect(ecosystem[0],9002)");assert.equal(r('insects.length'),2);assert.ok(r('data.care.sol.satiety')>20);
- const event=(x=100,y=400)=>({pointerId:1,clientX:x,clientY:y,preventDefault(){}});
- const frog=e.get('forestResidents').children[0];r("data.sound=false;$('resident').close()");
- frog.onpointerdown(event());const short=[...timers.values()].find(t=>t.ms===450).fn;frog.onpointerup(event());short();assert.equal(r('heldResident'),null);
- frog.onpointerdown(event());[...timers.values()].find(t=>t.ms===450).fn();await settle();assert.equal(r('heldResident'),'sol');assert.equal(e.get('forestHoldAudio').paused,false);
- frog.onpointerup(event());assert.equal(e.get('forestHoldAudio').paused,true);frog.onclick(event());assert.equal(e.get('resident').open,false);
- frog.onpointerdown(event());const stale=[...timers.values()].find(t=>t.ms===450).fn;frog.onpointermove(event(120,420));stale();assert.equal(r('heldResident'),null);frog.onpointercancel(event(120,420));
- frog.onpointerdown(event());[...timers.values()].find(t=>t.ms===450).fn();r('closeForest()');assert.equal(e.get('forestHoldAudio').paused,true);assert.equal(r('heldResident'),null);
- r("Math.random=petRandom;openMap()");e.get('mapHelpBtn').onclick();assert.equal(e.get('help').open,true);assert.equal(e.get('mapMusic').paused,true);
- r("$('help').close()");e.get('help').emit('close');await settle();assert.equal(e.get('mapMusic').paused,false);
- const map=e.get('mapMusic');map.play=()=>Promise.reject(Error('gesture'));await r('syncMapMusic()');map.play=()=>{map.paused=false;return Promise.resolve()};
- for(const fn of pet.ctx.document.listeners.click)fn({target:{closest:()=>null}});await settle();assert.equal(map.paused,false);
- r('closeMap();openForest()');e.get('forestHelpBtn').onclick();assert.equal(e.get('forestAmbience').paused,true);r("$('help').close()");e.get('help').emit('close');await settle();assert.equal(e.get('forestAmbience').paused,false);
- now+=24*60*60*1000;r('tickResidentCare(Date.now(),true)');assert.equal(r('data.care.sol.satiety'),0);assert.equal(r('progression().unlocked.length'),3);
- console.log('PASS: slow real-time hunger; four variable foods and random one-bite fullness without points; consumption only at contact; sleep icon, closed eyes and no hops/eating; 15–25 minute real-time naps stay asleep after 15 minutes away and wake at the saved deadline; hold/release/drag/cancel/exit sound lifecycle; guide close and trusted-click music retry; no loss of characters after a day away.');
- }
- // Decoded effects start before rendering, and the master switch stops every board channel.
- {
- const sources=[],gains=[];let activeRun=null;
- class FastAudioContext{
-  constructor(options){this.options=options;this.state='suspended';this.destination={};this.decodes=0}
-  resume(){this.state='running';return Promise.resolve()}
-  decodeAudioData(bytes){this.decodes++;return Promise.resolve({bytes:bytes.byteLength})}
-  createGain(){const node={gain:{value:1},connect(){},disconnect(){}};gains.push(node);return node}
-  createBufferSource(){const node={connect(){},disconnect(){},start(when){this.when=when;this.renderAtStart=activeRun?.('renderCounter')},stop(){this.stopped=true;this.onended?.()}};sources.push(node);return node}
- }
- const audio=boot({intro:true,mapMusic:false},{window:{AudioContext:FastAudioContext}});await settle();const r=audio.run,e=audio.els;activeRun=r;
- assert.equal(r('fxBuffers.size'),3);assert.equal(r('fxContext.decodes'),3);assert.equal(r('fxContext.options.latencyHint'),'interactive');
- assert.equal(r('data.mapMusic'),true);assert.equal(e.get('mapMusicBtn').attrs['aria-pressed'],'true');
- r("closeMap();globalThis.renderCounter=0;globalThis.realRender=render;render=()=>{renderCounter++;realRender()};mode='mark';play(0)");
- assert.equal(sources.length,1);assert.equal(sources[0].when,0);assert.equal(sources[0].renderAtStart,0);assert.equal(e.get('clickAudio')?.playCount||0,0);
- r("mode='coqui';play((puzzle().solution[1]+1)%8+8)");assert.equal(sources.length,2);assert.equal(sources[1].renderAtStart,1);assert.equal(e.get('failAudio')?.playCount||0,0);
- r('chirp()');assert.equal(e.get('boardCoquiAudio').paused,false);
- e.get('boardMusicBtn').onclick();assert.equal(r('data.sound'),false);assert.equal(e.get('boardMusic').paused,true);assert.equal(e.get('boardCoquiAudio').paused,true);assert.ok(sources.every(s=>s.stopped));
- r("playEffect('clickAudio');playEffect('failAudio');chirp()");assert.equal(sources.length,2);assert.equal(e.get('boardCoquiAudio').playCount,1);
- e.get('boardMusicBtn').onclick();await settle();assert.equal(r('data.sound'),true);assert.equal(e.get('boardMusic').paused,false);
- e.get('soundToggle').checked=false;e.get('soundToggle').onchange();assert.equal(e.get('boardMusic').paused,true);assert.equal(r('data.sound'),false);
- r('openMap()');assert.equal(r('data.mapMusic'),true);
- const map=e.get('mapMusic');map.play=()=>Promise.reject(Error('gesture'));await r('syncMapMusic()');assert.equal(e.get('mapMusicBtn').attrs['aria-pressed'],'true');assert.equal(e.get('mapAudioStart').hidden,false);
- map.play=()=>{map.paused=false;return Promise.resolve()};await e.get('mapAudioStart').onclick();assert.equal(map.paused,false);assert.equal(e.get('mapAudioStart').hidden,true);
- e.get('mapMusicBtn').onclick();assert.equal(map.paused,true);assert.equal(r('data.mapMusic'),false);
- r('closeMap();openMap()');assert.equal(r('data.mapMusic'),true);assert.equal(map.currentTime,0);
- r("closeMap();openForest();startResidentHold('sol')");assert.equal(sources.at(-1).loop,true);r('stopResidentHold()');assert.equal(sources.at(-1).stopped,true);
- console.log('PASS: decoded effects prepared once, gesture-resumed interactive context, immediate start before DOM updates, no media restart for effects; decoded held call loops and stops; master mute stops music/effects/soft coqui; map enabled on each entry and reload, blocked autoplay shown as enabled with one-tap recovery.');
- }
- // Music is allowed only in a visible, topmost map, with immediate stop at every exit.
- {
- const scene=boot({intro:true});await settle();const r=scene.run,e=scene.els,map=e.get('mapMusic'),board=e.get('boardMusic');
- assert.equal(r('data.mapMusic'),true);assert.equal(map.currentTime,0);assert.equal(board.playCount||0,0);
- map.currentTime=42;r('selectMapLevel(0)');await settle();assert.equal(map.currentTime,0);assert.equal(board.paused,false);assert.equal(board.loop,true);assert.equal(board.volume,.65);
- r("showDialog('settings')");assert.equal(board.paused,true);r("$('settings').close()");e.get('settings').emit('close');await settle();assert.equal(board.paused,false);
- r('openMap()');assert.equal(board.paused,true);assert.equal(map.currentTime,0);
- map.currentTime=26;r('closeMap();openMap()');assert.equal(map.currentTime,0);
- r('closeMap();openForest()');await settle();assert.equal(board.paused,true);assert.equal(e.get('forestAmbience').paused,false);
- r('closeForest()');await settle();assert.equal(board.paused,false);
- scene.ctx.document.visibilityState='hidden';for(const fn of scene.ctx.document.listeners.visibilitychange)fn();assert.equal(board.paused,true);
- scene.ctx.document.visibilityState='visible';for(const fn of scene.ctx.document.listeners.visibilitychange)fn();await settle();assert.equal(board.paused,false);
- e.get('boardMusicBtn').onclick();assert.equal(r('data.boardMusic'),false);assert.equal(board.paused,true);
- const savedScene=boot(JSON.parse(scene.storage['coquidoku-v1']));await settle();savedScene.run('closeMap()');assert.equal(savedScene.els.get('boardMusic').playCount||0,0);
- r('data.sound=true;data.boardMusic=true;stopBoardMusic()');let resolve;board.play=()=>{board.paused=false;return new Promise(done=>resolve=done)};
- r('syncBoardMusic();openMap()');resolve();await settle();assert.equal(board.paused,true);
- r('closeMap();stopBoardMusic()');board.play=()=>Promise.reject(Error('gesture'));await r('syncBoardMusic()');assert.equal(r('boardMusicBlocked'),true);
- board.play=()=>{board.paused=false;return Promise.resolve()};r('setBoardSound(true)');await settle();assert.equal(board.paused,false);
- r("data.sound=true;start(0);mode='mark';play(0)");assert.equal(e.get('clickAudio').playCount,1);
- r("play(0)");assert.equal(e.get('clickAudio').playCount,1);
- r('data.auto=true;render()');assert.equal(e.get('clickAudio').playCount,1);
- r("mode='coqui';play((puzzle().solution[0]+1)%8)");assert.equal(e.get('failAudio').playCount,1);assert.equal(e.get('failAudio').currentTime,0);assert.equal(r('game.lives'),3);
- r("data.sound=false;mode='mark';play(1);mode='coqui';play((puzzle().solution[1]+1)%8+8)");
- assert.equal(e.get('clickAudio').playCount,1);assert.equal(e.get('failAudio').playCount,1);
- r("openForest();data.completed=Array.from({length:60},(_,i)=>i);data.behaviors={};insects=[];renderForest()");
- const last=Array(7).fill(null),sequences=Array.from({length:7},()=>[]);
- for(let t=0;t<=180000;t+=50){
-  const before=Array.from(r('ecosystem.map(s=>s.hops)'));r('updateEcosystem('+t+')');
-  const after=Array.from(r('ecosystem.map(s=>s.hops)'));
-  after.forEach((n,i)=>{if(n>before[i]){if(last[i]!==null)assert.ok(t-last[i]>=10000&&t-last[i]<=15050);last[i]=t;sequences[i].push(t);assert.ok(r('ecosystem['+i+'].next')-t<=15000)}});
- }
- assert.equal(new Set(sequences.map(xs=>xs.join(','))).size,7);assert.ok(sequences.every(xs=>xs.length>=12));
- r("data.completed=Array.from({length:10},(_,i)=>i);insects=[];renderForest();ecosystem[0].position={x:15,y:70};ecosystem[1].position={x:80,y:70};ecosystem[2].position={x:50,y:45};feedAt(15,70,200000)");
- assert.ok(r("insects.every(b=>b.owner==='sol')"));assert.equal(r('ecosystem[1].targetFood'),null);assert.equal(r('ecosystem[2].targetFood'),null);
- r("insects=[];feedAt(80,70,200001)");assert.ok(r("insects.every(b=>b.owner==='menta')"));
- r("insects=[];data.behaviors.menta='rest';feedAt(80,70,200002)");assert.ok(r('insects.every(b=>b.owner===null)'));
- console.log('PASS: map starts at zero and respects mute; quiet board music isolated from every scene, background and delayed/rejected plays; X-add-only click and immediate failure audio; seven independent 10–15 second hop schedules for 3 minutes; nearest-only food, far and resting coquis excluded.');
- }
- const winEvents={},music=boot({intro:true},{window:{addEventListener(type,fn){(winEvents[type]??=[]).push(fn)}}});await settle();
- const ur=music.run,ue=music.els,track=ue.get('mapMusic');assert.equal(track.playCount,1);ur('closeMap()');track.playCount=0;
- ur('openMap()');assert.equal(track.playCount,1);await settle();assert.equal(ur('mapMusicPlaying'),true);assert.equal(track.volume,.65);assert.equal(track.loop,true);
- ur('closeMap()');assert.equal(track.paused,true);assert.equal(ur('mapMusicPlaying'),false);
- ur('openMap()');await settle();ue.get('mapForestBtn').onclick();assert.equal(track.paused,true);assert.equal(ur('mapMusicAllowed()'),false);
- ur('closeForest()');await settle();assert.equal(ur('mapMusicAllowed()'),true);assert.equal(track.paused,false);
- ur('selectMapLevel(0)');assert.equal(track.paused,true);assert.equal(ur('mapMusicAllowed()'),false);
- ur('openMap()');await settle();music.ctx.document.visibilityState='hidden';for(const fn of music.ctx.document.listeners.visibilitychange)fn();
- assert.equal(track.paused,true);assert.equal(ur('mapMusicAllowed()'),false);
- music.ctx.document.visibilityState='visible';for(const fn of music.ctx.document.listeners.visibilitychange)fn();await settle();assert.equal(track.paused,false);
- for(const fn of winEvents.pagehide)fn();assert.equal(track.paused,true);
- ur('closeMap();openMap()');await settle();ue.get('mapMusicBtn').onclick();assert.equal(ur('data.mapMusic'),false);assert.equal(track.paused,true);
- const mutedMusic=boot(JSON.parse(music.storage['coquidoku-v1']));await settle();assert.equal(mutedMusic.run('data.mapMusic'),true);assert.equal(mutedMusic.els.get('mapMusic').playCount,1);
- // A single Comenzar gesture starts music and always enters, even when media fails.
- const firstEntry=boot({intro:true,mapMusic:false}),fe=firstEntry.els,fr=firstEntry.run;
- const entryTrack=fe.get('mapMusic');entryTrack.play=()=>Promise.reject(new Error('gesture required'));
- await settle();assert.equal(fe.get('mapAudioGate').hidden,false);assert.equal(fe.get('levels').dataset.entryLocked,'true');
- assert.equal(fe.get('mapAudioStart').hidden,true);assert.equal(fe.get('mapEnterMusic').focused,true);
- let entryStartedAt;entryTrack.currentTime=45;entryTrack.paused=true;entryTrack.play=()=>{entryStartedAt=entryTrack.currentTime;entryTrack.paused=false;return Promise.resolve()};
- fe.get('mapEnterMusic').onclick();await settle();assert.equal(entryStartedAt,0);assert.equal(fe.get('mapAudioGate').hidden,true);assert.equal(fe.get('levels').dataset.entryLocked,'false');assert.equal(fr('mapMusicPlaying'),true);
- const silentEntry=boot({intro:true}),se=silentEntry.els,sr=silentEntry.run;
- se.get('mapMusic').play=()=>Promise.reject(new Error('unavailable'));await settle();assert.equal(se.get('mapAudioGate').hidden,false);
- se.get('mapEnterMusic').onclick();assert.equal(se.get('mapAudioGate').hidden,true);await settle();assert.equal(sr('data.mapMusic'),true);assert.equal(sr('mapMusicBlocked'),true);assert.equal(se.get('mapAudioStart').hidden,false);
- sr('closeMap();openMap()');await settle();assert.equal(se.get('mapAudioGate').hidden,true);assert.equal(se.get('mapAudioStart').hidden,false);
- const helpMarkup=fs.readFileSync('index.html','utf8').split('<dialog id="help"')[1].split('</dialog>')[0];
- assert.ok(helpMarkup.indexOf('<ol>')<helpMarkup.indexOf('id="levelMission"'));
- const mapMarkup=fs.readFileSync('index.html','utf8').split('<dialog id="levels"')[1].split('</dialog>')[0];
- assert.ok(mapMarkup.indexOf('class="map-footer"')<mapMarkup.indexOf('id="mapHelpBtn"'));assert.ok(!mapMarkup.includes('class="quick-help'));assert.ok(mapMarkup.includes('class="primary">Comenzar</button>'));assert.ok(!mapMarkup.includes('mapEnterSilent'));
- // A delayed successful play cannot make music leak into the board.
- ur('closeMap();data.mapMusic=true');let resolvePlay;track.play=()=>new Promise(resolve=>{resolvePlay=resolve});
- ur('openMap();closeMap()');resolvePlay();await settle();assert.equal(track.paused,true);assert.equal(ur('mapMusicPlaying'),false);
- // Autoplay rejection has a small recoverable map control; retry remains a user gesture.
- track.play=()=>Promise.reject(new Error('gesture required'));ur('openMap()');await settle();assert.equal(ur('mapMusicBlocked'),true);
- track.play=()=>{track.paused=false;return Promise.resolve()};ue.get('mapAudioStart').onclick();await settle();assert.equal(track.paused,false);assert.equal(ur('mapMusicPlaying'),true);
- ur('closeMap()');track.paused=false;track.emit('playing');assert.equal(track.paused,true);
- ur('openMap()');await settle();ur("$('levels').close()");ue.get('levels').emit('close');assert.equal(track.paused,true);
- console.log('PASS: fixed enchanted forest with 60 palettes; hidden empty booster and compact owned icon; instructions only in help; quiet map music stops on level selection, forest, close, background and pagehide; persistent mute, rejected/delayed playback recovery and no board leakage.');
- }
-
- // All four picker buttons must create the correct food on the ground and feed only on arrival.
- {
- let now=1800000000000;class FoodDate extends Date{static now(){return now}}
- const food=boot({intro:true},{Date:FoodDate}),r=food.run,e=food.els;await settle();r('closeMap();openForest();Math.random=()=>.5');
+ assert.ok(pe.get('forestResidents').children.every(b=>b.firstElementChild.src.endsWith('-sleep.webp')));
+ const sleepSave=JSON.parse(pets.storage['coquidoku-v1']);now+=15*60000;
+ const sleeping=boot(sleepSave,{Date:RealDate});await settle();sleeping.run('closeMap();openForest()');assert.equal(sleeping.run('ecosystem.every(s=>residentIsSleeping(s.id))'),true);
+ now+=5*60000;sleeping.run('tickResidentCare(Date.now(),true)');assert.equal(sleeping.run('ecosystem.some(s=>residentIsSleeping(s.id))'),false);
+ const food=boot({intro:true},{Date:RealDate});await settle();const qr=food.run,qe=food.els;qr('closeMap();openForest();Math.random=()=>.5');
  for(const reduced of [false,true])for(const [id,type]of [['foodFly','fly'],['foodButterfly','butterfly'],['foodWorm','worm'],['foodAnt','ant']]){
-  r(`insects=[];data.motion=${reduced};data.care.sol.satiety=10;data.care.sol.nextSleepAt=Date.now()+3600000;renderForest();ecosystem[0].position={x:50,y:70}`);
-  e.get(id).onclick();assert.equal(r('feeding'),true);assert.equal(e.get('forestFoodPicker').hidden,true);
-  for(const click of e.get('forestScene').listeners.click)click({target:{closest:()=>null},clientX:200,clientY:490});
-  assert.equal(r('insects.length'),3);assert.equal(r(`insects.every(b=>b.type==='${type}'&&b.owner==='sol')`),true);
-  const source=r(`FOREST_FOODS.${type}.src`);assert.ok(e.get('forestFood').children.every(img=>img.src===source));
-  assert.equal(r('data.care.sol.satiety'),10);
-  const start=r('forestClock');for(let t=start;t<=start+12000;t+=50)r(`updateEcosystem(${t})`);
-  assert.equal(r('insects.length'),0,type+' food consumed');assert.equal(e.get('forestFood').children.length,0);assert.ok(r('data.care.sol.satiety')>10);
+  qr(`insects=[];data.motion=${reduced};data.care.sol.satiety=10;data.care.sol.nextSleepAt=Date.now()+3600000;renderForest();ecosystem[0].position={x:50,y:70}`);
+  qe.get(id).onclick();for(const click of qe.get('forestScene').listeners.click)click({target:{closest:()=>null},clientX:200,clientY:490});
+  assert.equal(qr('insects.length'),3);assert.equal(qr(`insects.every(b=>b.type==='${type}'&&b.owner==='sol')`),true);
+  assert.equal(qr('data.care.sol.satiety'),10);const source=qr(`FOREST_FOODS.${type}.src`);assert.ok(qe.get('forestFood').children.every(img=>img.src===source));
+  const t0=qr('forestClock');for(let t=t0;t<=t0+12000;t+=50)qr(`updateEcosystem(${t})`);
+  assert.equal(qr('insects.length'),0);assert.ok(qr('data.care.sol.satiety')>10);
  }
- // Mixed types dropped together retain their own food kind and are all consumed.
- r('insects=[];data.motion=false;data.care.sol.satiety=10;renderForest();ecosystem[0].position={x:50,y:70}');
- for(const type of ['fly','butterfly','worm','ant'])r(`selectForestFood('${type}');feedAt(50,70)`);
- assert.equal(r('new Set(insects.map(b=>b.type)).size'),4);assert.equal(r('insects.length'),12);
- const mixedStart=r('forestClock');for(let t=mixedStart;t<=mixedStart+30000;t+=50)r(`updateEcosystem(${t})`);
- assert.equal(r('insects.length'),0);assert.equal(r('data.points'),0);
- console.log('PASS: single Comenzar entry; all four foods from picker to ground to consumption in normal/reduced motion; simultaneous mixed food portions.');
- }
- console.log('PASS: 300 full short mini-games, all 64 bridge orientations, 60 distinct level palettes, timed leaf shuffles, two food waves; one payout; stale callbacks rejected; close/background timer cleanup.');
- {
- const t=boot({intro:true});await settle();const r=t.run,e=t.els,a=e.get('forestAmbience');
- assert.equal(a.playCount||0,0);
- r("closeMap();openForest()");await settle();assert.equal(a.paused,false);assert.equal(e.get('mapMusic').paused,true);
- r("openCollection('forest')");assert.equal(a.paused,true);
- r("$('collection').close();handleCollectionClose()");await settle();assert.equal(a.paused,false);
- t.ctx.document.visibilityState='hidden';for(const f of t.ctx.document.listeners.visibilitychange)f();assert.equal(a.paused,true);
- t.ctx.document.visibilityState='visible';for(const f of t.ctx.document.listeners.visibilitychange)f();await settle();assert.equal(a.paused,false);
- r('closeForest()');assert.equal(a.paused,true);assert.equal(a.currentTime,0);
- let resolve;a.play=()=>new Promise(done=>resolve=done);r('openForest();closeForest()');resolve();await settle();assert.equal(a.paused,true);
- a.play=()=>Promise.reject(Error('gesture'));r('openForest()');await settle();assert.equal(r('forestAudioBlocked'),true);
- a.play=()=>{a.paused=false;return Promise.resolve()};e.get('forestAudioBtn').onclick();await settle();assert.equal(a.paused,false);r('closeForest()');
- r("game.lives=0;save()");const zero=boot(JSON.parse(t.storage['coquidoku-v1']));await settle();
- assert.equal(zero.els.get('levels').open,true);assert.equal(zero.els.get('defeat').open,false);
- zero.run('selectMapLevel(game.level)');assert.equal(zero.els.get('defeat').open,true);
- const callbacks=[],err=boot({intro:true},{setTimeout:fn=>{callbacks.push(fn);return callbacks.length}});await settle();
- err.run("closeMap();play((puzzle().solution[0]+1)%8)");const first=err.run('errorCell');assert.equal(err.run('game.lives'),3);
- err.run("play((puzzle().solution[0]+2)%8)");assert.notEqual(err.run('errorCell'),first);
- callbacks.at(-1)();assert.equal(err.run('errorCell'),null);assert.equal(err.run('game.lives'),2);
- console.log('PASS: map-first startup and zero-life resume; forest audio only within its scene, collection pause, background, delayed play and gesture recovery; repeated error cleanup.');
- }
- console.log('PASS: all 61 progression states; completed green/current yellow/locked gray exclusive; exactly one current and caption; locks only beside locked steps; one region per screen, all ten stops visible, no layout collisions at 320–500px; finger dragging, saved coordinates and simultaneous distributed food; replay cannot recolor completed level; finale fully green; initial focus stays off coquis; updated names; incomplete objectives cannot award points.');
- console.log('PASS: insects retained until contact and then all eaten; no preselected feeding or character; reversed ascending route; only reached chapters rendered; no stars/Continue/manual decor; 120 generated challenges have solvable bridges, three trackable swaps and two well-defined food waves.');
- console.log('PASS: real frame-clock hop at 800ms and independently 10–15 seconds later; 36px apex; rest/motion pause; loop cleanup; feeding attracts without points/seeds; 10 reached-region stops; future level protection; legacy progression and in-progress game preserved; character close leads to map; exact user audio only.');
- console.log('PASS: real audio element plays directly from discovery and resident button; mute respected in game; playback session selected when supported; visible playback failures; no Web Audio dependency; native media playback and day/night preserved.');
- console.log('PASS: points from solved mini-games and first-guess flowers; no duplicate payouts; confirmed purchases with exact balance; no purchase of finale; 60 distinct normal levels for Boricua; all unlocked residents; decor and positions persist; no locked forest previews; legacy friends retained.');
- console.log('PASS: seven collectible coquis and all unlock thresholds; locked selection blocked; stable sprite replacement; progress restored; per-win plants; four forest stages; unique normal/daily rewards; existing progress migration.');
- const base=JSON.parse(fs.readFileSync('puzzles.json'))[0];
- const legacy={theme:'leaf',emptyStartV2:true,game:{puzzle:0,cells:Array(64).fill(0),fixed:[],lives:2,won:false,hints:1,daily:false}};legacy.game.cells[base.solution[0]]=2;
- const migrated=boot(legacy);await settle();assert.equal(migrated.run('data.theme'),'night');assert.equal(migrated.run('game.lives'),3);assert.equal(migrated.run('game.hints'),1);assert.equal(migrated.run('game.cells[puzzle().solution[0]]'),2);
- await migrated.run('init()');assert.equal(migrated.run('game.lives'),3);
- const untouched={game:{puzzle:0,cells:Array(64).fill(0),fixed:[base.solution[0]],lives:3,won:false,hints:0,daily:false}};untouched.game.cells[base.solution[0]]=2;
- const initial=boot(untouched);await settle();assert.equal(initial.run('game.cells.every(x=>x===0)'),true);assert.equal(initial.run('game.lives'),4);
- const capped=boot({...legacy,game:{...legacy.game,hints:5}});await settle();assert.equal(capped.run('game.hints'),3);assert.equal(capped.els.get('hintBtn').disabled,true);
- assert.ok(!fs.readFileSync('styles.css','utf8').includes('animation:pop'));
- console.log('PASS: immediate stable sprite nodes; four lives; three hints enforced including undo; counters; reset; victory; saved theme; one-time migration preserves moves and mistakes.');
- console.log('PASS: empty starts; 100 randomized boards; eight transformations; stable daily and resumed game.');
-})().catch(e=>{console.error(e);process.exitCode=1});
+ qr("data.motion=false;insects=[];renderForest();updateEcosystem(200000);updateEcosystem(200800);updateEcosystem(201250)");
+ assert.equal(qe.get('forestResidents').children[0].style.props['--hop-y'],'-36px');
+ assert.equal(qe.get('forestResidents').children[0].children[1],qe.get('forestResidents').children[0].careBar);
+ qr("data.behaviors.sol='rest';updateEcosystem(201300)");assert.equal(qe.get('forestResidents').children[0].style.props['--hop-y'],'0px');
+ qr("data.behaviors.sol='explore';data.care.sol.satiety=20;Math.random=()=>.01");assert.equal(qr("feedResident('sol','ant').after"),100);
+ console.log('PASS: all nine residents with persistent 20-minute sleep across reload, automatic waking, sleepy sprites, four food pickers and consumption in normal/reduced motion; care bars travel with hops.');
+
+ // Map and scene audio remain isolated, and Comenzar never traps the user on a media failure.
+ const audio=boot({intro:true});await settle();const ar=audio.run,ae=audio.els;
+ assert.equal(ae.get('mapMusic').paused,false);ar('selectMapLevel(0)');assert.equal(ae.get('mapMusic').paused,true);
+ ar('openForest()');await settle();assert.equal(ae.get('forestAmbience').paused,false);
+ ar('closeForest()');ar('openMap()');await settle();assert.equal(ae.get('forestAmbience').paused,true);assert.equal(ae.get('mapMusic').paused,false);
+ ae.get('mapMusicBtn').onclick();assert.equal(ar('data.mapMusic'),false);assert.equal(ae.get('mapMusic').paused,true);
+ const blocked=boot({intro:true}),track=blocked.els.get('mapMusic');track.play=()=>Promise.reject(new Error('blocked'));await settle();
+ assert.equal(blocked.els.get('mapAudioGate').hidden,false);blocked.els.get('mapEnterMusic').onclick();await settle();assert.equal(blocked.els.get('mapAudioGate').hidden,true);
+ assert.ok(html.includes('class="primary">Comenzar</button>'));assert.ok(!html.includes('mapEnterSilent'));
+ ar("closeMap();data.sound=true;chirp()");assert.equal(ae.get('boardCoquiAudio').paused,false);ae.get('boardMusicBtn').onclick();assert.equal(ar('data.sound'),false);assert.equal(ae.get('boardCoquiAudio').paused,true);assert.equal(ae.get('boardMusic').paused,true);
+ console.log('PASS: map-first and scene-owned music; one-button trusted entry and unavailable media recovery; board mute stops music and effects.');
+})().catch(error=>{console.error(error);process.exit(1)});
