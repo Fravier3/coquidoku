@@ -223,3 +223,43 @@ body #hearts,body[data-theme=night] #hearts{color:#ff3b44}
 
 /* Secondary actions share the main controls' filled glass surface. */
 .app .extra-options .subnav>button,.app .extra-options .career-nav>button,.app .more-options-toggle{background:linear-gradient(145deg,#315a60e6,#163e46e6)!important;box-shadow:inset 0 1px 0 #ffffff21,0 4px 12px #001d2945!important;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+
+/* Tactile miniature forest puzzles; the existing character art remains the hero. */
+[hidden]{display:none!important}
+.variant-stage{margin:4px 14px 18px;color:#fff0d4;text-align:center}
+.variant-stage h3{font-size:clamp(21px,6vw,30px);font-weight:800;letter-spacing:-.6px;margin:0 0 7px;text-shadow:0 2px 8px #001b22}
+.variant-stage>p:first-of-type{font-size:12px;line-height:1.55;max-width:340px;margin:0 auto 18px;text-shadow:0 2px 5px #00121b}
+.trail-diorama{padding:15px 9px 22px;border-radius:30px;background:linear-gradient(#153c3899,#082f32b3),url('assets/yunque-0-day.webp') center 75%/cover;box-shadow:inset 0 0 0 1px #dbdeac42,0 18px 24px #00161e99;position:relative;isolation:isolate}
+.trail-diorama:before,.trail-diorama:after{content:'';position:absolute;z-index:-1;width:50px;height:68px;bottom:-7px;background:url('assets/decor-fern.webp') center/contain no-repeat;pointer-events:none}
+.trail-diorama:before{left:-12px;transform:rotate(-25deg)}.trail-diorama:after{right:-12px;transform:rotate(25deg) scaleX(-1)}
+.trail-board{position:relative;aspect-ratio:1;transform:perspective(1100px) rotateX(7deg);transform-origin:center bottom}
+.trail-grid{position:absolute;inset:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-template-rows:repeat(5,minmax(0,1fr));gap:7px;touch-action:none;user-select:none;-webkit-user-select:none}
+.trail-tile{position:relative;min-width:0;min-height:0;padding:0;border:1px solid #c4cf8580;border-radius:18%;overflow:hidden;background:radial-gradient(ellipse at 20% 15%,#b4c98280,transparent 45%),radial-gradient(circle at 75% 80%,#487641 0 8%,transparent 9%),linear-gradient(145deg,#6a8d4e,#3d623f 55%,#2f4d35);box-shadow:inset 0 3px 2px #e8e9af55,inset -2px -3px 3px #082f2399,0 6px 0 #23392d,0 8px 5px #001819b3;transition:border-color .15s,filter .15s;isolation:isolate;opacity:1!important}
+.trail-tile:before{content:'';position:absolute;inset:5%;z-index:-1;opacity:.35;background:radial-gradient(circle at 10% 80%,#d5dd79 0 4%,transparent 5%),radial-gradient(circle at 85% 15%,#d5dd79 0 3%,transparent 4%),radial-gradient(circle at 80% 70%,#9fb95e 0 6%,transparent 7%)}
+.trail-tile:enabled:active{filter:brightness(1.18)}
+.trail-tile:focus-visible{outline:3px solid #ffe6a6;outline-offset:2px;z-index:6}
+.trail-tile.rock{background:linear-gradient(145deg,#607065,#394c40);border-color:#9aab8099}
+.trail-tile.visited{border-color:#ffe8a9;box-shadow:inset 0 0 12px #fee08766,0 6px 0 #485335,0 8px 6px #001819b3}
+.trail-channel{position:absolute;inset:0;width:100%;height:100%;transition:transform .19s ease;transform-origin:50% 50%;pointer-events:none}
+.trail-channel path{fill:none;stroke-linejoin:round;stroke-linecap:butt}
+.channel-shadow{stroke:#28382ad9;stroke-width:31}.channel-sand{stroke:#c4ac71;stroke-width:23}.channel-shine{stroke:#f5dda3;stroke-width:14;opacity:.65}
+.trail-light{position:absolute;left:39%;top:26%;font-size:21px;color:#fff2a5;text-shadow:0 0 6px #ffde6d,0 0 18px #fff98b;pointer-events:none}
+.trail-rock{width:95%;height:90%;object-fit:contain;filter:drop-shadow(0 5px 2px #102e27a6);pointer-events:none}
+.trail-bug{position:absolute;width:65%;height:65%;object-fit:contain;left:17%;top:15%;filter:drop-shadow(0 3px 2px #092319);transition:opacity .18s,transform .18s;pointer-events:none}
+.trail-home{position:absolute;inset:3%;width:94%;height:94%;filter:drop-shadow(0 3px 3px #0b291c);pointer-events:none}
+.trail-tile.eaten .trail-bug{opacity:0;transform:scale(.2)}
+.trail-route{position:absolute;inset:0;pointer-events:none;z-index:2}
+.trail-route svg{width:100%;height:100%;overflow:visible}.trail-route polyline{fill:none;stroke:#ffe39b;stroke-width:8;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 3px #f4c75d)}
+.trail-actor{position:absolute;width:19%;height:19%;object-fit:contain;transform:translate(-50%,-70%);filter:drop-shadow(0 5px 3px #001f29a6);pointer-events:none;z-index:5}
+.trail-actor.travelling{transition:left .17s linear,top .17s linear;animation:trail-hop .18s ease-in-out infinite}
+@keyframes trail-hop{50%{transform:translate(-50%,-85%) scale(1.02,.98)}}
+.trail-message{font-size:11px;line-height:1.5;min-height:34px;margin:18px 5px 4px;text-shadow:0 2px 6px #001b25}
+.trail-clear{font:inherit;font-size:12px;min-height:42px;color:#ffedc9;padding:8px 22px;border-radius:14px;border:1px solid #bbceb078;background:linear-gradient(#315a60ef,#153c44ed);box-shadow:0 3px 0 #092a32}
+.trail-hinted{outline:3px solid #ffe4a0;outline-offset:1px;z-index:4}
+.trail-error .trail-board{animation:trail-shake .35s ease}
+@keyframes trail-shake{25%{translate:-5px 0}75%{translate:5px 0}}
+.step-kind{position:absolute;right:-3px;bottom:2px;width:21px;height:21px;display:grid;place-items:center;background:#163e43ed;border:1px solid #d4d3a4;border-radius:50%;font-size:12px;color:#fff3d1;text-shadow:none}
+.step-kind img{width:17px;height:17px;object-fit:contain}
+.reduced-motion .trail-channel,.reduced-motion .trail-actor{transition:none}.reduced-motion .travelling,.reduced-motion .trail-error .trail-board{animation:none}
+@media(prefers-reduced-motion:reduce){.trail-channel,.trail-actor{transition:none}.trail-actor.travelling,.trail-error .trail-board{animation:none}}
+@media(max-width:350px){.variant-stage{margin-left:8px;margin-right:8px}.trail-grid{gap:5px}.trail-diorama{padding:12px 7px 18px}.trail-light{font-size:17px}}
