@@ -51,7 +51,7 @@ const settle=()=>new Promise(r=>setImmediate(r));
   const mystery=e.get('coquiCards').children.at(-1);assert.equal(mystery.className,'coqui-card mystery-card');assert.equal(mystery.children[0].firstElementChild.src,'assets/coqui.webp');assert.equal(mystery.children[1].textContent,'Personaje bonus');assert.ok(mystery.children[2].textContent.includes('24 horas'));assert.ok(!mystery.children.some(c=>c.textContent.includes('Borinbiano')));assert.equal(r("chooseCoqui('borinbiano')"),false);
   const nodes=e.get('adventureMap').children[0].children.filter(c=>c.dataset.level!==undefined);assert.equal(nodes.length,5);
   assert.equal(nodes.filter(c=>c.dataset.state==='current').length,n===30?0:1);
-  for(const node of nodes){const level=Number(node.dataset.level);assert.equal(node.dataset.state,n===30||level<n?'done':level===n?'current':'locked')}
+  for(const node of nodes){const level=Number(node.dataset.level);assert.equal(node.dataset.state,n===30||level<n?'done':level===n?'current':'locked');const badges=node.children.filter(c=>['step-kind','step-lock'].includes(c.className));assert.equal(badges.length,1);assert.equal(badges[0].className,node.dataset.state==='done'?'step-kind':'step-lock');if(node.dataset.state==='done')assert.equal(badges[0].textContent,'↻');else assert.ok(badges[0].innerHTML.includes('<svg'));assert.equal(node.disabled,node.dataset.state==='locked')}
  }
  assert.equal(r("unlockedCoqui(COQUIS.find(c=>c.id==='colombiana'))"),true);assert.equal(r('babyUnlocked()'),false);
  // No extra screen after winning; normal and daily wins do not create currency.

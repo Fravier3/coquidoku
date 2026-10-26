@@ -403,9 +403,8 @@ function renderMap(){
   const i=c*5+j,p=mapPosition(j),state=mapLevelState(i),button=document.createElement('button');button.type='button';button.className='map-step '+state;
   button.style.left=p.x/4+'%';button.style.top=p.y/7+'%';button.dataset.level=i;button.dataset.state=state;button.id=i===current?'mapCurrent':`mapLevel${i}`;button.disabled=state==='locked';
   button.setAttribute('aria-label',`Nivel ${i+1}, ${V.label(V.kind(i))}: ${{done:'completado',current:'nivel actual',locked:'bloqueado'}[state]}`);button.setAttribute('aria-current',state==='current'?'step':'false');
-  const number=document.createElement('b');number.textContent=i+1;button.append(number);const marker=document.createElement('span');marker.className='step-kind';marker.textContent=V.kind(i)==='road'?'↻':'▦';if(V.kind(i)==='food')marker.innerHTML='<img src="assets/insect-fly.webp" alt="">';marker.setAttribute('aria-hidden','true');button.append(marker);
+  const number=document.createElement('b');number.textContent=i+1;button.append(number);const marker=document.createElement('span');marker.className=state==='done'?'step-kind':'step-lock';if(state==='done')marker.textContent='↻';else marker.innerHTML='<svg viewBox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3M5 10h14v11H5zM12 14v3"/></svg>';marker.setAttribute('aria-hidden','true');button.append(marker);
   if(state==='current'){const caption=document.createElement('span');caption.className='step-caption';caption.textContent='Estás aquí';button.append(caption)}
-  else if(state==='locked'){const lock=document.createElement('span');lock.className='step-lock';lock.setAttribute('aria-hidden','true');lock.innerHTML='<svg viewBox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3M5 10h14v11H5zM12 14v3"/></svg>';button.append(lock)}
   button.onclick=()=>selectMapLevel(i);section.append(button);
  }
  $('adventureMap').replaceChildren(section);
